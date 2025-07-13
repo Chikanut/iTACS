@@ -199,58 +199,29 @@ class FileManager {
 
   /// Завантаження файлу для Web-платформи (обходимо CORS)
   Future<Uint8List> _downloadFileForWeb(String fileId) async {
-    if (!kIsWeb) {
-      throw Exception('Цей метод доступний лише для Web-платформи');
-    }
-
     try {
-      // Спроба 1: Використовуємо iframe для завантаження
-      final completer = Completer<Uint8List>();
-      
-      // Створюємо прихований iframe
-      final iframe = html.IFrameElement()
-        ..style.display = 'none'
-        ..src = '$_baseGoogleDriveUrl$fileId&export=download';
-      
-      html.document.body?.append(iframe);
-      
-      // Таймаут для iframe підходу
-      Timer(const Duration(seconds: 10), () {
-        if (!completer.isCompleted) {
-          iframe.remove();
-          completer.completeError('Timeout: Не вдалося завантажити файл через iframe');
-        }
-      });
+      final proxyUrl = 'https://itacs-webservice.onrender.com/proxy?fileId=$fileId';
+      final response = await http.get(Uri.parse(proxyUrl));
 
-      try {
-        // Спробуємо отримати файл через postMessage (якщо налаштовано)
-        html.window.addEventListener('message', (event) {
-          final messageEvent = event as html.MessageEvent;
-          if (messageEvent.origin.contains('drive.google.com')) {
-            // Обробляємо отримані дані
-            iframe.remove();
-            // Це буде працювати тільки якщо Google Drive налаштований для postMessage
-          }
-        });
-
-        // Альтернативний підхід: fetch з no-cors режимом
-        return await _downloadWithFetch(fileId);
-      } catch (e) {
-        iframe.remove();
-        throw e;
+      if (response.statusCode == 200) {
+        debugPrint('FileManager: Успішно отримано файл через проксі');
+        return response.bodyBytes;
+      } else {
+        throw WebDownloadException(
+          'Проксі повернув помилку: ${response.statusCode}',
+          fileId,
+          proxyUrl,
+        );
       }
     } catch (e) {
-      debugPrint('FileManager: Помилка завантаження для Web: $e');
-      
-      // Останній варіант: показуємо користувачу пряме посилання
+      debugPrint('FileManager: Проксі-завантаження не вдалося: $e');
       throw WebDownloadException(
-        'Не вдалося завантажити файл автоматично. '
-        'Спробуйте завантажити файл вручну за посиланням: '
-        '$_baseGoogleDriveUrl$fileId&export=download',
+        'Не вдалося завантажити файл через проксі',
         fileId,
       );
     }
   }
+
 
   /// Спроба завантаження через Fetch API з no-cors
   Future<Uint8List> _downloadWithFetch(String fileId) async {
@@ -390,17 +361,18 @@ class FileManager {
   Future<void> openFile(String fileId) async {
     try {
       final data = await downloadFile(fileId);
-      final metadata = await getFileMetadata(fileId);
-      
-      if (metadata == null) {
-        throw Exception('Не вдалося отримати метадані файлу');
-      }
+
 
       if (kIsWeb) {
         // На web відкриваємо файл у новій вкладці
-        await _openFileOnWeb(data, metadata);
+        await _openFileOnWeb(data);
       } else {
         // На мобільних та десктопних платформах
+        final metadata = await getFileMetadata(fileId);
+      
+        if (metadata == null) {
+          throw Exception('Не вдалося отримати метадані файлу');
+        }
         final file = await _saveTempFile(data, metadata);
         await OpenFilex.open(file.path);
       }
@@ -675,13 +647,13 @@ class FileManager {
   }
 
   /// Відкриття файлу на web
-  Future<void> _openFileOnWeb(Uint8List data, FileMetadata metadata) async {
+  Future<void> _openFileOnWeb(Uint8List data) async {
     if (kIsWeb) {
       final blob = html.Blob([data]);
       final url = html.Url.createObjectUrlFromBlob(blob);
       html.window.open(url, '_blank');
       html.Url.revokeObjectUrl(url);
-      debugPrint('FileManager: Файл відкрито на web: ${metadata.title}');
+      debugPrint('FileManager: Файл відкрито на web');
     }
   }
 
