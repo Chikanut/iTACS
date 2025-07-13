@@ -1,0 +1,37 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "📱 Android (emulator)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "emulator-5554",
+      "preLaunchTask": "start-android-emulator"
+    },
+    {
+      "name": "🧹 Android (clean build)",
+      "request": "launch",
+      "type": "dart",
+      "deviceId": "emulator-5554",
+      "preLaunchTask": "clean-and-wait"
+    },
+    {
+      "name": "🌐 Web (static)",
+      "request": "launch",
+      "type": "dart",
+      "args": ["-d", "chrome", "--web-hostname=localhost", "--web-port=5000"],
+    },
+    {
+      "name": "📦 Profile mode",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "profile"
+    },
+    {
+      "name": "🚀 Release mode",
+      "request": "launch",
+      "type": "dart",
+      "flutterMode": "release"
+    }
+  ]
+}

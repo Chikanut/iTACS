@@ -1,0 +1,793 @@
+==== DEPENDENCIES ====
+flutter:
+sdk: flutter
+
+
+==== lib\globals.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter_application_1/services/error_notification_manager.dart';
+  import 'package:google_sign_in/google_sign_in.dart';
+  import 'package:firebase_auth/firebase_auth.dart';
+
+🏗️ CLASSES:
+  class Globals {
+
+🏷️ PROPERTIES:
+    static final GoogleSignIn googleSignIn
+    static final FirebaseAuth firebaseAuth
+    static final FileManager fileManager
+    static final AuthService authService
+    static final ErrorNotificationManager errorNotificationManager
+    static final FirestoreManager firestoreManager
+    static final ProfileManager profileManager
+
+==== lib\main.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/foundation.dart';
+  import 'package:flutter/material.dart';
+  import 'package:firebase_core/firebase_core.dart';
+  import 'package:firebase_auth/firebase_auth.dart';
+
+🏗️ CLASSES:
+  class MyApp extends StatelessWidget {
+
+⚙️ METHODS:
+  void main() async
+    const MyApp(
+    Widget build(BuildContext context)
+    return MaterialApp(
+
+==== lib\pages\access_denied_page.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+
+🏗️ CLASSES:
+  class AccessDeniedPage extends StatelessWidget {
+
+⚙️ METHODS:
+    const AccessDeniedPage(
+    Widget build(BuildContext context)
+    return Scaffold(
+    const Icon(Icons.block, size: 100, color: Colors.redAccent),
+    const SizedBox(height: 30),
+    const Text(
+    const SizedBox(height: 16),
+    const Text(
+    const SizedBox(height: 32),
+
+==== lib\pages\auth_gate.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import 'package:firebase_auth/firebase_auth.dart';
+
+🏗️ CLASSES:
+  class AuthGate extends StatelessWidget {
+
+⚙️ METHODS:
+    const AuthGate(
+    Widget build(BuildContext context)
+
+🏷️ PROPERTIES:
+  final user
+
+==== lib\pages\calendar_page.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+
+🏗️ CLASSES:
+  class CalendarPage extends StatelessWidget {
+
+⚙️ METHODS:
+    const CalendarPage(
+    Widget build(BuildContext context)
+
+==== lib\pages\email_check_page.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import 'package:firebase_auth/firebase_auth.dart';
+  import '../globals.dart';
+
+🏗️ CLASSES:
+  class EmailCheckPage extends StatefulWidget {
+  class _EmailCheckPageState extends State<EmailCheckPage> {
+
+⚙️ METHODS:
+    const EmailCheckPage(
+    void initState()
+  Widget build(BuildContext context)
+
+🏷️ PROPERTIES:
+  final user
+  final isSynced
+
+==== lib\pages\home_page.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import 'package:firebase_auth/firebase_auth.dart';
+
+🏗️ CLASSES:
+  class HomePage extends StatelessWidget {
+
+⚙️ METHODS:
+    const HomePage(
+    Widget build(BuildContext context)
+    return Scaffold(
+
+🏷️ PROPERTIES:
+  const String kAppVersion
+    final email
+
+==== lib\pages\login_page.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import 'package:firebase_auth/firebase_auth.dart';
+  import '../services/auth_service.dart';
+
+🏗️ CLASSES:
+  class LoginPage extends StatelessWidget {
+
+⚙️ METHODS:
+    const LoginPage(
+    Widget build(BuildContext context)
+    return Scaffold(
+
+==== lib\pages\main_scaffold.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import 'package:firebase_auth/firebase_auth.dart';
+  import '../globals.dart';
+
+🏗️ CLASSES:
+  class MainScaffold extends StatefulWidget {
+  class _MainScaffoldState extends State<MainScaffold> {
+
+⚙️ METHODS:
+    const MainScaffold(
+    bool isMobileLayout(BuildContext context)
+  void initState()
+  Widget build(BuildContext context)
+  return Scaffold(
+  const SizedBox(width: 8),
+
+🏷️ PROPERTIES:
+    final shortestSide
+  final user
+  final email
+  final isMobile
+  final user
+  final initials
+  final groupName
+
+==== lib\pages\profile_page.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import 'package:firebase_auth/firebase_auth.dart';
+  import '../globals.dart';
+
+🏗️ CLASSES:
+  class ProfilePage extends StatefulWidget {
+  class _ProfilePageState extends State<ProfilePage> {
+
+⚙️ METHODS:
+    const ProfilePage(
+    void initState()
+  Widget build(BuildContext context)
+  return Scaffold(
+  const SizedBox(height: 20),
+  const Text('Навчальні групи:', style: TextStyle(fontWeight: FontWeight.bold)),
+  const SizedBox(height: 10),
+  const SizedBox(height: 20),
+  const Divider(),
+
+🏷️ PROPERTIES:
+  final user
+  final data
+  final user
+
+==== lib\pages\materials_page\materials_page.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import 'package:flutter/foundation.dart';
+  import '../../../globals.dart';
+
+🏗️ CLASSES:
+  class MaterialsPage extends StatefulWidget {
+  class _MaterialsPageState extends State<MaterialsPage> {
+
+⚙️ METHODS:
+    const MaterialsPage(
+    void initState()
+  Future<void> fetchMaterials() async
+  void toggleTag(String tag)
+  bool matchesTags(List<String> itemTags)
+  Widget build(BuildContext context)
+  return Scaffold(
+  const SizedBox(height: 8),
+
+🏷️ PROPERTIES:
+    String userRole
+    bool canEdit
+    bool isSearching
+    String searchQuery
+    final searchController
+  final user
+  final email
+  final userData
+  final groupId
+  final docs
+  final data
+  final d
+  return d;
+  final roles
+  final userRole
+  final tags
+  final tagsList
+  final filtered
+  final tags
+  final title
+  final matchTags
+  final matchSearch
+
+==== lib\pages\materials_page\material_dialogs.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import '../../../globals.dart';
+
+⚙️ METHODS:
+  Future<void> showAddMaterialDialog(BuildContext context, VoidCallback onRefresh) async
+  await showDialog(
+  const SizedBox(height: 12),
+  const SnackBar(content: Text('Невалідне посилання на Google Drive')),
+  Future<void> showEditMaterialDialog(BuildContext context, Map<String, dynamic> material, VoidCallback onRefresh) async
+  await showDialog(
+  const SnackBar(content: Text('Невалідне посилання на Google Drive')),
+  const SnackBar(content: Text('Не вдалося завантажити метадані файлу')),
+
+🏷️ PROPERTIES:
+  final titleController
+  final urlController
+  final tagsController
+  final user
+  final title
+  final url
+  final tags
+  final fileId
+  final modifiedTime
+  final titleController
+  final urlController
+  final tagsController
+  final String docId
+  final title
+  final url
+  final tags
+  final fileId
+  final metadata
+  final modifiedTime
+
+==== lib\pages\materials_page\material_tile.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/foundation.dart';
+  import 'package:flutter/material.dart';
+  import '../../../globals.dart';
+
+🏗️ CLASSES:
+  class MaterialTile extends StatefulWidget {
+  class _MaterialTileState extends State<MaterialTile> {
+
+⚙️ METHODS:
+    const MaterialTile(
+    void initState()
+  Widget build(BuildContext context)
+  return ListTile(
+  await showEditMaterialDialog(context, widget.material, widget.onRefresh);
+  const PopupMenuItem(value: 'edit', child: Text('Редагувати')),
+  const PopupMenuItem(value: 'delete', child: Text('Видалити локальні файли')),
+
+🏷️ PROPERTIES:
+    final VoidCallback onRefresh;
+    final bool isWeb;
+    final String userRole;
+    late bool isSaved
+    late String? fileId;
+    final url
+  final saved
+  final url
+  final title
+  final tags
+  final userRole
+  final canEdit
+  final isAdmin
+  final docId
+  final result
+  final deleted
+  final skipped
+
+==== lib\pages\tools_page\tools_page.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import 'package:cloud_firestore/cloud_firestore.dart';
+  import '../../../globals.dart';
+
+🏗️ CLASSES:
+  class ToolsPage extends StatefulWidget {
+  class _ToolsPageState extends State<ToolsPage> {
+
+⚙️ METHODS:
+  IconData iconFromData(Map<String, dynamic> item, bool isFolder)
+  return IconData(item['icon'], fontFamily: item['iconFontFamily']);
+  Future<IconData?> showIconPickerDialog(BuildContext context) async
+  return IconButton(
+    const ToolsPage(
+    void initState()
+  Future<void> fetchItems() async
+  Future<void> navigateToFolder(String folderId) async
+  void goBack()
+  Widget buildBreadcrumbs()
+  return Padding(
+  Future<void> openTool(Map<String, dynamic> item) async
+  Future<void> editItem(Map<String, dynamic> item) async
+  await showDialog(
+  Future<void> deleteItem(Map<String, dynamic> item) async
+  Future<void> deleteRecursively(String docId) async
+  await deleteRecursively(childId);
+  await deleteRecursively(item['id']);
+  await fetchItems();
+  Future<void> showAddDialog() async
+  await showDialog(
+  Widget build(BuildContext context)
+  return Scaffold(
+  return ToolTile(
+
+🏷️ PROPERTIES:
+  const allIcons
+  final groupId
+  final parentId
+  final docs
+  final groupId
+  final snapshot
+  final fileId
+  final groupId
+  final userRole
+  final children
+  final childData
+  final childId
+  final isAdmin
+  final isFolder
+  final icon
+
+==== lib\pages\tools_page\tool_dialog.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import '../../../globals.dart';
+
+🏗️ CLASSES:
+  class ToolDialog extends StatefulWidget {
+  class _ToolDialogState extends State<ToolDialog> {
+
+⚙️ METHODS:
+    const ToolDialog(
+    void initState()
+  Future<void> save() async
+  Widget build(BuildContext context)
+  return AlertDialog(
+  const SizedBox(height: 8),
+  const SizedBox(height: 8),
+  const SizedBox(height: 8),
+  const Text('Іконка:'),
+  const SizedBox(width: 10),
+  const SizedBox(width: 10),
+
+🏷️ PROPERTIES:
+    final bool isEditing;
+    final String parentId;
+    final VoidCallback onSave;
+    final titleController
+    final fileIdController
+    String selectedType
+    IconData? selectedIcon;
+    final item
+  final title
+  final fileId
+  final groupId
+  final data
+  final icon
+
+==== lib\pages\tools_page\tool_tile.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+
+🏗️ CLASSES:
+  class ToolTile extends StatelessWidget {
+
+⚙️ METHODS:
+    const ToolTile(
+    Widget build(BuildContext context)
+    return Card(
+    const SizedBox(height: 8),
+  const PopupMenuItem(
+  const PopupMenuItem(
+
+🏷️ PROPERTIES:
+    final String title;
+    final IconData icon;
+    final VoidCallback onTap;
+    final bool isAdmin;
+    final VoidCallback? onEdit;
+    final VoidCallback? onDelete;
+
+==== lib\services\auth_service.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/foundation.dart';
+  import 'package:flutter/material.dart';
+  import 'package:firebase_auth/firebase_auth.dart';
+  import 'package:google_sign_in/google_sign_in.dart';
+  import '../globals.dart';
+
+🏗️ CLASSES:
+  class AuthService {
+
+⚙️ METHODS:
+    static Future<void> signInWithGoogle(BuildContext context) async
+    const SnackBar(content: Text('❌ Вхід скасовано')),
+  Future<String?> getAccessToken() async
+  Future<bool> isUserAllowed(String email) async
+
+🏷️ PROPERTIES:
+    static GoogleSignInAccount? currentGoogleUser;
+    final GoogleSignInAccount? googleUser
+  final googleAuth
+  final credential
+  final userCredential
+  final email
+  GoogleSignInAccount? account
+  final auth
+
+==== lib\services\error_notification_manager.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import 'package:flutter/services.dart';
+
+🏗️ CLASSES:
+  class ErrorNotificationManager {
+
+⚙️ METHODS:
+    void setContext(BuildContext context)
+  void showError(String message,
+  const SizedBox(width: 12),
+  void showSuccess(String message)
+  const SizedBox(width: 12),
+  void showWarning(String message)
+  const SizedBox(width: 12),
+  void showInfo(String message)
+  const SizedBox(width: 12),
+  void showCriticalError(
+  const SizedBox(width: 12),
+  const SizedBox(height: 12),
+  void showConfirmationDialog(
+
+🏷️ PROPERTIES:
+  Duration duration
+  final snackBar
+  final snackBar
+  final snackBar
+  final snackBar
+  String confirmText
+  String cancelText
+  bool isDestructive
+
+==== lib\services\file_manager.dart ====
+
+📦 IMPORTS:
+  import 'dart:convert';
+  import 'dart:io';
+  import 'dart:typed_data';
+  import 'package:flutter/foundation.dart';
+  import 'package:flutter/material.dart';
+  import 'package:cloud_firestore/cloud_firestore.dart';
+  import 'package:firebase_auth/firebase_auth.dart';
+  import 'package:http/http.dart' as http;
+  import 'package:path_provider/path_provider.dart';
+  import 'package:shared_preferences/shared_preferences.dart';
+  import 'package:share_plus/share_plus.dart';
+  import 'package:file_selector/file_selector.dart';
+  import 'package:open_filex/open_filex.dart';
+  import 'dart:html' as html show Blob, Url, AnchorElement, window;
+  import 'dart:html' if (dart.library.io) 'dart:io' as platform;
+
+🏗️ CLASSES:
+  class FileMetadata {
+  class CachedFileData {
+  class FileVersionInfo {
+  class FileManager {
+  class FileCard extends StatefulWidget {
+  class _FileCardState extends State<FileCard> {
+
+⚙️ METHODS:
+    return FileMetadata(
+  Map<String, dynamic> toJson() =>
+    Map<String, dynamic> toJson() =>
+    return CachedFileData(
+    String toString()
+  Future<Uint8List> downloadFile(String fileId) async
+  throw Exception('Помилка завантаження файлу: $
+  Future<File?> getLocalFile(String fileId) async
+  Future<void> updateFileIfNeeded(String fileId, String latestVersion) async
+  Future<void> clearCache() async
+  bool isFileCached(String fileId)
+  Future<void> shareOrDownloadFile(String fileId) async
+  throw Exception('Не вдалося отримати метадані файлу');
+  Future<void> openFile(String fileId) async
+  throw Exception('Не вдалося отримати метадані файлу');
+  Future<bool> checkForUpdate(String fileId) async
+  Future<Map<String, bool>> checkForUpdates(List<String> fileIds) async
+  Future<FileVersionInfo?> getFileVersionInfo(String fileId) async
+  return FileVersionInfo(
+  Future<void> forceRefreshFile(String fileId) async
+  await removeCachedData(fileId);
+  await downloadFile(fileId);
+  Future<FileMetadata?> getFileMetadata(String fileId) async
+  Future<void> removeCachedData(String fileId) async
+    const FileCard(
+    void initState()
+  Widget build(BuildContext context)
+  return Card(
+  const SizedBox(width: 2),
+  const SizedBox(height: 8),
+  return Chip(
+  const SizedBox(height: 8),
+  const SizedBox(height: 16),
+  const Padding(
+  const SnackBar(content: Text('Файл успішно поширено')),
+  const SnackBar(content: Text('Файл оновлено')),
+
+🏷️ PROPERTIES:
+    final String title;
+    final String fileId;
+    final String version;
+    final String type;
+    final String groupId;
+    final DateTime? lastModified;
+    final data
+    final Uint8List data;
+    final String version;
+    final DateTime cachedAt;
+    final String fileId;
+    final String? currentVersion;
+    final String latestVersion;
+    final bool isCached;
+    final bool hasUpdate;
+    final DateTime? cachedAt;
+    final DateTime? lastModified;
+    final regExp
+    final match
+  final url
+  final response
+  final data
+  return data;
+  return null;
+  final dir
+  final file
+  return file;
+  return null;
+  return null;
+  final cachedData
+  final newData
+  final prefs
+  final keys
+  final dir
+  final cacheDir
+  final data
+  final metadata
+  final fileName
+  final data
+  final metadata
+  final file
+  final latestMetadata
+  return false;
+  final cachedData
+  return true;
+  final hasUpdate
+  return hasUpdate;
+  return false;
+  final futures
+  final entries
+  final updatesCount
+  return results;
+  final metadata
+  final cachedData
+  return null;
+  final user
+  final querySnapshot
+  return null;
+  return null;
+  final cachedData
+  final prefs
+  final dir
+  final cacheDir
+  final file
+  final metaFile
+  final prefs
+  final jsonString
+  final data
+  return data;
+  final dir
+  final file
+  final metaFile
+  final data
+  final metaJson
+  final cachedData
+  return cachedData;
+  return null;
+  return null;
+  final prefs
+  final dir
+  final file
+  final metaFile
+  final blob
+  final url
+  final anchor
+  final tempFile
+  final targetPath
+  final file
+  final blob
+  final url
+  final tempDir
+  final fileName
+  final file
+  return file;
+    final FileMetadata metadata;
+    final VoidCallback? onRefresh;
+  final hasUpdate
+  final isCached
+
+==== lib\services\firebase_options.dart ====
+
+📦 IMPORTS:
+  import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
+  import 'package:flutter/foundation.dart'
+
+🏗️ CLASSES:
+  class DefaultFirebaseOptions {
+
+⚡ EXTENSIONS:
+  extension DriveApiKey on FirebaseOptions {
+
+⚙️ METHODS:
+  throw UnsupportedError(
+  throw UnsupportedError(
+  String get apiKeyForDrive
+  String get googleDriveApiKey
+
+🏷️ PROPERTIES:
+    return web;
+  return android;
+  return ios;
+  return macos;
+  return windows;
+  static const FirebaseOptions web
+  static const FirebaseOptions android
+  static const FirebaseOptions ios
+  static const FirebaseOptions macos
+  static const FirebaseOptions windows
+
+==== lib\services\firestore_manager.dart ====
+
+📦 IMPORTS:
+  import 'package:cloud_firestore/cloud_firestore.dart';
+  import 'package:firebase_auth/firebase_auth.dart';
+  import 'package:flutter/foundation.dart';
+  import '../globals.dart';
+
+🏗️ CLASSES:
+  class FirestoreManager {
+
+⚙️ METHODS:
+    Future<List<String>> getUserGroups(String email) async
+  Future<bool> isUserAllowed(String email) async
+  Future<List<DocumentSnapshot>> getDocumentsForGroup(
+  Future<void> createDocument(
+  Future<void> updateDocument(
+  Future<Map<String, dynamic>> deleteDocumentWhereAllowed(
+  Future<void> saveUserProfile(
+  Future<void> updateEditableProfileFields(
+  Future<Map<String, String>> getUserRolesPerGroup(String email) async
+  Future<Map<String, dynamic>?> getOrCreateUserData() async
+  Future<bool> ensureUserProfileSynced() async
+  Future<Map<String, String>> getGroupNamesForUser(String email) async
+
+🏷️ PROPERTIES:
+    final normalizedEmail
+    final snapshot
+    final data
+    final members
+  return groups;
+  final groups
+  bool descending
+  CollectionReference ref
+  Query query
+  final snapshot
+  final ref
+  final ref
+  final deleted
+  final skipped
+  final ref
+  final doc
+  final groups
+  final userDocRef
+  final existingDoc
+  final normalizedEmail
+  final snapshot
+  final groupId
+  final data
+  final membersRaw
+  final members
+  final role
+  return rolesByGroup;
+  final user
+  final uid
+  final email
+  final docRef
+  final docSnap
+  final data
+  return data;
+  final groups
+  final newData
+  return newData;
+  final user
+  final email
+  final uid
+  final roles
+  final groups
+  final isAllowed
+  final docRef
+  final existingDoc
+  final baseData
+  return true;
+  final normalizedEmail
+  final snapshot
+  final data
+  final members
+  return groupNames;
+
+==== lib\services\profile_manager.dart ====
+
+📦 IMPORTS:
+  import 'package:shared_preferences/shared_preferences.dart';
+  import '../globals.dart';
+
+🏗️ CLASSES:
+  class ProfileManager {
+
+⚙️ METHODS:
+    Future<void> setCurrentGroup(String groupId, String groupName, [String? role]) async
+  Future<void> loadSavedGroupWithFallback(Map<String, String> allGroups) async
+  void clearGroup() async
+
+🏷️ PROPERTIES:
+    final prefs
+  final prefs
+  final savedId
+  final savedName
+  final email
+  final roles
+  final email
+  final roles
+  final prefs

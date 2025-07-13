@@ -1,0 +1,41 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "start-android-emulator",
+      "type": "shell",
+      "command": "flutter emulators --launch Medium_Phone; Start-Sleep -Seconds 15",
+    },
+    {
+      "label": "clean-and-wait",
+      "type": "shell",
+       "command": "flutter clean; flutter pub get; flutter emulators --launch Medium_Phone; Start-Sleep -Seconds 15",
+    },
+    {
+        "label": "DeployFirebase",
+        "type": "shell",
+        "command": "flutter build web; firebase deploy --only hosting",
+        "problemMatcher": []
+    },
+    {
+        "label": "BuildDebugAPK",
+        "type": "shell",
+        "command": "flutter build apk --debug; explorer build\\app\\outputs\\flutter-apk",
+        "problemMatcher": []
+    },
+    {
+        "label": "CreateProjectMap",
+        "type": "shell",
+        "command": "flutter pub run build_runner build --delete-conflicting-outputs"
+    },
+    {
+    "label": "GenerateProjectMap",
+    "type": "shell",
+    "command": "powershell",
+    "args": [
+        "-ExecutionPolicy", "Bypass",
+        "-File", "scripts/generate_project_summary.ps1"
+    ],
+}
+    ]
+}

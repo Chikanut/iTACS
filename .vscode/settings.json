@@ -1,0 +1,17 @@
+{
+    "activitusbar.views": [
+    {
+        "name": "task.DeployFirebase",
+        "codicon": "cloud-upload",
+        "tooltip": "Залити на Firebase"
+    }, {
+        "name": "task.BuildDebugAPK",
+        "codicon": "device-mobile",
+        "tooltip": "Збілдити Debug APK"
+    },{
+        "name": "task.GenerateProjectMap",
+        "codicon": "map-filled",
+        "tooltip": "Згенерувати карту проекту"
+    },
+    ]
+}
