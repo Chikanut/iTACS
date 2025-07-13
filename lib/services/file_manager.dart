@@ -200,7 +200,17 @@ class FileManager {
   /// Завантаження файлу для Web-платформи (обходимо CORS)
   Future<Uint8List> _downloadFileForWeb(String fileId) async {
     try {
-      final proxyUrl = 'https://itacs-webservice.onrender.com/proxy?fileId=$fileId';
+      final metadata = await getFileMetadata(fileId);
+      if (metadata == null) {
+        throw WebDownloadException('Не вдалося отримати метадані для файлу', fileId);
+      }
+
+      final titleEncoded = Uri.encodeComponent(metadata.title);
+      final ext = metadata.type;
+
+      final proxyUrl =
+          'https://itacs-webservice.onrender.com/proxy?fileId=$fileId&title=$titleEncoded&ext=$ext';
+
       final response = await http.get(Uri.parse(proxyUrl));
 
       if (response.statusCode == 200) {
@@ -483,27 +493,58 @@ class FileManager {
   }
 
   /// Отримання метаданих файлу з Firestore
-  Future<FileMetadata?> getFileMetadata(String fileId) async {
-    try {
-      final user = _auth.currentUser;
-      if (user == null) return null;
+Future<FileMetadata?> getFileMetadata(String fileId) async {
+  try {
+    final user = _auth.currentUser;
+    if (user == null) return null;
 
-      final querySnapshot = await _firestore
-          .collection('files')
-          .where('fileId', isEqualTo: fileId)
-          .limit(1)
-          .get();
+    // 1. Спроба зчитати з Firestore
+    final querySnapshot = await _firestore
+        .collection('files')
+        .where('fileId', isEqualTo: fileId)
+        .limit(1)
+        .get();
 
-      if (querySnapshot.docs.isNotEmpty) {
-        return FileMetadata.fromFirestore(querySnapshot.docs.first);
-      }
-      
-      return null;
-    } catch (e) {
-      debugPrint('FileManager: Помилка отримання метаданих: $e');
-      return null;
+    if (querySnapshot.docs.isNotEmpty) {
+      return FileMetadata.fromFirestore(querySnapshot.docs.first);
     }
+
+    // 2. Якщо не знайшли — пробуємо отримати через проксі
+    final token = await user.getIdToken(); // Firebase Auth Token (НЕ access_token)
+    final url = Uri.parse(
+      'https://itacs-webservice.onrender.com/filemeta?fileId=$fileId&access_token=$token',
+    );
+
+    final response = await http.get(url);
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      final name = data['name'] ?? 'file';
+      final modified = data['modifiedTime'];
+
+      final parts = name.split('.');
+      final title = parts.length > 1 ? parts.sublist(0, parts.length - 1).join('.') : name;
+      final type = parts.length > 1 ? parts.last : 'bin';
+
+      return FileMetadata(
+        title: title,
+        fileId: fileId,
+        version: 'proxy', // можеш замінити на hash/modifiedTime, якщо треба
+        tags: [],
+        type: type,
+        groupId: 'proxy',
+        lastModified: modified != null ? DateTime.tryParse(modified) : null,
+      );
+    } else {
+      debugPrint('FileManager: Проксі повернув ${response.statusCode}');
+    }
+  } catch (e) {
+    debugPrint('FileManager: Помилка отримання метаданих: $e');
   }
+
+  return null;
+}
+
 
   /// Збереження в кеш
   Future<void> _saveToCache(String fileId, Uint8List data, String version) async {
