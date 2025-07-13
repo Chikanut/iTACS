@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_application_1/globals.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -102,6 +103,7 @@ class CachedFileData {
 
 /// Інформація про версію файлу
 class FileVersionInfo {
+  
   final String fileId;
   final String? currentVersion;
   final String latestVersion;
@@ -126,6 +128,12 @@ class FileVersionInfo {
   }
 }
 
+class FileWithName {
+  final String filename;
+  final Uint8List bytes;
+
+  FileWithName(this.filename, this.bytes);
+}
 /// Центральний менеджер файлів
 class FileManager {
   static final FileManager _instance = FileManager._internal();
@@ -142,7 +150,7 @@ class FileManager {
   String? extractFileId(String url) {
     final regExp = RegExp(r'd/([a-zA-Z0-9_-]{25,})');
     final match = regExp.firstMatch(url);
-    return match != null ? match.group(1) : null;
+    return match?.group(1);
   }
   
   /// Завантаження файлу з Google Drive
@@ -493,6 +501,7 @@ class FileManager {
   }
 
   /// Отримання метаданих файлу з Firestore
+/// Отримання метаданих файлу з Firestore або Google Drive API
 Future<FileMetadata?> getFileMetadata(String fileId) async {
   try {
     final user = _auth.currentUser;
@@ -506,43 +515,78 @@ Future<FileMetadata?> getFileMetadata(String fileId) async {
         .get();
 
     if (querySnapshot.docs.isNotEmpty) {
+      debugPrint('FileManager: Метадані знайдено в Firestore');
       return FileMetadata.fromFirestore(querySnapshot.docs.first);
     }
 
-    // 2. Якщо не знайшли — пробуємо отримати через проксі
-    final token = await user.getIdToken(); // Firebase Auth Token (НЕ access_token)
+    // 2. Якщо не знайшли в Firestore — пробуємо отримати через Google Drive API
+    final token = await Globals.authService.getAccessToken();
+    if (token == null) {
+      debugPrint('FileManager: Немає access token для Google Drive API');
+      return null;
+    }
+
     final url = Uri.parse(
       'https://itacs-webservice.onrender.com/filemeta?fileId=$fileId&access_token=$token',
     );
 
-    final response = await http.get(url);
+    debugPrint('FileManager: Отримання метаданих через проксі: $url');
+
+    final response = await http.get(url, headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    });
+
+    debugPrint('FileManager: Відповідь проксі - статус: ${response.statusCode}');
+    debugPrint('FileManager: Відповідь проксі - тіло: ${response.body}');
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       final name = data['name'] ?? 'file';
       final modified = data['modifiedTime'];
+      final mimeType = data['mimeType'] ?? 'application/octet-stream';
 
       final parts = name.split('.');
       final title = parts.length > 1 ? parts.sublist(0, parts.length - 1).join('.') : name;
-      final type = parts.length > 1 ? parts.last : 'bin';
+      final type = parts.length > 1 ? parts.last : _getExtensionFromMimeType(mimeType);
 
       return FileMetadata(
         title: title,
         fileId: fileId,
-        version: 'proxy', // можеш замінити на hash/modifiedTime, якщо треба
+        version: modified ?? DateTime.now().millisecondsSinceEpoch.toString(),
         tags: [],
         type: type,
-        groupId: 'proxy',
+        groupId: 'drive',
         lastModified: modified != null ? DateTime.tryParse(modified) : null,
       );
     } else {
-      debugPrint('FileManager: Проксі повернув ${response.statusCode}');
+      debugPrint('FileManager: Проксі повернув помилку ${response.statusCode}: ${response.body}');
     }
   } catch (e) {
     debugPrint('FileManager: Помилка отримання метаданих: $e');
   }
 
   return null;
+}
+
+/// Допоміжний метод для отримання розширення з MIME типу
+String _getExtensionFromMimeType(String mimeType) {
+  switch (mimeType) {
+    case 'application/pdf':
+      return 'pdf';
+    case 'image/jpeg':
+      return 'jpg';
+    case 'image/png':
+      return 'png';
+    case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+      return 'docx';
+    case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+      return 'xlsx';
+    case 'text/plain':
+      return 'txt';
+    default:
+      return 'bin';
+  }
 }
 
 
@@ -640,6 +684,8 @@ Future<FileMetadata?> getFileMetadata(String fileId) async {
         if (await file.exists()) await file.delete();
         if (await metaFile.exists()) await metaFile.delete();
       }
+      _memoryCache.remove(fileId); // Очищаємо кеш в пам'яті
+      debugPrint('FileManager: Кешовані дані для $fileId видалено');
     } catch (e) {
       debugPrint('FileManager: Помилка видалення кешованих даних: $e');
     }
@@ -690,7 +736,7 @@ Future<FileMetadata?> getFileMetadata(String fileId) async {
   /// Відкриття файлу на web
   Future<void> _openFileOnWeb(Uint8List data) async {
     if (kIsWeb) {
-      final blob = html.Blob([data]);
+      final blob = html.Blob([data], 'text/html');
       final url = html.Url.createObjectUrlFromBlob(blob);
       html.window.open(url, '_blank');
       html.Url.revokeObjectUrl(url);
@@ -714,10 +760,10 @@ class FileCard extends StatefulWidget {
   final VoidCallback? onRefresh;
 
   const FileCard({
-    Key? key,
+    super.key,
     required this.metadata,
     this.onRefresh,
-  }) : super(key: key);
+  });
 
   @override
   State<FileCard> createState() => _FileCardState();

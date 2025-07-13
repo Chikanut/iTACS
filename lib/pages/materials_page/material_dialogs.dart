@@ -108,14 +108,8 @@ Future<void> showEditMaterialDialog(BuildContext context, Map<String, dynamic> m
             }
 
             final metadata = await Globals.fileManager.getFileMetadata(fileId);
-            if (metadata == null) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Не вдалося завантажити метадані файлу')),
-              );
-              return;
-            }
 
-            final modifiedTime = metadata.lastModified ?? DateTime.now().toIso8601String();
+            final modifiedTime = metadata.modifiedDate ?? DateTime.now().toIso8601String();
 
             await Globals.firestoreManager.updateDocument(
               groupId: Globals.profileManager.currentGroupId!,

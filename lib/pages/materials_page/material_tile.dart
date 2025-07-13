@@ -37,7 +37,7 @@ class _MaterialTileState extends State<MaterialTile> {
 
   Future<void> _checkDownloaded() async {
     debugPrint('🔍 Перевірка чи файл завантажено: $fileId');
-    final saved = await Globals.fileManager.isFileCached(fileId!);
+    final saved = await Globals.fileManager.isCached(fileId!);
     setState(() {
       isSaved = saved;
     });
@@ -52,12 +52,12 @@ class _MaterialTileState extends State<MaterialTile> {
     debugPrint('⬇️ Запит на завантаження: ${widget.material['url']} (fileId: $fileId)');
     setState(() => _isLoading = true);
     try {
-      await Globals.fileManager.downloadFile(fileId!);
+      await Globals.fileManager.cacheFile(fileId!);
       debugPrint('✅ Файл успішно завантажено');
       Globals.errorNotificationManager.showSuccess('Файл успішно завантажено');
       await _checkDownloaded();
       widget.onRefresh();
-    } catch (e, stack) {
+    } catch (e) {
       debugPrint('❌ Помилка при завантаженні: $e');
       Globals.errorNotificationManager.showCriticalError(
         title: 'Помилка завантаження',
@@ -71,7 +71,7 @@ class _MaterialTileState extends State<MaterialTile> {
 
   Future<void> _deleteFile() async {
     debugPrint('🗑 Видалення локального файлу: $fileId');
-    await Globals.fileManager.removeCachedData(fileId!);
+    await Globals.fileManager.removeFromCache(fileId!);
     await _checkDownloaded();
     widget.onRefresh();
   }
@@ -91,7 +91,6 @@ class _MaterialTileState extends State<MaterialTile> {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (!widget.isWeb)
             _isLoading
                 ? const Padding(
                     padding: EdgeInsets.all(8.0),

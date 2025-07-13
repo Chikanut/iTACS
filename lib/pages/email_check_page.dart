@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_application_1/services/auth_service.dart';
 
 import 'main_scaffold.dart';
 import 'access_denied_page.dart';
@@ -23,11 +24,13 @@ class _EmailCheckPageState extends State<EmailCheckPage> {
 
   Future<void> _validateEmail() async {
     final user = FirebaseAuth.instance.currentUser;
-
+    
     if (user == null) {
       _goTo(const LoginPage());
       return;
     }
+
+    await AuthService.signInWithGoogle(context);
 
     final isSynced = await Globals.firestoreManager.ensureUserProfileSynced();
 

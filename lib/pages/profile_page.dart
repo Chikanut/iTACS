@@ -78,7 +78,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const Text('Навчальні групи:', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ..._groups.map((g) => Text(g)).toList(),
+                  ..._groups.map((g) => Text(g)),
                   const SizedBox(height: 10),
                 ],
               ),

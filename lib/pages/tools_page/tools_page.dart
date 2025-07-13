@@ -270,8 +270,8 @@ class _ToolsPageState extends State<ToolsPage> {
       floatingActionButton: isAdmin
           ? FloatingActionButton(
               onPressed: showAddDialog,
-              child: const Icon(Icons.add),
               tooltip: 'Додати інструмент або папку',
+              child: const Icon(Icons.add),
             )
           : null,
       body: Column(

@@ -7,20 +7,21 @@ sdk: flutter
 
 📦 IMPORTS:
   import 'package:flutter_application_1/services/error_notification_manager.dart';
-  import 'package:google_sign_in/google_sign_in.dart';
   import 'package:firebase_auth/firebase_auth.dart';
 
 🏗️ CLASSES:
   class Globals {
 
+⚙️ METHODS:
+    static Future<void> init() async
+
 🏷️ PROPERTIES:
-    static final GoogleSignIn googleSignIn
     static final FirebaseAuth firebaseAuth
-    static final FileManager fileManager
     static final AuthService authService
     static final ErrorNotificationManager errorNotificationManager
     static final FirestoreManager firestoreManager
     static final ProfileManager profileManager
+    static late FileManager fileManager;
 
 ==== lib\main.dart ====
 
@@ -29,6 +30,8 @@ sdk: flutter
   import 'package:flutter/material.dart';
   import 'package:firebase_core/firebase_core.dart';
   import 'package:firebase_auth/firebase_auth.dart';
+  import 'package:hive_flutter/hive_flutter.dart';
+  import 'package:path_provider/path_provider.dart';
 
 🏗️ CLASSES:
   class MyApp extends StatelessWidget {
@@ -38,6 +41,9 @@ sdk: flutter
     const MyApp(
     Widget build(BuildContext context)
     return MaterialApp(
+
+🏷️ PROPERTIES:
+  final dir
 
 ==== lib\pages\access_denied_page.dart ====
 
@@ -91,6 +97,7 @@ sdk: flutter
 📦 IMPORTS:
   import 'package:flutter/material.dart';
   import 'package:firebase_auth/firebase_auth.dart';
+  import 'package:flutter_application_1/services/auth_service.dart';
   import '../globals.dart';
 
 🏗️ CLASSES:
@@ -253,7 +260,6 @@ sdk: flutter
   Future<void> showEditMaterialDialog(BuildContext context, Map<String, dynamic> material, VoidCallback onRefresh) async
   await showDialog(
   const SnackBar(content: Text('Невалідне посилання на Google Drive')),
-  const SnackBar(content: Text('Не вдалося завантажити метадані файлу')),
 
 🏷️ PROPERTIES:
   final titleController
@@ -434,20 +440,24 @@ sdk: flutter
 ==== lib\services\auth_service.dart ====
 
 📦 IMPORTS:
-  import 'package:flutter/foundation.dart';
   import 'package:flutter/material.dart';
   import 'package:firebase_auth/firebase_auth.dart';
   import 'package:google_sign_in/google_sign_in.dart';
+  import 'package:shared_preferences/shared_preferences.dart';
   import '../globals.dart';
 
 🏗️ CLASSES:
   class AuthService {
 
 ⚙️ METHODS:
-    static Future<void> signInWithGoogle(BuildContext context) async
+    static Future signInWithGoogle(BuildContext context) async
     const SnackBar(content: Text('❌ Вхід скасовано')),
+  static Future<void> initializeAuth() async
   Future<String?> getAccessToken() async
   Future<bool> isUserAllowed(String email) async
+  static Future<bool> isSignedIn() async
+  Future<void> signOut() async
+  Future<String?> forceRefreshToken() async
 
 🏷️ PROPERTIES:
     static GoogleSignInAccount? currentGoogleUser;
@@ -456,8 +466,18 @@ sdk: flutter
   final credential
   final userCredential
   final email
-  GoogleSignInAccount? account
+  final prefs
+  final wasSignedIn
+  final account
   final auth
+  GoogleSignInAccount? account
+  return null;
+  final auth
+  return null;
+  final newAuth
+  return null;
+  final prefs
+  final prefs
 
 ==== lib\services\error_notification_manager.dart ====
 
@@ -492,171 +512,6 @@ sdk: flutter
   String confirmText
   String cancelText
   bool isDestructive
-
-==== lib\services\file_manager.dart ====
-
-📦 IMPORTS:
-  import 'dart:convert';
-  import 'dart:io';
-  import 'dart:typed_data';
-  import 'package:flutter/foundation.dart';
-  import 'package:flutter/material.dart';
-  import 'package:cloud_firestore/cloud_firestore.dart';
-  import 'package:firebase_auth/firebase_auth.dart';
-  import 'package:http/http.dart' as http;
-  import 'package:path_provider/path_provider.dart';
-  import 'package:shared_preferences/shared_preferences.dart';
-  import 'package:share_plus/share_plus.dart';
-  import 'package:file_selector/file_selector.dart';
-  import 'package:open_filex/open_filex.dart';
-  import 'dart:html' as html show Blob, Url, AnchorElement, window;
-  import 'dart:html' if (dart.library.io) 'dart:io' as platform;
-
-🏗️ CLASSES:
-  class FileMetadata {
-  class CachedFileData {
-  class FileVersionInfo {
-  class FileManager {
-  class FileCard extends StatefulWidget {
-  class _FileCardState extends State<FileCard> {
-
-⚙️ METHODS:
-    return FileMetadata(
-  Map<String, dynamic> toJson() =>
-    Map<String, dynamic> toJson() =>
-    return CachedFileData(
-    String toString()
-  Future<Uint8List> downloadFile(String fileId) async
-  throw Exception('Помилка завантаження файлу: $
-  Future<File?> getLocalFile(String fileId) async
-  Future<void> updateFileIfNeeded(String fileId, String latestVersion) async
-  Future<void> clearCache() async
-  bool isFileCached(String fileId)
-  Future<void> shareOrDownloadFile(String fileId) async
-  throw Exception('Не вдалося отримати метадані файлу');
-  Future<void> openFile(String fileId) async
-  throw Exception('Не вдалося отримати метадані файлу');
-  Future<bool> checkForUpdate(String fileId) async
-  Future<Map<String, bool>> checkForUpdates(List<String> fileIds) async
-  Future<FileVersionInfo?> getFileVersionInfo(String fileId) async
-  return FileVersionInfo(
-  Future<void> forceRefreshFile(String fileId) async
-  await removeCachedData(fileId);
-  await downloadFile(fileId);
-  Future<FileMetadata?> getFileMetadata(String fileId) async
-  Future<void> removeCachedData(String fileId) async
-    const FileCard(
-    void initState()
-  Widget build(BuildContext context)
-  return Card(
-  const SizedBox(width: 2),
-  const SizedBox(height: 8),
-  return Chip(
-  const SizedBox(height: 8),
-  const SizedBox(height: 16),
-  const Padding(
-  const SnackBar(content: Text('Файл успішно поширено')),
-  const SnackBar(content: Text('Файл оновлено')),
-
-🏷️ PROPERTIES:
-    final String title;
-    final String fileId;
-    final String version;
-    final String type;
-    final String groupId;
-    final DateTime? lastModified;
-    final data
-    final Uint8List data;
-    final String version;
-    final DateTime cachedAt;
-    final String fileId;
-    final String? currentVersion;
-    final String latestVersion;
-    final bool isCached;
-    final bool hasUpdate;
-    final DateTime? cachedAt;
-    final DateTime? lastModified;
-    final regExp
-    final match
-  final url
-  final response
-  final data
-  return data;
-  return null;
-  final dir
-  final file
-  return file;
-  return null;
-  return null;
-  final cachedData
-  final newData
-  final prefs
-  final keys
-  final dir
-  final cacheDir
-  final data
-  final metadata
-  final fileName
-  final data
-  final metadata
-  final file
-  final latestMetadata
-  return false;
-  final cachedData
-  return true;
-  final hasUpdate
-  return hasUpdate;
-  return false;
-  final futures
-  final entries
-  final updatesCount
-  return results;
-  final metadata
-  final cachedData
-  return null;
-  final user
-  final querySnapshot
-  return null;
-  return null;
-  final cachedData
-  final prefs
-  final dir
-  final cacheDir
-  final file
-  final metaFile
-  final prefs
-  final jsonString
-  final data
-  return data;
-  final dir
-  final file
-  final metaFile
-  final data
-  final metaJson
-  final cachedData
-  return cachedData;
-  return null;
-  return null;
-  final prefs
-  final dir
-  final file
-  final metaFile
-  final blob
-  final url
-  final anchor
-  final tempFile
-  final targetPath
-  final file
-  final blob
-  final url
-  final tempDir
-  final fileName
-  final file
-  return file;
-    final FileMetadata metadata;
-    final VoidCallback? onRefresh;
-  final hasUpdate
-  final isCached
 
 ==== lib\services\firebase_options.dart ====
 
@@ -767,6 +622,41 @@ sdk: flutter
   final members
   return groupNames;
 
+==== lib\services\html_stub.dart ====
+
+📦 IMPORTS:
+  import 'dart:typed_data';
+
+🏗️ CLASSES:
+  class Blob {
+  class Url {
+  class Window {
+  class AnchorElement {
+  class Body {
+  class Document {
+
+⚙️ METHODS:
+    static String createObjectUrlFromBlob(Blob blob)
+    throw UnsupportedError('createObjectUrlFromBlob не підтримується на мобільних платформах');
+  static void revokeObjectUrl(String url)
+  throw UnsupportedError('revokeObjectUrl не підтримується на мобільних платформах');
+    void open(String url, String target)
+    throw UnsupportedError('window.open не підтримується на мобільних платформах');
+    void click()
+    throw UnsupportedError('anchor.click не підтримується на мобільних платформах');
+  void remove()
+  throw UnsupportedError('anchor.remove не підтримується на мобільних платформах');
+    void append(AnchorElement element)
+    throw UnsupportedError('body.append не підтримується на мобільних платформах');
+
+🏷️ PROPERTIES:
+    String? href;
+    String? target;
+    String? download;
+    Body? body
+  final window
+  final document
+
 ==== lib\services\profile_manager.dart ====
 
 📦 IMPORTS:
@@ -791,3 +681,534 @@ sdk: flutter
   final email
   final roles
   final prefs
+
+==== lib\services\file_manager\file_cache_entry.dart ====
+
+📦 IMPORTS:
+  import 'package:hive/hive.dart';
+
+🏗️ CLASSES:
+  class FileCacheEntry extends HiveObject {
+
+⚙️ METHODS:
+    String get filename
+    bool get isImage
+    bool get isDocument
+    String get humanReadableSize {
+  String toString()
+
+🏷️ PROPERTIES:
+    final String fileId;
+    final String name;
+    final String extension;
+    final String modifiedDate;
+    final int? size; // Розмір файлу в байтах
+    final String? mimeType; // MIME тип файлу
+    const units
+    int unitIndex
+    double fileSize
+  return null;
+
+==== lib\services\file_manager\file_cache_service.dart ====
+
+📦 IMPORTS:
+  import 'dart:convert';
+  import 'dart:typed_data';
+  import 'package:flutter/foundation.dart';
+  import 'package:hive_flutter/hive_flutter.dart';
+
+🏗️ CLASSES:
+  class FileCacheService {
+
+⚙️ METHODS:
+    Future<void> init() async
+  Future<void> cacheFile(
+  Future<(Uint8List?, String?)> getCachedFile(String fileId) async
+  Future<bool> isCached(String fileId) async
+  Future<void> updateCachedFile(
+  Future<void> removeCachedFile(String fileId) async
+  Future<void> clearCache() async
+  bool shouldUpdateFile(String fileId, String serverModifiedDate)
+  int getCacheSize()
+  int getCacheStorageSize()
+  List<FileCacheEntry> getCachedFilesList()
+  int getCachedFilesCount()
+  Future<int> cleanOldFiles(Duration maxAge) async
+  Future<int> cleanLargeFiles(int maxCacheSizeBytes) async
+  Future<int> cleanFilesByType(String extension) async
+  Map<String, dynamic> getCacheStatistics()
+  Future<List<String>> validateCacheIntegrity() async
+  Future<Map<String, int>> optimizeCache(
+
+🏷️ PROPERTIES:
+  final entry
+  final base64Data
+  final entry
+  final base64Data
+  final bytes
+  final entry
+  final entry
+  final updatedEntry
+  final base64Data
+  final cachedDate
+  final cachedDateTime
+  final serverDateTime
+  return true;
+  int totalSize
+  return totalSize;
+  int totalSize
+  final data
+  return totalSize;
+  final cutoffDate
+  final filesToRemove
+  final modifiedDate
+  final currentSize
+  final sortedFiles
+  int removedCount
+  int currentCacheSize
+  return removedCount;
+  final filesToRemove
+  final files
+  final extensionStats
+  final mimeTypeStats
+  final corruptedFiles
+  final base64Data
+  final bytes
+  return corruptedFiles;
+  Duration maxAge
+  int maxSizeBytes
+  final corruptedFiles
+  final oldFiles
+  final largeFiles
+
+==== lib\services\file_manager\file_downloader.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/foundation.dart';
+  import 'package:http/http.dart' as http;
+  import '../auth_service.dart';
+
+🏗️ CLASSES:
+  class FileDownloader {
+
+⚙️ METHODS:
+    Future<Uint8List> downloadFile(String fileId) async
+    throw WebDownloadException(
+  throw WebDownloadException('Не вдалося отримати метадані для файлу', fileId);
+  throw WebDownloadException(
+  throw WebDownloadException(
+  throw WebDownloadException(
+
+🏷️ PROPERTIES:
+    final FileMetadataService metadataService;
+    final AuthService authService;
+  final metadata
+  final titleEncoded
+  final ext
+  final proxyUrl
+  final response
+
+==== lib\services\file_manager\file_exceptions.dart ====
+
+🏗️ CLASSES:
+  class WebDownloadException implements Exception {
+  class MetadataException implements Exception {
+  class FileMetadataException implements Exception {
+  class FileAccessException implements Exception {
+
+⚙️ METHODS:
+    String toString() =>
+    String toString() =>
+    String toString() => 'FileMetadataException: $message (fileId: $fileId)';
+    String toString() => 'FileAccessException: $message (fileId: $fileId)';
+
+🏷️ PROPERTIES:
+    final String message;
+    final String fileId;
+    final String? url;
+    final String message;
+    final String? fileId;
+    final String message;
+    final String fileId;
+    final String message;
+    final String fileId;
+
+==== lib\services\file_manager\file_manager.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/foundation.dart';
+  import 'package:flutter_application_1/services/file_manager/file_metadata_service.dart';
+  import '../auth_service.dart';
+
+🏗️ CLASSES:
+  class FileManager {
+
+⚙️ METHODS:
+    static Future<FileManager> create(
+  factory FileManager(
+  throw Exception('FileManager must be initialized using FileManager.create()');
+  Future<void> openFile(String fileId) async
+  throw FileMetadataException('Не вдалося отримати метадані для файлу', fileId);
+  throw FileAccessException('Файл не знайдено після завантаження або кешування', fileId);
+  Future<Uint8List?> cacheFile(String fileId) async
+  throw FileMetadataException('Не вдалося отримати метадані для файлу', fileId);
+  throw FileAccessException('Файл не знайдено після завантаження або кешування', fileId);
+  Future<Uint8List?> loadFile(String fileId) async
+  Future<bool> refreshFileIfNeeded(String fileId) async
+  throw FileMetadataException('Не вдалося отримати метадані для файлу', fileId);
+  Future<List<String>> cacheMultipleFiles(List<String> fileIds) async
+  await cacheFile(fileId);
+  Future<void> preloadFiles(List<String> fileIds) async
+  throw FileMetadataException('Не вдалося отримати метадані для файлу', fileId);
+  Future<bool> isFileAvailable(String fileId) async
+  Future<void> removeFileFromCache(String fileId) async
+  Future<void> cleanupCache(
+  Map<String, dynamic> getCacheStatistics()
+  Future<FileCacheEntry> getFileMetadata(String fileId) async
+  throw FileMetadataException('Не вдалося отримати метадані для файлу', fileId);
+  Future<void> shareFile(String fileId) async
+  throw FileAccessException('Немає кешованого файлу для надсилання', fileId);
+  await FileSharer().shareFile(bytes, name);
+
+🏷️ PROPERTIES:
+    final manager
+    return manager;
+  var metadata
+  var fileBytes
+  var metadata
+  final shouldUpdate
+  Uint8List? fileBytes;
+  return fileBytes;
+  return cachedData;
+  var metadata
+  final shouldUpdate
+  final fileBytes
+  return true;
+  return false;
+  return false;
+  final successfullycached
+  return successfullycached;
+  final filesToPreload
+  var metadata
+  final shouldUpdate
+  const batchSize
+  final batch
+  Duration maxAge
+  int maxSizeBytes
+  final oldFiles
+  final modifiedDate
+  final largeFiles
+  int currentSize
+  var metadata
+  return metadata;
+  final RegExp pattern
+  final match
+  return null;
+
+==== lib\services\file_manager\file_manager_old.dart ====
+
+📦 IMPORTS:
+  import 'dart:convert';
+  import 'dart:io';
+  import 'dart:typed_data';
+  import 'dart:async';
+  import 'package:flutter/foundation.dart';
+  import 'package:flutter/material.dart';
+  import 'package:cloud_firestore/cloud_firestore.dart';
+  import 'package:firebase_auth/firebase_auth.dart';
+  import 'package:flutter_application_1/globals.dart';
+  import 'package:http/http.dart' as http;
+  import 'package:path_provider/path_provider.dart';
+  import 'package:shared_preferences/shared_preferences.dart';
+  import 'package:share_plus/share_plus.dart';
+  import 'package:file_selector/file_selector.dart';
+  import 'package:open_filex/open_filex.dart';
+  import 'dart:html' as html show Blob, Url, AnchorElement, window, document, IFrameElement, MessageEvent;
+  import 'dart:html' if (dart.library.io) 'dart:io' as platform;
+
+🏗️ CLASSES:
+  class WebDownloadException implements Exception {
+  class FileMetadata {
+  class CachedFileData {
+  class FileVersionInfo {
+  class FileWithName {
+  class FileManager {
+  class FileCard extends StatefulWidget {
+  class _FileCardState extends State<FileCard> {
+
+⚙️ METHODS:
+    String toString() => 'WebDownloadException: $message';
+    return FileMetadata(
+  Map<String, dynamic> toJson() =>
+    Map<String, dynamic> toJson() =>
+    return CachedFileData(
+    String toString()
+  Future<Uint8List> downloadFile(String fileId) async
+  throw Exception('Помилка завантаження файлу: $
+  throw WebDownloadException('Не вдалося отримати метадані для файлу', fileId);
+  throw WebDownloadException(
+  throw WebDownloadException(
+  throw Exception('Fetch API доступний лише для Web');
+  throw Exception('Fetch failed with status: $
+  Future<File?> getLocalFile(String fileId) async
+  Future<void> updateFileIfNeeded(String fileId, String latestVersion) async
+  Future<void> clearCache() async
+  bool isFileCached(String fileId)
+  Future<void> shareOrDownloadFile(String fileId) async
+  throw Exception('Не вдалося отримати метадані файлу');
+  Future<void> openFile(String fileId) async
+  throw Exception('Не вдалося отримати метадані файлу');
+  Future<bool> checkForUpdate(String fileId) async
+  Future<Map<String, bool>> checkForUpdates(List<String> fileIds) async
+  Future<FileVersionInfo?> getFileVersionInfo(String fileId) async
+  return FileVersionInfo(
+  Future<void> forceRefreshFile(String fileId) async
+  await removeCachedData(fileId);
+  await downloadFile(fileId);
+  Future<FileMetadata?> getFileMetadata(String fileId) async
+  return FileMetadata(
+  Future<void> removeCachedData(String fileId) async
+    const FileCard(
+    void initState()
+  Widget build(BuildContext context)
+  return Card(
+  const SizedBox(width: 2),
+  const SizedBox(height: 8),
+  return Chip(
+  const SizedBox(height: 8),
+  const SizedBox(height: 16),
+  const Padding(
+  return AlertDialog(
+  const Text(
+  const SizedBox(height: 12),
+  const Text(
+  const Text(
+  const SizedBox(height: 16),
+  const SnackBar(content: Text('Файл успішно поширено')),
+  const SnackBar(content: Text('Файл оновлено')),
+
+🏷️ PROPERTIES:
+    final String message;
+    final String fileId;
+    final String? downloadUrl;
+    final String title;
+    final String fileId;
+    final String version;
+    final String type;
+    final String groupId;
+    final DateTime? lastModified;
+    final data
+    final Uint8List data;
+    final String version;
+    final DateTime cachedAt;
+    final String fileId;
+    final String? currentVersion;
+    final String latestVersion;
+    final bool isCached;
+    final bool hasUpdate;
+    final DateTime? cachedAt;
+    final DateTime? lastModified;
+    final String filename;
+    final Uint8List bytes;
+    final regExp
+    final match
+  final cachedData
+  Uint8List data;
+  return data;
+  final url
+  final response
+  final metadata
+  final titleEncoded
+  final ext
+  final proxyUrl
+  final response
+  final url
+  final response
+  final arrayBuffer
+  return null;
+  final dir
+  final file
+  return file;
+  return null;
+  return null;
+  final cachedData
+  final newData
+  final prefs
+  final keys
+  final dir
+  final cacheDir
+  final data
+  final metadata
+  final fileName
+  final data
+  final metadata
+  final file
+  final latestMetadata
+  return false;
+  final cachedData
+  return true;
+  final hasUpdate
+  return hasUpdate;
+  return false;
+  final futures
+  final entries
+  final updatesCount
+  return results;
+  final metadata
+  final cachedData
+  return null;
+  final user
+  final querySnapshot
+  final token
+  return null;
+  final url
+  final response
+  final data
+  final name
+  final modified
+  final mimeType
+  final parts
+  final title
+  final type
+  return null;
+  final cachedData
+  final prefs
+  final dir
+  final cacheDir
+  final file
+  final metaFile
+  final prefs
+  final jsonString
+  final data
+  return data;
+  final dir
+  final file
+  final metaFile
+  final data
+  final metaJson
+  final cachedData
+  return cachedData;
+  return null;
+  return null;
+  final prefs
+  final dir
+  final file
+  final metaFile
+  final blob
+  final url
+  final anchor
+  final tempFile
+  final targetPath
+  final file
+  final blob
+  final url
+  final tempDir
+  final fileName
+  final file
+  return file;
+    final FileMetadata metadata;
+    final VoidCallback? onRefresh;
+  final hasUpdate
+  final isCached
+  final url
+
+==== lib\services\file_manager\file_metadata.dart ====
+
+🏗️ CLASSES:
+  class FileMetadata {
+
+⚙️ METHODS:
+    return FileMetadata(
+
+🏷️ PROPERTIES:
+    final String fileId;
+    final String title;
+    final String type;
+    final String? modifiedTime;
+    final fullName
+    final ext
+
+==== lib\services\file_manager\file_metadata_service.dart ====
+
+📦 IMPORTS:
+  import 'dart:convert';
+  import 'package:flutter/foundation.dart';
+  import '../auth_service.dart';
+  import 'package:http/http.dart' as http;
+
+🏗️ CLASSES:
+  class FileMetadataService {
+
+⚙️ METHODS:
+    Future<FileCacheEntry?> getFileMetadata(String fileId) async
+    throw MetadataException('Не вдалося отримати метадані', fileId);
+  throw MetadataException('Не вдалося отримати токен для метаданих', fileId);
+  throw MetadataException('Проблема з авторизацією: $
+  throw MetadataException('Проксі повернув помилку: $
+  throw MetadataException('Не вдалося отримати метадані після $maxRetries спроб', fileId);
+  return FileCacheEntry(
+
+🏷️ PROPERTIES:
+    final AuthService authService;
+  final token
+  final uri
+  final response
+  final jsonData
+  final name
+  final extension
+  final modifiedDate
+  final mimeType
+  int? size;
+  final sizeValue
+
+==== lib\services\file_manager\file_opener.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/foundation.dart';
+  import '../html_stub.dart'
+  import 'package:open_filex/open_filex.dart';
+  import 'package:path_provider/path_provider.dart';
+  import 'dart:io';
+  import 'package:path/path.dart' as p;
+
+🏗️ CLASSES:
+  class FileOpener {
+
+⚙️ METHODS:
+    Future<void> openFile(String fileId, Uint8List data, FileCacheEntry metadata) async
+
+🏷️ PROPERTIES:
+    final fileName
+  final fileName
+  final mimeType
+  final blob
+  final url
+  final anchor
+  final fileName
+  final tempDir
+  final filePath
+  final file
+  final result
+
+==== lib\services\file_manager\file_sharer.dart ====
+
+📦 IMPORTS:
+  import 'dart:io' show Platform, File;
+  import 'package:share_plus/share_plus.dart';
+  import 'package:path_provider/path_provider.dart';
+  import 'package:flutter/foundation.dart';
+  import '../html_stub.dart'
+
+🏗️ CLASSES:
+  class FileSharer {
+
+⚙️ METHODS:
+    Future<void> shareFile(Uint8List data, String filename) async
+
+🏷️ PROPERTIES:
+    final blob
+    final url
+    final anchor
+    final dir
+    final filePath
+    final file
