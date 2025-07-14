@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'models/lesson_model.dart';
+import 'package:intl/intl.dart';
+
 
 enum InstructorLessonStatus {
     needsInstructor,
@@ -7,40 +9,371 @@ enum InstructorLessonStatus {
     teaching,
   }
 
-  extension InstructorLessonStatusExtension on InstructorLessonStatus {
-    Color get color {
-      switch (this) {
-        case InstructorLessonStatus.needsInstructor:
-          return Colors.orange;
-        case InstructorLessonStatus.assigned:
-          return Colors.blue;
-        case InstructorLessonStatus.teaching:
-          return Colors.green;
-      }
-    }
+enum LessonProgressStatus {
+  scheduled,   // Заплановано
+  inProgress,  // В процесі
+  completed,   // Завершено
+}
 
-    String get label {
-      switch (this) {
-        case InstructorLessonStatus.needsInstructor:
-          return 'Потрібен викладач';
-        case InstructorLessonStatus.assigned:
-          return 'Викладач призначений';
-        case InstructorLessonStatus.teaching:
-          return 'Ви викладаєте';
-      }
-    }
+enum LessonReadinessStatus {
+  notReady,           // Не готове (критичні поля не заповнені)
+  needsInstructor,    // Потрібен інструктор
+  ready,              // Готове до проведення
+  inProgressReady,    // В процесі (все ОК)
+  inProgressNotReady, // В процесі (але є проблеми)
+  completedReady,     // Завершено (все ОК)
+  completedNotReady,  // Завершено (але є проблеми з даними)
+}
 
-    IconData get icon {
-      switch (this) {
-        case InstructorLessonStatus.needsInstructor:
-          return Icons.person_add;
-        case InstructorLessonStatus.assigned:
-          return Icons.person;
-        case InstructorLessonStatus.teaching:
-          return Icons.school;
-      }
+extension LessonProgressStatusExtension on LessonProgressStatus {
+  String get label {
+    switch (this) {
+      case LessonProgressStatus.scheduled:
+        return 'Заплановано';
+      case LessonProgressStatus.inProgress:
+        return 'Проводиться';
+      case LessonProgressStatus.completed:
+        return 'Завершено';
     }
   }
+
+  IconData get icon {
+    switch (this) {
+      case LessonProgressStatus.scheduled:
+        return Icons.schedule;
+      case LessonProgressStatus.inProgress:
+        return Icons.play_circle;
+      case LessonProgressStatus.completed:
+        return Icons.check_circle;
+    }
+  }
+}
+
+extension LessonReadinessStatusExtension on LessonReadinessStatus {
+  Color get color {
+    switch (this) {
+      case LessonReadinessStatus.notReady:
+        return Colors.red;              // 🔴 Критичні поля не заповнені
+      case LessonReadinessStatus.needsInstructor:
+        return Colors.orange;           // 🟠 Потрібен інструктор
+      case LessonReadinessStatus.ready:
+        return Colors.green;            // 🟢 Готове до проведення
+      case LessonReadinessStatus.inProgressReady:
+        return Colors.blue;             // 🔵 В процесі (все ОК)
+      case LessonReadinessStatus.inProgressNotReady:
+        return Colors.red;              // 🔴 В процесі але є проблеми
+      case LessonReadinessStatus.completedReady:
+        return Colors.grey;             // ⚫ Завершено (все ОК)
+      case LessonReadinessStatus.completedNotReady:
+        return Colors.red;              // 🔴 Завершено але є проблеми
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case LessonReadinessStatus.notReady:
+        return 'Не заповнено';
+      case LessonReadinessStatus.needsInstructor:
+        return 'Потрібен викладач';
+      case LessonReadinessStatus.ready:
+        return 'Готове';
+      case LessonReadinessStatus.inProgressReady:
+        return 'Проводиться';
+      case LessonReadinessStatus.inProgressNotReady:
+        return 'Проводиться (є проблеми)';
+      case LessonReadinessStatus.completedReady:
+        return 'Завершено';
+      case LessonReadinessStatus.completedNotReady:
+        return 'Завершено (є проблеми)';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case LessonReadinessStatus.notReady:
+        return Icons.error;
+      case LessonReadinessStatus.needsInstructor:
+        return Icons.person_add;
+      case LessonReadinessStatus.ready:
+        return Icons.check_circle;
+      case LessonReadinessStatus.inProgressReady:
+        return Icons.play_circle;
+      case LessonReadinessStatus.inProgressNotReady:
+        return Icons.warning;
+      case LessonReadinessStatus.completedReady:
+        return Icons.done_all;
+      case LessonReadinessStatus.completedNotReady:
+        return Icons.error_outline;
+    }
+  }
+
+  String get description {
+    switch (this) {
+      case LessonReadinessStatus.notReady:
+        return 'Не заповнені критичні поля для звітності';
+      case LessonReadinessStatus.needsInstructor:
+        return 'Не призначений інструктор';
+      case LessonReadinessStatus.ready:
+        return 'Всі дані заповнені, готове до проведення';
+      case LessonReadinessStatus.inProgressReady:
+        return 'Заняття проводиться, всі дані в порядку';
+      case LessonReadinessStatus.inProgressNotReady:
+        return 'Заняття проводиться, але є проблеми з даними для звітності';
+      case LessonReadinessStatus.completedReady:
+        return 'Заняття завершено, всі дані для звітності заповнені';
+      case LessonReadinessStatus.completedNotReady:
+        return 'Заняття завершено, але потрібно заповнити дані для звітності';
+    }
+  }
+}
+
+// ОНОВЛЕНИЙ LessonStatusUtils
+class LessonStatusUtils {
+  // Критичні поля для звітності - ДОДАНО trainingPeriod
+  static const List<String> criticalFields = [
+    'instructor',
+    'location', 
+    'unit',
+    'maxParticipants',
+    'trainingPeriod', // 👈 ДОДАНО
+  ];
+
+  /// Перевірити чи заповнені критичні поля
+  static bool areCriticalFieldsFilled(LessonModel lesson) {
+    // Інструктор
+    if (lesson.instructor.isEmpty || lesson.instructor == 'Не призначено') {
+      return false;
+    }
+    
+    // Місце проведення
+    if (lesson.location.isEmpty) {
+      return false;
+    }
+    
+    // Підрозділ
+    if (lesson.unit.isEmpty) {
+      return false;
+    }
+    
+    // Кількість учнів
+    if (lesson.maxParticipants <= 0) {
+      return false;
+    }
+    
+    // Період навчання 👈 ДОДАНО
+    if (lesson.trainingPeriod.isEmpty) {
+      return false;
+    }
+    
+    return true;
+  }
+
+   static LessonProgressStatus getProgressStatus(LessonModel lesson) {
+    final now = DateTime.now();
+    
+    if (now.isBefore(lesson.startTime)) {
+      return LessonProgressStatus.scheduled;
+    } else if (now.isAfter(lesson.endTime)) {
+      return LessonProgressStatus.completed;
+    } else {
+      return LessonProgressStatus.inProgress;
+    }
+  }
+
+  /// Визначити статус готовності заняття
+  static LessonReadinessStatus getReadinessStatus(LessonModel lesson) {
+    final progressStatus = getProgressStatus(lesson);
+    final criticalFieldsFilled = areCriticalFieldsFilled(lesson);
+    final hasInstructor = lesson.instructor.isNotEmpty && 
+                         lesson.instructor != 'Не призначено';
+    
+    switch (progressStatus) {
+      case LessonProgressStatus.scheduled:
+        if (!criticalFieldsFilled) {
+          return LessonReadinessStatus.notReady;
+        } else if (!hasInstructor) {
+          return LessonReadinessStatus.needsInstructor;
+        } else {
+          return LessonReadinessStatus.ready;
+        }
+        
+      case LessonProgressStatus.inProgress:
+        if (!criticalFieldsFilled) {
+          return LessonReadinessStatus.inProgressNotReady;
+        } else {
+          return LessonReadinessStatus.inProgressReady;
+        }
+        
+      case LessonProgressStatus.completed:
+        if (!criticalFieldsFilled) {
+          return LessonReadinessStatus.completedNotReady;
+        } else {
+          return LessonReadinessStatus.completedReady;
+        }
+    }
+  }
+
+  /// Отримати комбінований статус (для простішого використання)
+  static ({
+    LessonProgressStatus progress,
+    LessonReadinessStatus readiness,
+    List<String> issues,
+  }) getFullStatus(LessonModel lesson) {
+    final progress = getProgressStatus(lesson);
+    final readiness = getReadinessStatus(lesson);
+    final issues = getMissingCriticalFields(lesson);
+    
+    return (
+      progress: progress,
+      readiness: readiness,
+      issues: issues,
+    );
+  }
+
+  /// Отримати список незаповнених критичних полів
+  static List<String> getMissingCriticalFields(LessonModel lesson) {
+    final List<String> missing = [];
+    
+    if (lesson.instructor.isEmpty || lesson.instructor == 'Не призначено') {
+      missing.add('Інструктор');
+    }
+    
+    if (lesson.location.isEmpty) {
+      missing.add('Місце проведення');
+    }
+    
+    if (lesson.unit.isEmpty) {
+      missing.add('Підрозділ');
+    }
+    
+    if (lesson.maxParticipants <= 0) {
+      missing.add('Кількість учнів');
+    }
+    
+    if (lesson.trainingPeriod.isEmpty) {
+      missing.add('Період навчання'); // 👈 ДОДАНО
+    }
+    
+    return missing;
+  }
+
+  /// Отримати прогрес заповнення критичних полів (для прогрес-бару)
+  static double getCriticalFieldsProgress(LessonModel lesson) {
+    int filledCount = 0;
+    const int totalCount = 5; // 👈 ЗБІЛЬШЕНО до 5 критичних полів
+    
+    if (lesson.instructor.isNotEmpty && lesson.instructor != 'Не призначено') {
+      filledCount++;
+    }
+    
+    if (lesson.location.isNotEmpty) {
+      filledCount++;
+    }
+    
+    if (lesson.unit.isNotEmpty) {
+      filledCount++;
+    }
+    
+    if (lesson.maxParticipants > 0) {
+      filledCount++;
+    }
+    
+    if (lesson.trainingPeriod.isNotEmpty) { // 👈 ДОДАНО
+      filledCount++;
+    }
+    
+    return filledCount / totalCount;
+  }
+
+  /// Форматувати період навчання для відображення
+  static String formatTrainingPeriod(String trainingPeriod) {
+    if (trainingPeriod.isEmpty) return 'Не вказано';
+    
+    // Якщо період у форматі "dd.MM.yyyy - dd.MM.yyyy"
+    if (trainingPeriod.contains(' - ')) {
+      final parts = trainingPeriod.split(' - ');
+      if (parts.length == 2) {
+        return '${parts[0]} - ${parts[1]}';
+      }
+    }
+    
+    return trainingPeriod;
+  }
+
+  /// Валідувати формат періоду навчання
+  static bool isValidTrainingPeriod(String period) {
+    if (period.isEmpty) return false;
+    
+    // Перевіряємо формат "dd.MM.yyyy - dd.MM.yyyy"
+    final regex = RegExp(r'^\d{2}\.\d{2}\.\d{4} - \d{2}\.\d{2}\.\d{4}$');
+    return regex.hasMatch(period);
+  }
+
+  /// Створити період навчання з дат
+  static String createTrainingPeriod(DateTime startDate, DateTime endDate) {
+    final formatter = DateFormat('dd.MM.yyyy');
+    return '${formatter.format(startDate)} - ${formatter.format(endDate)}';
+  }
+
+  /// Отримати дати початку та закінчення з періоду
+  static (DateTime?, DateTime?) parseTrainingPeriod(String period) {
+    if (!isValidTrainingPeriod(period)) return (null, null);
+    
+    final parts = period.split(' - ');
+    try {
+      final formatter = DateFormat('dd.MM.yyyy');
+      final startDate = formatter.parse(parts[0]);
+      final endDate = formatter.parse(parts[1]);
+      return (startDate, endDate);
+    } catch (e) {
+      return (null, null);
+    }
+  }
+
+  /// Перевірити чи період активний (поточна дата в межах періоду)
+  static bool isTrainingPeriodActive(String period) {
+    final (startDate, endDate) = parseTrainingPeriod(period);
+    if (startDate == null || endDate == null) return false;
+    
+    final now = DateTime.now();
+    return now.isAfter(startDate) && now.isBefore(endDate.add(const Duration(days: 1)));
+  }
+}
+
+extension InstructorLessonStatusExtension on InstructorLessonStatus {
+  Color get color {
+    switch (this) {
+      case InstructorLessonStatus.needsInstructor:
+        return Colors.orange;
+      case InstructorLessonStatus.assigned:
+        return Colors.blue;
+      case InstructorLessonStatus.teaching:
+        return Colors.green;
+    }
+  }
+
+String get label {
+  switch (this) {
+    case InstructorLessonStatus.needsInstructor:
+      return 'Потрібен викладач';
+    case InstructorLessonStatus.assigned:
+      return 'Викладач призначений';
+    case InstructorLessonStatus.teaching:
+      return 'Ви викладаєте';
+  }
+}
+
+IconData get icon {
+  switch (this) {
+    case InstructorLessonStatus.needsInstructor:
+      return Icons.person_add;
+    case InstructorLessonStatus.assigned:
+      return Icons.person;
+    case InstructorLessonStatus.teaching:
+      return Icons.school;
+  }
+}
+}
 
 class CalendarUtils {
   // Константи для календаря
@@ -385,4 +718,6 @@ extension LessonStatusExtension on LessonStatus {
         return Icons.check_circle;
     }
   }
+
+  
 }

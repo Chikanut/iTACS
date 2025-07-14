@@ -20,6 +20,7 @@ class LessonModel {
   final DateTime createdAt;
   final DateTime updatedAt;
   final Recurrence? recurrence;
+  final String trainingPeriod; // 👈 НОВЕ ПОЛЕ
 
   LessonModel({
     required this.id,
@@ -41,6 +42,7 @@ class LessonModel {
     required this.createdAt,
     required this.updatedAt,
     this.recurrence,
+    required this.trainingPeriod, // 👈 НОВЕ ПОЛЕ
   });
 
   factory LessonModel.fromMap(String id, Map<String, dynamic> data) {
@@ -66,6 +68,7 @@ class LessonModel {
       recurrence: data['recurrence'] != null
           ? Recurrence.fromMap(data['recurrence'])
           : null,
+      trainingPeriod: data['trainingPeriod'] ?? '', // 👈 НОВЕ ПОЛЕ
     );
   }
 }

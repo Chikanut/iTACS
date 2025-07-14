@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-const String kAppVersion = 'v0.1.0';
+const String kAppVersion = 'v1.0.0';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});

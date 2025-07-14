@@ -108,9 +108,10 @@ class CalendarService {
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
         'recurrence': lesson.recurrence != null ? {
-          'type': lesson.recurrence!.type,
-          'interval': lesson.recurrence!.interval,
-          'endDate': Timestamp.fromDate(lesson.recurrence!.endDate),
+        'type': lesson.recurrence!.type,
+        'interval': lesson.recurrence!.interval,
+        'endDate': Timestamp.fromDate(lesson.recurrence!.endDate),
+        'trainingPeriod': lesson.trainingPeriod, 
         } : null,
       };
 

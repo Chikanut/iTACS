@@ -40,11 +40,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
       lesson.currentParticipants, 
       lesson.maxParticipants
     );
-    final status = CalendarUtils.getLessonStatus(
-      lesson.currentParticipants, 
-      lesson.maxParticipants, 
-      _isRegistered
-    );
+    final status = LessonStatusUtils.getProgressStatus(lesson);
 
     return Dialog(
       shape: RoundedRectangleBorder(
@@ -141,6 +137,17 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                       icon: Icons.military_tech,
                       label: 'Підрозділ',
                       value: lesson.unit,
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Підрозділ
+                    _buildDetailRow(
+                      icon: Icons.military_tech,
+                      label: 'Період навчання',
+                      value: lesson.trainingPeriod.isNotEmpty
+                          ? lesson.trainingPeriod
+                          : 'Не вказано',
                     ),
                     
                     const SizedBox(height: 16),
@@ -252,111 +259,121 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   }
 
   Widget _buildParticipantsSection(LessonModel lesson) {
-    final needsInstructor = _calendarService.doesLessonNeedInstructor(lesson);
-    final isUserInstructor = _calendarService.isUserInstructorForLesson(lesson);
-    final status = CalendarUtils.getInstructorLessonStatus(lesson, isUserInstructor);
+  final needsInstructor = _calendarService.doesLessonNeedInstructor(lesson);
+  final isUserInstructor = _calendarService.isUserInstructorForLesson(lesson);
+  final status = CalendarUtils.getInstructorLessonStatus(lesson, isUserInstructor);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Інформація про заняття',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+  final readinessStatus = LessonStatusUtils.getReadinessStatus(lesson);
+  final missingFields = LessonStatusUtils.getMissingCriticalFields(lesson);
+  final hasProblems = missingFields.isNotEmpty;
+
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Text(
+        'Інформація про заняття',
+        style: TextStyle(
+          fontSize: 16,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+      const SizedBox(height: 12),
+
+      // Блок викладача з підсвіткою помилки
+      Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: hasProblems
+              ? Colors.red.withOpacity(0.05)
+              : status.color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: hasProblems
+                ? Colors.red
+                : status.color.withOpacity(0.3),
+            width: 1.5,
           ),
         ),
-        const SizedBox(height: 12),
-        
-        // Інформація про викладача
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: status.color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: status.color.withOpacity(0.3)),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                status.icon,
-                color: status.color,
-                size: 20,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      needsInstructor ? 'Викладач не призначений' : 'Викладач: ${lesson.instructor}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      status.label,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: status.color,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        
-        const SizedBox(height: 16),
-        
-        // Інформація про учнів
-        Row(
+        child: Row(
           children: [
             Icon(
-              Icons.group,
+              hasProblems ? Icons.error_outline : status.icon,
+              color: hasProblems ? Colors.red : status.color,
               size: 20,
-              color: Colors.grey.shade600,
             ),
-            const SizedBox(width: 8),
-            Text(
-              'Очікується: ${lesson.maxParticipants} учнів',
-              style: const TextStyle(fontSize: 14),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    needsInstructor
+                        ? 'Викладач не призначений'
+                        : 'Викладач: ${lesson.instructor}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    hasProblems
+                        ? 'Проблеми з заповненням: ${missingFields.join(", ")}'
+                        : status.label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: hasProblems ? Colors.red : status.color,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
-      ],
-    );
-  }
+      ),
 
-  Widget _buildStatusSection(LessonModel lesson, LessonStatus status) {
+      const SizedBox(height: 16),
+
+      // Інформація про учнів
+      Row(
+        children: [
+          Icon(
+            Icons.group,
+            size: 20,
+            color: Colors.grey.shade600,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Очікується: ${lesson.maxParticipants} учнів',
+            style: const TextStyle(fontSize: 14),
+          ),
+        ],
+      ),
+    ],
+  );
+}
+
+
+  Widget _buildStatusSection(LessonModel lesson, LessonProgressStatus status) {
     String statusText;
     Color statusColor;
-    
-    switch (lesson.status) {
-      case 'scheduled':
+
+    switch (status) {
+      case LessonProgressStatus.scheduled:
         statusText = 'Заплановано';
         statusColor = Colors.blue;
         break;
-      case 'ongoing':
+      case LessonProgressStatus.inProgress:
         statusText = 'Проводиться зараз';
-        statusColor = Colors.orange;
+        statusColor = Colors.blue
+        ;
         break;
-      case 'completed':
+      case LessonProgressStatus.completed:
         statusText = 'Завершено';
         statusColor = Colors.green;
         break;
-      case 'cancelled':
-        statusText = 'Скасовано';
-        statusColor = Colors.red;
-        break;
-      default:
-        statusText = 'Невідомо';
-        statusColor = Colors.grey;
-    }
+      }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

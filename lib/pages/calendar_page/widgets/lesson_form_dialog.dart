@@ -7,6 +7,8 @@ import '../models/lesson_model.dart';
 import '../../../services/calendar_service.dart';
 import '../calendar_utils.dart';
 import '../../../globals.dart';
+import '../../../services/lesson_templates_service.dart';
+import 'autocomplete_field.dart';
 
 class LessonFormDialog extends StatefulWidget {
   final LessonModel? lesson; // null для створення нового
@@ -31,6 +33,10 @@ class LessonFormDialog extends StatefulWidget {
 class _LessonFormDialogState extends State<LessonFormDialog> {
   final _formKey = GlobalKey<FormState>();
   final CalendarService _calendarService = CalendarService();
+
+    // В клас _LessonFormDialogState додати:
+  final LessonTemplatesService _templatesService = LessonTemplatesService();
+  List<LessonTemplate> _availableTemplates = [];
   
   // Контролери для текстових полів
   late final TextEditingController _titleController;
@@ -40,6 +46,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   late final TextEditingController _unitController;
   late final TextEditingController _maxParticipantsController;
   late final TextEditingController _tagsController;
+  late final TextEditingController _trainingPeriodController;
 
   // Дані форми
   DateTime _selectedDate = DateTime.now();
@@ -62,6 +69,12 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     super.initState();
     _initializeControllers();
     _loadInitialData();
+    _loadTemplates();
+  }
+
+  Future<void> _loadTemplates() async {
+    _availableTemplates = _templatesService.getTemplates();
+    setState(() {});
   }
 
   void _initializeControllers() {
@@ -72,6 +85,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     _unitController = TextEditingController();
     _maxParticipantsController = TextEditingController(text: '30');
     _tagsController = TextEditingController();
+    _trainingPeriodController = TextEditingController();
   }
 
   void _loadInitialData() {
@@ -89,6 +103,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
       _endTime = TimeOfDay.fromDateTime(lesson.endTime);
       _selectedTags = List.from(lesson.tags);
       _tagsController.text = _selectedTags.join(', ');
+      _trainingPeriodController.text = lesson.trainingPeriod;
       
       if (lesson.recurrence != null) {
         _isRecurring = true;
@@ -152,6 +167,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     _unitController.dispose();
     _maxParticipantsController.dispose();
     _tagsController.dispose();
+    _trainingPeriodController.dispose();
     super.dispose();
   }
 
@@ -265,6 +281,22 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
           },
           textCapitalization: TextCapitalization.sentences,
         ),
+        if (_availableTemplates.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          const Text('Шаблони занять:', style: TextStyle(fontWeight: FontWeight.w500)),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: _availableTemplates.map((template) => 
+              ActionChip(
+                label: Text(template.title),
+                onPressed: () => _applyTemplate(template),
+                backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+              ),
+            ).toList(),
+          ),
+        ],
         
         const SizedBox(height: 16),
         
@@ -282,6 +314,25 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         ),
       ],
     );
+  }
+
+  void _applyTemplate(LessonTemplate template) {
+    _titleController.text = template.title;
+    _descriptionController.text = template.description;
+    _locationController.text = template.location;
+    _unitController.text = template.unit;
+    _selectedTags = List.from(template.tags);
+    _tagsController.text = _selectedTags.join(', ');
+    
+    // Встановлюємо тривалість
+    final endMinutes = (_startTime.hour * 60 + _startTime.minute + template.durationMinutes) % (24 * 60);
+    _endTime = TimeOfDay(
+      hour: endMinutes ~/ 60,
+      minute: endMinutes % 60,
+    );
+    
+    setState(() {});
+    _validateTime();
   }
 
   Widget _buildTimeSection() {
@@ -383,29 +434,26 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         const SizedBox(height: 12),
         
         // Інструктор
-        TextFormField(
+        AutocompleteField(
           controller: _instructorController,
-          decoration: const InputDecoration(
-            labelText: 'Інструктор',  // 👈 прибрати *
-            hintText: 'Залишити пустим якщо не призначено',
-            prefixIcon: Icon(Icons.person),
-            border: OutlineInputBorder(),
-          ),
-          // validator: null,  // 👈 прибрати валідацію
+          labelText: 'Інструктор',
+          hintText: 'Залишити пустим якщо не призначено',
+          prefixIcon: Icons.person,
+          getSuggestions: (query) => _templatesService.getInstructorSuggestions(query),
+          onNewValue: (value) => _templatesService.addInstructor(value),
           textCapitalization: TextCapitalization.words,
         ),
         
         const SizedBox(height: 16),
         
         // Місце проведення
-        TextFormField(
+        AutocompleteField(
           controller: _locationController,
-          decoration: const InputDecoration(
-            labelText: 'Місце проведення *',
-            hintText: 'Навчальний клас №1',
-            prefixIcon: Icon(Icons.location_on),
-            border: OutlineInputBorder(),
-          ),
+          labelText: 'Місце проведення *',
+          hintText: 'Навчальний клас №1',
+          prefixIcon: Icons.location_on,
+          getSuggestions: (query) => _templatesService.getLocationSuggestions(query),
+          onNewValue: (value) => _templatesService.addLocation(value),
           validator: (value) {
             if (value == null || value.trim().isEmpty) {
               return 'Місце проведення обов\'язкове';
@@ -414,20 +462,71 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
           },
           textCapitalization: TextCapitalization.sentences,
         ),
+
         
         const SizedBox(height: 16),
         
         // Підрозділ
-        TextFormField(
+        AutocompleteField(
           controller: _unitController,
-          decoration: const InputDecoration(
-            labelText: 'Підрозділ',
-            hintText: '1-й батальйон',
-            prefixIcon: Icon(Icons.military_tech),
-            border: OutlineInputBorder(),
-          ),
+          labelText: 'Підрозділ',
+          hintText: '1-й батальйон',
+          prefixIcon: Icons.military_tech,
+          getSuggestions: (query) => _templatesService.getUnitSuggestions(query),
+          onNewValue: (value) => _templatesService.addUnit(value),
           textCapitalization: TextCapitalization.sentences,
         ),
+
+        const SizedBox(height: 16),
+
+// Період навчання
+Row(
+  children: [
+    Expanded(
+      flex: 2,
+      child: TextFormField(
+        controller: _trainingPeriodController,
+        decoration: const InputDecoration(
+          labelText: 'Період навчання *',
+          hintText: '25.06.2025 - 16.07.2025',
+          prefixIcon: Icon(Icons.date_range),
+          border: OutlineInputBorder(),
+          helperText: 'Формат: дд.мм.рррр - дд.мм.рррр',
+        ),
+        validator: (value) {
+          if (value == null || value.trim().isEmpty) {
+            return 'Період навчання обов\'язковий для звітності';
+          }
+          if (!LessonStatusUtils.isValidTrainingPeriod(value.trim())) {
+            return 'Некоректний формат. Використовуйте: дд.мм.рррр - дд.мм.рррр';
+          }
+          return null;
+        },
+        onChanged: (value) {
+          // Автоматичне форматування при введенні
+          if (value.length == 10 && !value.contains(' - ')) {
+            _trainingPeriodController.text = '$value - ';
+            _trainingPeriodController.selection = TextSelection.fromPosition(
+              TextPosition(offset: _trainingPeriodController.text.length),
+            );
+          }
+        },
+      ),
+    ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: ElevatedButton.icon(
+              onPressed: _selectTrainingPeriod,
+              icon: const Icon(Icons.calendar_today, size: 16),
+              label: const Text('Обрати', style: TextStyle(fontSize: 12)),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+
         
         const SizedBox(height: 16),
         
@@ -464,6 +563,45 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
       ],
     );
   }
+
+  Future<void> _selectTrainingPeriod() async {
+  final DateTimeRange? picked = await showDateRangePicker(
+    context: context,
+    firstDate: DateTime.now().subtract(const Duration(days: 365)),
+    lastDate: DateTime.now().add(const Duration(days: 365)),
+    initialDateRange: _parseCurrentPeriod(),
+    locale: const Locale('uk', 'UA'),
+    builder: (context, child) {
+      return Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: Theme.of(context).colorScheme.copyWith(
+            primary: Theme.of(context).primaryColor,
+          ),
+        ),
+        child: child!,
+      );
+    },
+  );
+
+  if (picked != null) {
+    final formattedPeriod = LessonStatusUtils.createTrainingPeriod(
+      picked.start,
+      picked.end,
+    );
+    _trainingPeriodController.text = formattedPeriod;
+  }
+}
+
+DateTimeRange? _parseCurrentPeriod() {
+  final text = _trainingPeriodController.text;
+  final (startDate, endDate) = LessonStatusUtils.parseTrainingPeriod(text);
+  
+  if (startDate != null && endDate != null) {
+    return DateTimeRange(start: startDate, end: endDate);
+  }
+  
+  return null;
+}
 
   Widget _buildRecurrenceSection() {
     return Column(
@@ -847,6 +985,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         createdAt: widget.lesson?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
         recurrence: recurrence,
+        trainingPeriod: _trainingPeriodController.text.trim(),
       );
 
       bool success;
@@ -862,6 +1001,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
           'unit': lesson.unit,
           'maxParticipants': lesson.maxParticipants,
           'tags': lesson.tags,
+          'trainingPeriod': lesson.trainingPeriod,
           'recurrence': recurrence != null ? {
             'type': recurrence.type,
             'interval': recurrence.interval,

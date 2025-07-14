@@ -125,6 +125,30 @@ class _CalendarPageState extends State<CalendarPage> {
     }
   }
 
+  void _selectDate(DateTime date) {
+    setState(() {
+      _selectedDate = date;
+      
+      // Автоматично переключаємо тип перегляду залежно від поточного
+      switch (_viewType) {
+        case CalendarViewType.year:
+          _viewType = CalendarViewType.month;  // Рік → Місяць
+          break;
+        case CalendarViewType.month:
+          _viewType = CalendarViewType.week;   // Місяць → Тиждень
+          break;
+        case CalendarViewType.week:
+          _viewType = CalendarViewType.day;    // Тиждень → День
+          break;
+        case CalendarViewType.day:
+          // День залишається днем
+          break;
+      }
+      
+      _refreshKey++;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final isOnMobileDevice = isMobile(context);
@@ -137,6 +161,7 @@ class _CalendarPageState extends State<CalendarPage> {
           viewType: _viewType,
           selectedDate: _selectedDate,
           onLessonTap: _showLessonDetails,
+          onDateSelected: _selectDate, // 👈 ДОДАТИ callback для вибору дати
         );
         break;
       case CalendarViewType.week:
@@ -145,46 +170,25 @@ class _CalendarPageState extends State<CalendarPage> {
           viewType: _viewType,
           selectedDate: _selectedDate,
           onLessonTap: _showLessonDetails,
+          onDateSelected: _selectDate, // 👈 ДОДАТИ callback для вибору дати
         );
         break;
       case CalendarViewType.month:
-        content = const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.calendar_month, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
-              Text(
-                'Місячний перегляд',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Буде реалізовано найближчим часом',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ],
-          ),
+        content = CalendarGrid(
+          key: ValueKey('month_$_refreshKey'),
+          viewType: _viewType,
+          selectedDate: _selectedDate,
+          onLessonTap: _showLessonDetails,
+          onDateSelected: _selectDate,
         );
         break;
       case CalendarViewType.year:
-        content = const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.calendar_today, size: 64, color: Colors.grey),
-              SizedBox(height: 16),
-              Text(
-                'Річний перегляд',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Text(
-                'Буде реалізовано найближчим часом',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ],
-          ),
+        content = CalendarGrid(
+          key: ValueKey('year_$_refreshKey'),
+          viewType: _viewType,
+          selectedDate: _selectedDate,
+          onLessonTap: _showLessonDetails,
+          onDateSelected: _selectDate,
         );
         break;
     }
@@ -257,97 +261,8 @@ class _CalendarPageState extends State<CalendarPage> {
         tooltip: 'Створити заняття',
         child: const Icon(Icons.add),
       ),
-      // Додаткова кнопка для швидкого переходу на сьогодні (мобільна версія)
-      floatingActionButtonLocation: isOnMobileDevice 
-        ? FloatingActionButtonLocation.endFloat
-        : FloatingActionButtonLocation.endFloat,
-      bottomNavigationBar: isOnMobileDevice ? Container(
-        height: 60,
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          border: Border(
-            top: BorderSide(color: Colors.grey.shade300),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _buildBottomNavButton(
-              icon: Icons.today,
-              label: 'День',
-              isSelected: _viewType == CalendarViewType.day,
-              onTap: () => setState(() {
-                _viewType = CalendarViewType.day;
-                _refreshKey++;
-              }),
-            ),
-            _buildBottomNavButton(
-              icon: Icons.view_week,
-              label: 'Тиждень',
-              isSelected: _viewType == CalendarViewType.week,
-              onTap: () => setState(() {
-                _viewType = CalendarViewType.week;
-                _refreshKey++;
-              }),
-            ),
-            _buildBottomNavButton(
-              icon: Icons.calendar_month,
-              label: 'Місяць',
-              isSelected: _viewType == CalendarViewType.month,
-              onTap: () => setState(() {
-                _viewType = CalendarViewType.month;
-                _refreshKey++;
-              }),
-            ),
-            _buildBottomNavButton(
-              icon: Icons.date_range,
-              label: 'Рік',
-              isSelected: _viewType == CalendarViewType.year,
-              onTap: () => setState(() {
-                _viewType = CalendarViewType.year;
-                _refreshKey++;
-              }),
-            ),
-          ],
-        ),
-      ) : null,
-    );
-  }
-
-  Widget _buildBottomNavButton({
-    required IconData icon,
-    required String label,
-    required bool isSelected,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 20,
-              color: isSelected 
-                ? Theme.of(context).primaryColor 
-                : Colors.grey.shade600,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                color: isSelected 
-                  ? Theme.of(context).primaryColor 
-                  : Colors.grey.shade600,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
-      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+      // 👈 ПРИБРАТИ: bottomNavigationBar повністю видалена
     );
   }
 }

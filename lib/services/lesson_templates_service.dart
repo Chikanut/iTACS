@@ -1,7 +1,7 @@
-// lib/pages/calendar_page/services/lesson_templates_service.dart
+// lib/services/lesson_templates_service.dart
 
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:convert';
 
 class LessonTemplate {
@@ -52,6 +52,13 @@ class LessonTemplatesService {
   static final LessonTemplatesService _instance = LessonTemplatesService._internal();
   factory LessonTemplatesService() => _instance;
   LessonTemplatesService._internal();
+
+  // Hive boxes
+  static const String _templatesBoxName = 'lesson_templates';
+  static const String _autoCompleteBoxName = 'autocomplete_data';
+  
+  Box<String>? _templatesBox;
+  Box<List<String>>? _autoCompleteBox;
 
   List<LessonTemplate> _templates = [];
   Set<String> _instructors = {};
@@ -189,27 +196,45 @@ class LessonTemplatesService {
   };
 
   Future<void> initialize() async {
-    await _loadTemplates();
-    await _loadAutocompleteLists();
-    _addDefaultData();
+    try {
+      // Відкриваємо Hive boxes
+      _templatesBox = await Hive.openBox<String>(_templatesBoxName);
+      _autoCompleteBox = await Hive.openBox<List<String>>(_autoCompleteBoxName);
+      
+      await _loadTemplates();
+      await _loadAutocompleteLists();
+      _addDefaultData();
+      
+      debugPrint('LessonTemplatesService: Ініціалізовано успішно');
+    } catch (e) {
+      debugPrint('LessonTemplatesService: Помилка ініціалізації: $e');
+    }
   }
 
   // Методи для роботи з шаблонами
   List<LessonTemplate> getTemplates() => List.from(_templates);
 
   Future<void> saveTemplate(LessonTemplate template) async {
-    final existingIndex = _templates.indexWhere((t) => t.id == template.id);
-    if (existingIndex >= 0) {
-      _templates[existingIndex] = template;
-    } else {
-      _templates.add(template);
+    try {
+      final existingIndex = _templates.indexWhere((t) => t.id == template.id);
+      if (existingIndex >= 0) {
+        _templates[existingIndex] = template;
+      } else {
+        _templates.add(template);
+      }
+      await _saveTemplates();
+    } catch (e) {
+      debugPrint('LessonTemplatesService: Помилка збереження шаблону: $e');
     }
-    await _saveTemplates();
   }
 
   Future<void> deleteTemplate(String templateId) async {
-    _templates.removeWhere((template) => template.id == templateId);
-    await _saveTemplates();
+    try {
+      _templates.removeWhere((template) => template.id == templateId);
+      await _saveTemplates();
+    } catch (e) {
+      debugPrint('LessonTemplatesService: Помилка видалення шаблону: $e');
+    }
   }
 
   // Методи для автодоповнення
@@ -270,11 +295,10 @@ class LessonTemplatesService {
     }
   }
 
-  // Приватні методи для збереження/завантаження
+  // Приватні методи для збереження/завантаження з Hive
   Future<void> _loadTemplates() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final templatesJson = prefs.getString('lesson_templates');
+      final templatesJson = _templatesBox?.get('templates');
       if (templatesJson != null) {
         final List<dynamic> templatesList = json.decode(templatesJson);
         _templates = templatesList
@@ -288,9 +312,8 @@ class LessonTemplatesService {
 
   Future<void> _saveTemplates() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       final templatesJson = json.encode(_templates.map((t) => t.toJson()).toList());
-      await prefs.setString('lesson_templates', templatesJson);
+      await _templatesBox?.put('templates', templatesJson);
     } catch (e) {
       debugPrint('LessonTemplatesService: Помилка збереження шаблонів: $e');
     }
@@ -298,26 +321,24 @@ class LessonTemplatesService {
 
   Future<void> _loadAutocompleteLists() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      
-      final instructorsJson = prefs.getString('autocomplete_instructors');
-      if (instructorsJson != null) {
-        _instructors = Set<String>.from(json.decode(instructorsJson));
+      final instructors = _autoCompleteBox?.get('instructors');
+      if (instructors != null) {
+        _instructors = Set<String>.from(instructors);
       }
       
-      final locationsJson = prefs.getString('autocomplete_locations');
-      if (locationsJson != null) {
-        _locations = Set<String>.from(json.decode(locationsJson));
+      final locations = _autoCompleteBox?.get('locations');
+      if (locations != null) {
+        _locations = Set<String>.from(locations);
       }
       
-      final unitsJson = prefs.getString('autocomplete_units');
-      if (unitsJson != null) {
-        _units = Set<String>.from(json.decode(unitsJson));
+      final units = _autoCompleteBox?.get('units');
+      if (units != null) {
+        _units = Set<String>.from(units);
       }
       
-      final tagsJson = prefs.getString('autocomplete_tags');
-      if (tagsJson != null) {
-        _allTags = Set<String>.from(json.decode(tagsJson));
+      final tags = _autoCompleteBox?.get('tags');
+      if (tags != null) {
+        _allTags = Set<String>.from(tags);
       }
     } catch (e) {
       debugPrint('LessonTemplatesService: Помилка завантаження автодоповнення: $e');
@@ -326,11 +347,10 @@ class LessonTemplatesService {
 
   Future<void> _saveAutocompleteLists() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('autocomplete_instructors', json.encode(_instructors.toList()));
-      await prefs.setString('autocomplete_locations', json.encode(_locations.toList()));
-      await prefs.setString('autocomplete_units', json.encode(_units.toList()));
-      await prefs.setString('autocomplete_tags', json.encode(_allTags.toList()));
+      await _autoCompleteBox?.put('instructors', _instructors.toList());
+      await _autoCompleteBox?.put('locations', _locations.toList());
+      await _autoCompleteBox?.put('units', _units.toList());
+      await _autoCompleteBox?.put('tags', _allTags.toList());
     } catch (e) {
       debugPrint('LessonTemplatesService: Помилка збереження автодоповнення: $e');
     }
@@ -364,19 +384,25 @@ class LessonTemplatesService {
 
   // Очищення даних (для тестування)
   Future<void> clearAllData() async {
-    _templates.clear();
-    _instructors.clear();
-    _locations.clear();
-    _units.clear();
-    _allTags.clear();
-    
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('lesson_templates');
-    await prefs.remove('autocomplete_instructors');
-    await prefs.remove('autocomplete_locations');
-    await prefs.remove('autocomplete_units');
-    await prefs.remove('autocomplete_tags');
-    
-    _addDefaultData();
+    try {
+      _templates.clear();
+      _instructors.clear();
+      _locations.clear();
+      _units.clear();
+      _allTags.clear();
+      
+      await _templatesBox?.clear();
+      await _autoCompleteBox?.clear();
+      
+      _addDefaultData();
+    } catch (e) {
+      debugPrint('LessonTemplatesService: Помилка очищення даних: $e');
+    }
+  }
+
+  // Закриття boxes при завершенні роботи
+  Future<void> dispose() async {
+    await _templatesBox?.close();
+    await _autoCompleteBox?.close();
   }
 }
