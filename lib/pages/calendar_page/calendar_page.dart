@@ -9,6 +9,7 @@ import 'widgets/calendar_grid.dart';
 import 'widgets/lesson_details_dialog.dart';
 import 'package:intl/intl.dart';
 import 'widgets/lesson_form_dialog.dart';
+import 'calendar_utils.dart';
 
 class CalendarPage extends StatefulWidget {
   const CalendarPage({super.key});
@@ -42,7 +43,9 @@ class _CalendarPageState extends State<CalendarPage> {
           _selectedDate = _selectedDate.subtract(const Duration(days: 1));
           break;
         case CalendarViewType.week:
-          _selectedDate = _selectedDate.subtract(const Duration(days: 7));
+          // 👈 ВИПРАВЛЕННЯ: йдемо точно на 7 днів назад від понеділка поточного тижня
+          final startOfCurrentWeek = CalendarUtils.getStartOfWeek(_selectedDate);
+          _selectedDate = startOfCurrentWeek.subtract(const Duration(days: 7));
           break;
         case CalendarViewType.month:
           _selectedDate = DateTime(_selectedDate.year, _selectedDate.month - 1, 1);
@@ -62,7 +65,9 @@ class _CalendarPageState extends State<CalendarPage> {
           _selectedDate = _selectedDate.add(const Duration(days: 1));
           break;
         case CalendarViewType.week:
-          _selectedDate = _selectedDate.add(const Duration(days: 7));
+          // 👈 ВИПРАВЛЕННЯ: йдемо точно на 7 днів вперед від понеділка поточного тижня
+          final startOfCurrentWeek = CalendarUtils.getStartOfWeek(_selectedDate);
+          _selectedDate = startOfCurrentWeek.add(const Duration(days: 7));
           break;
         case CalendarViewType.month:
           _selectedDate = DateTime(_selectedDate.year, _selectedDate.month + 1, 1);

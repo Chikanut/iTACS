@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../pages/calendar_page/models/lesson_model.dart';
 import '../../../globals.dart';
+import '../pages/calendar_page/calendar_utils.dart';
 
 class CalendarService {
   static final CalendarService _instance = CalendarService._internal();
@@ -51,8 +52,12 @@ class CalendarService {
 
   /// Отримати заняття для тижня
   Future<List<LessonModel>> getLessonsForWeek(DateTime selectedDate) async {
-    final startOfWeek = selectedDate.subtract(Duration(days: selectedDate.weekday - 1));
-    final endOfWeek = startOfWeek.add(const Duration(days: 6, hours: 23, minutes: 59));
+    final startOfWeek = CalendarUtils.getStartOfWeek(selectedDate);
+    final endOfWeek = CalendarUtils.getEndOfWeek(selectedDate);
+    
+    debugPrint('📅 getLessonsForWeek:');
+    debugPrint('  Selected: ${selectedDate.day}.${selectedDate.month}.${selectedDate.year}');
+    debugPrint('  Week: ${startOfWeek.day}.${startOfWeek.month} - ${endOfWeek.day}.${endOfWeek.month}');
     
     return await getLessonsForPeriod(
       startDate: startOfWeek,
@@ -92,7 +97,7 @@ class CalendarService {
         'groupId': currentGroupId,
         'groupName': lesson.groupName,
         'unit': lesson.unit,
-        'instructor': lesson.instructor,
+        'instructor': lesson.instructor.isEmpty ? 'Не призначено' : lesson.instructor,
         'location': lesson.location,
         'maxParticipants': lesson.maxParticipants,
         'currentParticipants': 0,
@@ -368,5 +373,61 @@ class CalendarService {
       'totalCapacity': totalCapacity,
       'occupancyRate': occupancyRate,
     };
+  }
+
+  /// Взяти заняття на себе (як інструктор)
+  Future<bool> takeLesson(String lessonId) async {
+    try {
+      final currentUser = Globals.firebaseAuth.currentUser;
+      if (currentUser == null) return false;
+
+      // Отримуємо дані користувача для імені
+      final userData = await Globals.firestoreManager.getOrCreateUserData();
+      final instructorName = userData != null 
+          ? '${userData['firstName'] ?? ''} ${userData['lastName'] ?? ''}'.trim()
+          : 'Викладач';
+
+      final success = await updateLesson(lessonId, {
+        'instructor': instructorName.isEmpty ? 'Викладач' : instructorName,
+        'participants': [currentUser.uid], // Тільки один викладач
+        'currentParticipants': 1,
+      });
+
+      return success;
+    } catch (e) {
+      debugPrint('CalendarService: Помилка взяття заняття: $e');
+      return false;
+    }
+  }
+
+  /// Відмовитися від заняття (як інструктор)
+  Future<bool> releaseLesson(String lessonId) async {
+    try {
+      final success = await updateLesson(lessonId, {
+        'instructor': 'Не призначено',
+        'participants': <String>[],
+        'currentParticipants': 0,
+      });
+
+      return success;
+    } catch (e) {
+      debugPrint('CalendarService: Помилка відмови від заняття: $e');
+      return false;
+    }
+  }
+
+  /// Перевірити чи користувач веде це заняття
+  bool isUserInstructorForLesson(LessonModel lesson) {
+    final currentUser = Globals.firebaseAuth.currentUser;
+    if (currentUser == null) return false;
+    
+    return lesson.participants.contains(currentUser.uid);
+  }
+
+  /// Перевірити чи заняття потребує інструктора
+  bool doesLessonNeedInstructor(LessonModel lesson) {
+    return lesson.instructor.isEmpty || 
+          lesson.instructor == 'Не призначено' || 
+          lesson.participants.isEmpty;
   }
 }

@@ -12,6 +12,7 @@ class LessonFormDialog extends StatefulWidget {
   final LessonModel? lesson; // null для створення нового
   final DateTime? initialDate;
   final TimeOfDay? initialStartTime;
+  final Map<String, dynamic>? templateData;
   final VoidCallback? onSaved;
 
   const LessonFormDialog({
@@ -19,6 +20,7 @@ class LessonFormDialog extends StatefulWidget {
     this.lesson,
     this.initialDate,
     this.initialStartTime,
+    this.templateData,
     this.onSaved,
   });
 
@@ -107,7 +109,26 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         );
       }
       
-      // Автозаповнення деяких полів з профілю користувача
+      // 👈 ДОДАТИ: Якщо є templateData, заповнюємо поля
+      if (widget.templateData != null) {
+        final template = widget.templateData!;
+        _titleController.text = template['title'] ?? '';
+        _descriptionController.text = template['description'] ?? '';
+        _locationController.text = template['location'] ?? '';
+        _unitController.text = template['unit'] ?? '';
+        _selectedTags = List<String>.from(template['tags'] ?? []);
+        _tagsController.text = _selectedTags.join(', ');
+        
+        if (template['durationMinutes'] != null) {
+          final duration = template['durationMinutes'] as int;
+          final endMinutes = (_startTime.hour * 60 + _startTime.minute + duration) % (24 * 60);
+          _endTime = TimeOfDay(
+            hour: endMinutes ~/ 60,
+            minute: endMinutes % 60,
+          );
+        }
+      }
+      
       _loadUserDefaults();
     }
     
@@ -365,17 +386,12 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         TextFormField(
           controller: _instructorController,
           decoration: const InputDecoration(
-            labelText: 'Інструктор *',
-            hintText: 'Іванов І.І.',
+            labelText: 'Інструктор',  // 👈 прибрати *
+            hintText: 'Залишити пустим якщо не призначено',
             prefixIcon: Icon(Icons.person),
             border: OutlineInputBorder(),
           ),
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return 'Ім\'я інструктора обов\'язкове';
-            }
-            return null;
-          },
+          // validator: null,  // 👈 прибрати валідацію
           textCapitalization: TextCapitalization.words,
         ),
         
@@ -419,27 +435,28 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         TextFormField(
           controller: _maxParticipantsController,
           decoration: const InputDecoration(
-            labelText: 'Максимум учасників *',
+            labelText: 'Очікувана кількість учнів',  // 👈 змінити назву
             hintText: '30',
             prefixIcon: Icon(Icons.group),
             border: OutlineInputBorder(),
             suffixText: 'осіб',
+            helperText: 'Для планування та орієнтиру',  // 👈 додати пояснення
           ),
-          keyboardType: TextInputType.number,
+          keyboardType: TextInputType.number, 
           inputFormatters: [
             FilteringTextInputFormatter.digitsOnly,
             LengthLimitingTextInputFormatter(3),
           ],
           validator: (value) {
             if (value == null || value.trim().isEmpty) {
-              return 'Кількість учасників обов\'язкова';
+              return 'Вкажіть очікувану кількість учнів';
             }
             final number = int.tryParse(value);
             if (number == null || number < 1) {
-              return 'Мінімум 1 учасник';
+              return 'Мінімум 1 учень';
             }
             if (number > 999) {
-              return 'Максимум 999 учасників';
+              return 'Максимум 999 учнів';
             }
             return null;
           },

@@ -6,7 +6,17 @@ import 'tool_tile.dart';
 
 IconData iconFromData(Map<String, dynamic> item, bool isFolder) {
   if (item['icon'] != null && item['iconFontFamily'] != null) {
-    return IconData(item['icon'], fontFamily: item['iconFontFamily']);
+    try {
+      final iconCode = item['icon'];
+      final fontFamily = item['iconFontFamily'];
+      
+      // Перевіряємо чи це валідні значення
+      if (iconCode is int && fontFamily is String && fontFamily.isNotEmpty) {
+        return IconData(iconCode, fontFamily: fontFamily);
+      }
+    } catch (e) {
+      // Якщо помилка - повертаємо fallback
+    }
   }
   return isFolder ? Icons.folder : Icons.web;
 }

@@ -1,6 +1,47 @@
 import 'package:flutter/material.dart';
 import 'models/lesson_model.dart';
 
+enum InstructorLessonStatus {
+    needsInstructor,
+    assigned,
+    teaching,
+  }
+
+  extension InstructorLessonStatusExtension on InstructorLessonStatus {
+    Color get color {
+      switch (this) {
+        case InstructorLessonStatus.needsInstructor:
+          return Colors.orange;
+        case InstructorLessonStatus.assigned:
+          return Colors.blue;
+        case InstructorLessonStatus.teaching:
+          return Colors.green;
+      }
+    }
+
+    String get label {
+      switch (this) {
+        case InstructorLessonStatus.needsInstructor:
+          return 'Потрібен викладач';
+        case InstructorLessonStatus.assigned:
+          return 'Викладач призначений';
+        case InstructorLessonStatus.teaching:
+          return 'Ви викладаєте';
+      }
+    }
+
+    IconData get icon {
+      switch (this) {
+        case InstructorLessonStatus.needsInstructor:
+          return Icons.person_add;
+        case InstructorLessonStatus.assigned:
+          return Icons.person;
+        case InstructorLessonStatus.teaching:
+          return Icons.school;
+      }
+    }
+  }
+
 class CalendarUtils {
   // Константи для календаря
   static const double timeColumnWidth = 60.0;
@@ -70,6 +111,8 @@ class CalendarUtils {
     final start2Minutes = start2.hour * 60 + start2.minute;
     final end2Minutes = end2.hour * 60 + end2.minute;
     
+    // Заняття перекриваються якщо:
+    // (start1 < end2) AND (start2 < end1)
     return start1Minutes < end2Minutes && start2Minutes < end1Minutes;
   }
 
@@ -123,18 +166,36 @@ class CalendarUtils {
 
   /// Отримати дні тижня для заданої дати
   static List<DateTime> getWeekDays(DateTime selectedDate) {
-    final startOfWeek = selectedDate.subtract(Duration(days: selectedDate.weekday - 1));
-    return List.generate(7, (index) => startOfWeek.add(Duration(days: index)));
+    final startOfWeek = getStartOfWeek(selectedDate);
+    final weekDays = List.generate(7, (index) => startOfWeek.add(Duration(days: index)));
+    
+    // 👈 ДОДАТИ DEBUG
+    debugPrint('📅 getWeekDays:');
+    debugPrint('  Selected date: ${selectedDate.day}.${selectedDate.month}.${selectedDate.year}');
+    debugPrint('  Week days:');
+    for (int i = 0; i < weekDays.length; i++) {
+      final day = weekDays[i];
+      final dayName = getDayName(day.weekday);
+      debugPrint('    $i ($dayName): ${day.day}.${day.month}.${day.year}');
+    }
+    
+    return weekDays;
   }
 
   /// Отримати початок тижня
   static DateTime getStartOfWeek(DateTime date) {
-    return date.subtract(Duration(days: date.weekday - 1));
+    final daysFromMonday = date.weekday - 1;
+    final startOfWeek = date.subtract(Duration(days: daysFromMonday));
+    
+    // 👈 ВИПРАВЛЕННЯ: повертаємо початок дня
+    return DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day, 0, 0, 0);
   }
 
-  /// Отримати кінець тижня
+  /// Отримати кінець тижня (неділя о 23:59:59)
   static DateTime getEndOfWeek(DateTime date) {
-    return getStartOfWeek(date).add(const Duration(days: 6));
+    final startOfWeek = getStartOfWeek(date);
+    final endOfWeek = startOfWeek.add(const Duration(days: 6));
+    return DateTime(endOfWeek.year, endOfWeek.month, endOfWeek.day, 23, 59, 59);
   }
 
   /// Отримати початок місяця
@@ -265,6 +326,15 @@ class CalendarUtils {
     final hash = groupName.hashCode;
     final hue = (hash % 360).toDouble();
     return HSVColor.fromAHSV(1.0, hue, 0.3, 0.95).toColor();
+  }
+
+    /// Отримати статус заняття для викладача
+  static InstructorLessonStatus getInstructorLessonStatus(LessonModel lesson, bool isUserInstructor) {
+    if (isUserInstructor) return InstructorLessonStatus.teaching;
+    if (lesson.instructor.isEmpty || lesson.instructor == 'Не призначено') {
+      return InstructorLessonStatus.needsInstructor;
+    }
+    return InstructorLessonStatus.assigned;
   }
 }
 

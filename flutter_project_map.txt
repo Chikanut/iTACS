@@ -32,12 +32,16 @@ sdk: flutter
   import 'package:firebase_auth/firebase_auth.dart';
   import 'package:hive_flutter/hive_flutter.dart';
   import 'package:path_provider/path_provider.dart';
+  import 'package:flutter_localizations/flutter_localizations.dart';
+  import 'package:intl/date_symbol_data_local.dart';
 
 🏗️ CLASSES:
   class MyApp extends StatelessWidget {
 
 ⚙️ METHODS:
   void main() async
+  await initializeDateFormatting('uk', null);
+  await LessonTemplatesService().initialize();
     const MyApp(
     Widget build(BuildContext context)
     return MaterialApp(
@@ -205,10 +209,19 @@ sdk: flutter
     bool isMobile(BuildContext context)
   Widget build(BuildContext context)
   return Scaffold(
+  const Text('Календар занять'),
+  const SnackBar(
+  const SnackBar(
   const Divider(height: 1),
+  return InkWell(
+  const SizedBox(height: 4),
 
 🏷️ PROPERTIES:
     final shortestSide
+  final startOfCurrentWeek
+  final startOfCurrentWeek
+  final startOfWeek
+  final endOfWeek
   final isOnMobileDevice
   Widget content;
 
@@ -221,16 +234,23 @@ sdk: flutter
   class CalendarUtils {
 
 🔢 ENUMS:
+  enum InstructorLessonStatus {
   enum LessonStatus {
 
 ⚡ EXTENSIONS:
+  extension InstructorLessonStatusExtension on InstructorLessonStatus {
   extension LessonStatusExtension on LessonStatus {
 
 ⚙️ METHODS:
-    static Color getGroupColor(String groupName)
+  Color get color {
+  String get label {
+  IconData get icon {
+    static double getMinHourFromLessons(List<LessonModel> lessons)
+  static double getMaxHourFromLessons(List<LessonModel> lessons)
+  static Color getGroupColor(String groupName)
   static IconData getLessonTypeIcon(String lessonType)
   static bool timesOverlap(TimeOfDay start1, TimeOfDay end1, TimeOfDay start2, TimeOfDay end2)
-  static double getTimePosition(TimeOfDay time)
+  static double getTimePosition(TimeOfDay time, double minHour)
   static double getDurationHeight(TimeOfDay start, TimeOfDay end)
   static String formatTime(TimeOfDay time)
   static String getDayName(int weekday,
@@ -238,8 +258,9 @@ sdk: flutter
   static bool isToday(DateTime date)
   static List<DateTime> getWeekDays(DateTime selectedDate)
   static DateTime getStartOfWeek(DateTime date)
+  return DateTime(startOfWeek.year, startOfWeek.month, startOfWeek.day, 0, 0, 0);
   static DateTime getEndOfWeek(DateTime date)
-  return getStartOfWeek(date).add(const Duration(days: 6));
+  return DateTime(endOfWeek.year, endOfWeek.month, endOfWeek.day, 23, 59, 59);
   static DateTime getStartOfMonth(DateTime date)
   return DateTime(date.year, date.month, 1);
   static DateTime getEndOfMonth(DateTime date)
@@ -253,16 +274,17 @@ sdk: flutter
   static Map<int, List<Map<String, dynamic>>> groupLessonsByDay(List<Map<String, dynamic>> lessons)
   static List<Map<String, dynamic>> findOverlappingLessons(
   static Color generateGroupColor(String groupName)
+  static InstructorLessonStatus getInstructorLessonStatus(LessonModel lesson, bool isUserInstructor)
   Color get color {
   String get label {
   IconData get icon {
 
 🏷️ PROPERTIES:
     static const double timeColumnWidth
-    static const double minHour
-    static const double maxHour
     static const double hourHeight
     static const double minuteHeight
+    final minTime
+  final maxTime
   final type
   final start1Minutes
   final end1Minutes
@@ -277,6 +299,14 @@ sdk: flutter
   const months
   final now
   final startOfWeek
+  final weekDays
+  final day
+  final dayName
+  return weekDays;
+  final daysFromMonday
+  final startOfWeek
+  final startOfWeek
+  final endOfWeek
   final timeA
   final timeB
   final minutesA
@@ -366,16 +396,24 @@ sdk: flutter
 📦 IMPORTS:
   import 'package:flutter/material.dart';
   import '../models/calendar_view_type.dart';
+  import '../models/lesson_model.dart';
+  import 'package:flutter/material.dart';
+  import '../models/calendar_view_type.dart';
+  import '../models/lesson_model.dart';
+  import '../../../services/calendar_service.dart';
+  import '../calendar_utils.dart';
 
 🏗️ CLASSES:
   class CalendarGrid extends StatefulWidget {
   class _CalendarGridState extends State<CalendarGrid> {
 
 ⚙️ METHODS:
-    final Function(Map<String, dynamic>)? onLessonTap;
+    final Function(LessonModel)? onLessonTap;
     const CalendarGrid(
-    Widget build(BuildContext context)
-    return LayoutBuilder(
+    void initState()
+  void didUpdateWidget(CalendarGrid oldWidget)
+  Widget build(BuildContext context)
+  return LayoutBuilder(
   return Column(
   const Divider(height: 1),
   return Column(
@@ -390,34 +428,50 @@ sdk: flutter
   const SizedBox(width: 4),
   return Center(
   const SizedBox(height: 16),
+  const SizedBox(height: 8),
+  return RefreshIndicator(
   return Container(
   return SingleChildScrollView(
+  return Container(
+  return Container(
+  return Container(
+  return Positioned(
+  return Positioned(
+  return Positioned(
   return Expanded(
-  return Container(
-  return Container(
-  return Container(
-  return Positioned(
-  return Positioned(
   return GestureDetector(
+  const SizedBox(width: 2),
+  else if (isRegistered)
   const SizedBox(height: 2),
-  const SizedBox(height: 2),
+  const SizedBox(height: 1),
   return GestureDetector(
+  const SizedBox(width: 8),
+  const SizedBox(width: 4),
   const SizedBox(height: 8),
   const SizedBox(width: 4),
   const SizedBox(height: 4),
   const SizedBox(width: 4),
+  const SizedBox(height: 4),
+  const SizedBox(width: 4),
+  const SizedBox(height: 12),
+  const SizedBox(width: 4),
+  const SizedBox(height: 2),
+  const SizedBox(width: 4),
+  const SizedBox(width: 8),
   const SizedBox(height: 8),
 
 🏷️ PROPERTIES:
     final CalendarViewType viewType;
     final DateTime selectedDate;
     static const double timeColumnWidth
-    static const double minHour
-    static const double maxHour
     static const double hourHeight
     static const double minuteHeight
-    final isMobile
-    final isTablet
+  final startOfMonth
+  final endOfMonth
+  final startOfYear
+  final endOfYear
+  final isMobile
+  final isTablet
   final days
   final day
   final isToday
@@ -427,7 +481,6 @@ sdk: flutter
   final day
   final isToday
   final hasLessons
-  final currentDayIndex
   final dayLessons
   final lesson
   final hour
@@ -439,18 +492,31 @@ sdk: flutter
   final durationMinutes
   final topPosition
   final height
+  final allDayLessons
   final overlappingLessons
-  final overlapCount
+  final aStart
+  final bStart
+  final totalOverlapping
   final lessonIndex
+  final isRegistered
+  final needsInstructor
+  final color
   final start
   final end
-  final startOfWeek
-  const days
-  final now
-  final start1Minutes
-  final end1Minutes
-  final start2Minutes
-  final end2Minutes
+  final isRegistered
+  final color
+  final status
+  final needsInstructor
+  final isUserInstructor
+  final weekDays
+  final targetDate
+  final normalizedTargetDate
+  final dayLessons
+  final normalizedLessonDate
+  final matches
+  return matches;
+  return dayLessons;
+  final success
 
 ==== lib\pages\calendar_page\widgets\calendar_header.dart ====
 
@@ -513,8 +579,10 @@ sdk: flutter
   const SizedBox(width: 8),
   const SizedBox(height: 6),
   const SizedBox(width: 8),
+  const SizedBox(height: 6),
+  const SizedBox(width: 8),
   const SizedBox(height: 12),
-  const SizedBox(height: 4),
+  const SizedBox(height: 2),
   const SizedBox(width: 12),
   const SizedBox(height: 12),
   const SizedBox(height: 16),
@@ -535,6 +603,7 @@ sdk: flutter
     final VoidCallback? onTap;
     final VoidCallback? onRegister;
     final bool isRegistered;
+    final String? unit;
   final occupancyRate
   final isAlmostFull
   final isFull
@@ -542,6 +611,177 @@ sdk: flutter
   Color textColor;
   String text;
   IconData icon;
+
+==== lib\pages\calendar_page\widgets\lesson_details_dialog.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import 'package:intl/intl.dart';
+  import '../models/lesson_model.dart';
+  import '../../../services/calendar_service.dart';
+  import '../calendar_utils.dart';
+  import '../../../globals.dart';
+
+🏗️ CLASSES:
+  class LessonDetailsDialog extends StatefulWidget {
+  class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
+
+⚙️ METHODS:
+    const LessonDetailsDialog(
+    void initState()
+  Widget build(BuildContext context)
+  return Dialog(
+  const SizedBox(width: 12),
+  const SizedBox(height: 4),
+  const SizedBox(height: 16),
+  const SizedBox(height: 16),
+  const SizedBox(height: 16),
+  const SizedBox(height: 16),
+  const SizedBox(height: 16),
+  const SizedBox(height: 16),
+  const Text(
+  const SizedBox(height: 8),
+  const SizedBox(height: 16),
+  return Row(
+  const SizedBox(width: 12),
+  const SizedBox(height: 2),
+  return Column(
+  const Text(
+  const SizedBox(height: 12),
+  const SizedBox(width: 12),
+  const SizedBox(height: 4),
+  const SizedBox(height: 16),
+  const SizedBox(width: 8),
+  return Column(
+  const Text(
+  const SizedBox(height: 8),
+  const SizedBox(width: 8),
+  return Column(
+  else if (isUserInstructor)
+  const SizedBox(height: 12),
+  const SizedBox(width: 12),
+  const SizedBox(height: 8),
+  const SnackBar(
+  const SnackBar(
+
+🏷️ PROPERTIES:
+    final LessonModel lesson;
+    final VoidCallback? onUpdated;
+  final lesson
+  final occupancyRate
+  final status
+  bool isMultiline
+  final needsInstructor
+  final isUserInstructor
+  final status
+  String statusText;
+  Color statusColor;
+  final canEdit
+  final needsInstructor
+  final isUserInstructor
+  final canTakeLesson
+  final currentRole
+  return currentRole
+  final success
+  final success
+  final currentRole
+  final currentUser
+  return currentRole
+  final success
+  final success
+  final success
+
+==== lib\pages\calendar_page\widgets\lesson_form_dialog.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import 'package:flutter/services.dart';
+  import 'package:intl/intl.dart';
+  import '../models/lesson_model.dart';
+  import '../../../services/calendar_service.dart';
+  import '../calendar_utils.dart';
+  import '../../../globals.dart';
+
+🏗️ CLASSES:
+  class LessonFormDialog extends StatefulWidget {
+  class _LessonFormDialogState extends State<LessonFormDialog> {
+
+⚙️ METHODS:
+    const LessonFormDialog(
+    void initState()
+  void dispose()
+  Widget build(BuildContext context)
+  return Dialog(
+  const SizedBox(height: 20),
+  const SizedBox(height: 20),
+  const SizedBox(height: 20),
+  const SizedBox(height: 20),
+  return Container(
+  const SizedBox(width: 12),
+  return Column(
+  const Text(
+  const SizedBox(height: 12),
+  const SizedBox(height: 16),
+  return Column(
+  const Text(
+  const SizedBox(height: 12),
+  const SizedBox(height: 16),
+  const SizedBox(width: 16),
+  const SizedBox(height: 8),
+  return Column(
+  const Text(
+  const SizedBox(height: 12),
+  const SizedBox(height: 16),
+  const SizedBox(height: 16),
+  const SizedBox(height: 16),
+  return Column(
+  const Text(
+  const Spacer(),
+  const SizedBox(height: 12),
+  const SizedBox(height: 16),
+  const SizedBox(width: 16),
+  return Column(
+  const Text(
+  const SizedBox(height: 12),
+  const SizedBox(height: 12),
+  const Text(
+  const SizedBox(height: 8),
+  const SizedBox(height: 12),
+  const Text(
+  const SizedBox(height: 8),
+  return FilterChip(
+  return Container(
+  const SizedBox(width: 16),
+
+🏷️ PROPERTIES:
+    final LessonModel? lesson; // null для створення нового
+    final DateTime? initialDate;
+    final TimeOfDay? initialStartTime;
+    final VoidCallback? onSaved;
+  final lesson
+  final template
+  final duration
+  final endMinutes
+  final currentGroup
+  final isEditing
+  return null;
+  return null;
+  final number
+  return null;
+  final isSelected
+  final date
+  final time
+  final endMinutes
+  final date
+  final tags
+  final startDateTime
+  final endDateTime
+  final currentUser
+  final currentGroup
+  Recurrence? recurrence;
+  final lesson
+  bool success;
+  final lessonId
 
 ==== lib\pages\materials_page\materials_page.dart ====
 
@@ -676,7 +916,7 @@ sdk: flutter
 
 ⚙️ METHODS:
   IconData iconFromData(Map<String, dynamic> item, bool isFolder)
-  return IconData(item['icon'], fontFamily: item['iconFontFamily']);
+  return IconData(iconCode, fontFamily: fontFamily);
   Future<IconData?> showIconPickerDialog(BuildContext context) async
   return IconButton(
     const ToolsPage(
@@ -701,6 +941,8 @@ sdk: flutter
   return ToolTile(
 
 🏷️ PROPERTIES:
+  final iconCode
+  final fontFamily
   const allIcons
   final groupId
   final parentId
@@ -820,6 +1062,106 @@ sdk: flutter
   return null;
   final prefs
   final prefs
+
+==== lib\services\calendar_service.dart ====
+
+📦 IMPORTS:
+  import 'package:cloud_firestore/cloud_firestore.dart';
+  import 'package:flutter/foundation.dart';
+  import '../pages/calendar_page/models/lesson_model.dart';
+  import '../../../globals.dart';
+  import '../pages/calendar_page/calendar_utils.dart';
+
+🏗️ CLASSES:
+  class CalendarService {
+
+⚙️ METHODS:
+    Future<List<LessonModel>> getLessonsForPeriod(
+  Future<List<LessonModel>> getLessonsForWeek(DateTime selectedDate) async
+  Future<List<LessonModel>> getLessonsForDay(DateTime selectedDate) async
+  Future<String?> createLesson(LessonModel lesson) async
+  throw Exception('Немає активної групи для створення заняття');
+  throw Exception('Користувач не авторизований');
+  Future<bool> updateLesson(String lessonId, Map<String, dynamic> updates) async
+  Future<bool> deleteLesson(String lessonId) async
+  Future<bool> registerForLesson(String lessonId) async
+  throw Exception('Заняття не знайдено');
+  throw Exception('Вже зареєстровано на це заняття');
+  throw Exception('Заняття заповнене');
+  Future<bool> unregisterFromLesson(String lessonId) async
+  throw Exception('Заняття не знайдено');
+  throw Exception('Не зареєстровано на це заняття');
+  bool isUserRegisteredForLesson(LessonModel lesson)
+  Future<List<LessonModel>> getLessonsWithFilters(
+  Stream<List<LessonModel>> getLessonsStream(
+  Future<Map<String, dynamic>> getLessonsStatistics(
+  Future<bool> takeLesson(String lessonId) async
+  Future<bool> releaseLesson(String lessonId) async
+  bool isUserInstructorForLesson(LessonModel lesson)
+  bool doesLessonNeedInstructor(LessonModel lesson)
+
+🏷️ PROPERTIES:
+    final currentGroupId
+  final querySnapshot
+  final lessons
+  return lessons;
+  final startOfWeek
+  final endOfWeek
+  final startOfDay
+  final endOfDay
+  final currentGroupId
+  final currentUser
+  final lessonData
+  final docRef
+  return null;
+  final currentGroupId
+  return true;
+  return false;
+  final currentGroupId
+  return true;
+  return false;
+  final currentGroupId
+  final currentUser
+  final lessonRef
+  final lessonDoc
+  final data
+  final participants
+  final maxParticipants
+  return true;
+  return false;
+  final currentGroupId
+  final currentUser
+  final lessonRef
+  final lessonDoc
+  final data
+  final participants
+  return true;
+  return false;
+  final currentUser
+  final currentGroupId
+  Query query
+  final querySnapshot
+  var lessons
+  return lessons;
+  final currentGroupId
+  final lessons
+  final totalLessons
+  final completedLessons
+  final scheduledLessons
+  final cancelledLessons
+  final totalParticipants
+  final totalCapacity
+  final occupancyRate
+  final currentUser
+  final userData
+  final instructorName
+  final success
+  return success;
+  return false;
+  final success
+  return success;
+  return false;
+  final currentUser
 
 ==== lib\services\error_notification_manager.dart ====
 
@@ -998,6 +1340,54 @@ sdk: flutter
     Body? body
   final window
   final document
+
+==== lib\services\lesson_templates_service.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/foundation.dart';
+  import 'package:shared_preferences/shared_preferences.dart';
+  import 'dart:convert';
+
+🏗️ CLASSES:
+  class LessonTemplate {
+  class LessonTemplatesService {
+
+⚙️ METHODS:
+    Map<String, dynamic> toJson() =>
+    Future<void> initialize() async
+  Future<void> saveTemplate(LessonTemplate template) async
+  Future<void> deleteTemplate(String templateId) async
+  List<String> getInstructorSuggestions(String query)
+  List<String> getLocationSuggestions(String query)
+  List<String> getUnitSuggestions(String query)
+  List<String> getTagSuggestions(String query)
+  Future<void> addInstructor(String instructor) async
+  Future<void> addLocation(String location) async
+  Future<void> addUnit(String unit) async
+  Future<void> addTag(String tag) async
+  Map<String, dynamic> createLessonFromTemplate(LessonTemplate template)
+  Future<void> clearAllData() async
+
+🏷️ PROPERTIES:
+    final String id;
+    final String title;
+    final String description;
+    final String location;
+    final String unit;
+    final int durationMinutes;
+    final bool isDefault;
+  final existingIndex
+  final prefs
+  final templatesJson
+  final prefs
+  final templatesJson
+  final prefs
+  final instructorsJson
+  final locationsJson
+  final unitsJson
+  final tagsJson
+  final prefs
+  final prefs
 
 ==== lib\services\profile_manager.dart ====
 

@@ -13,6 +13,7 @@ class LessonCard extends StatelessWidget {
   final VoidCallback? onTap;
   final VoidCallback? onRegister;
   final bool isRegistered;
+  final String? unit;
 
   const LessonCard({
     super.key,
@@ -20,6 +21,7 @@ class LessonCard extends StatelessWidget {
     required this.group,
     this.instructor,
     this.location,
+    this.unit,
     required this.filled,
     required this.total,
     this.backgroundColor,
@@ -247,7 +249,30 @@ class LessonCard extends StatelessWidget {
                 ],
               ),
             ],
-            
+
+            if (unit != null && unit!.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(
+                  Icons.military_tech,
+                  size: 16,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    unit!,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+                      
             const SizedBox(height: 12),
             
             // Прогрес-бар заповненості
@@ -258,24 +283,23 @@ class LessonCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '$filled/$total учасників',
+                        '$filled учнів',  // 👈 змінити текст
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey.shade600,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      LinearProgressIndicator(
-                        value: occupancyRate,
-                        backgroundColor: Colors.grey.shade200,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          isFull 
-                            ? Colors.red.shade400
-                            : isAlmostFull 
-                              ? Colors.orange.shade400
-                              : Colors.green.shade400,
+                      if (unit != null && unit!.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          unit!,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade500,
+                            fontStyle: FontStyle.italic,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),

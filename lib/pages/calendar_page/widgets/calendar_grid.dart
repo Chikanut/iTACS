@@ -348,14 +348,25 @@ class _CalendarGridState extends State<CalendarGrid> {
               width: timeColumnWidth,
               child: _buildTimeColumn(),
             ),
-            // Колонки днів
+            // Колонки днів - ЯВНО
             Expanded(
               child: Row(
-                children: List.generate(7, (dayIndex) {
-                  return Expanded(
-                    child: _buildDayColumn(dayIndex, isTablet),
-                  );
-                }),
+                children: [
+                  // Понеділок (dayIndex = 0)
+                  Expanded(child: _buildDayColumn(0, isTablet)),
+                  // Вівторок (dayIndex = 1)  
+                  Expanded(child: _buildDayColumn(1, isTablet)),
+                  // Середа (dayIndex = 2)
+                  Expanded(child: _buildDayColumn(2, isTablet)),
+                  // Четвер (dayIndex = 3)
+                  Expanded(child: _buildDayColumn(3, isTablet)),
+                  // П'ятниця (dayIndex = 4)
+                  Expanded(child: _buildDayColumn(4, isTablet)),
+                  // Субота (dayIndex = 5)
+                  Expanded(child: _buildDayColumn(5, isTablet)),
+                  // Неділя (dayIndex = 6)
+                  Expanded(child: _buildDayColumn(6, isTablet)),
+                ],
               ),
             ),
           ],
@@ -425,60 +436,110 @@ class _CalendarGridState extends State<CalendarGrid> {
     );
   }
 
-  Widget _buildPositionedLesson(LessonModel lesson, int dayIndex, bool isTablet) {
-    final start = TimeOfDay.fromDateTime(lesson.startTime);
-    final end = TimeOfDay.fromDateTime(lesson.endTime);
-    
-    final startMinutes = start.hour * 60 + start.minute;
-    final endMinutes = end.hour * 60 + end.minute;
-    final durationMinutes = endMinutes - startMinutes;
-    
-    final topPosition = (start.hour - _minHour) * hourHeight + (start.minute * minuteHeight);
-    final height = durationMinutes * minuteHeight;
-    
-    final dayLessons = _getLessonsForDay(widget.selectedDate.weekday - 1);
-
-    // Перевірка на перекриття з іншими заняттями в цей час
-    final overlappingLessons = dayLessons.where((other) => 
-      other.id != lesson.id &&
-      CalendarUtils.timesOverlap(
-        TimeOfDay.fromDateTime(other.startTime),
-        TimeOfDay.fromDateTime(other.endTime),
-        start, end
-      )
-    ).toList();
-    
-    final overlapCount = overlappingLessons.length + 1;
-    final lessonIndex = overlappingLessons.indexOf(lesson) + 1;
-    
+Widget _buildPositionedLesson(LessonModel lesson, int dayIndex, bool isTablet) {
+  final start = TimeOfDay.fromDateTime(lesson.startTime);
+  final end = TimeOfDay.fromDateTime(lesson.endTime);
+  
+  final startMinutes = start.hour * 60 + start.minute;
+  final endMinutes = end.hour * 60 + end.minute;
+  final durationMinutes = endMinutes - startMinutes;
+  
+  final topPosition = (start.hour - _minHour) * hourHeight + (start.minute * minuteHeight);
+  final height = (durationMinutes * minuteHeight).clamp(50.0, double.infinity);
+  
+  // Знаходимо ВСІ заняття цього дня
+  final allDayLessons = _getLessonsForDay(dayIndex);
+  
+  // Знаходимо заняття що перекриваються з поточним
+  final overlappingLessons = allDayLessons.where((other) => 
+    CalendarUtils.timesOverlap(
+      TimeOfDay.fromDateTime(other.startTime),
+      TimeOfDay.fromDateTime(other.endTime),
+      start, end
+    )
+  ).toList();
+  
+  // Сортуємо перекриваючі заняття за часом початку, потім за часом закінчення
+  overlappingLessons.sort((a, b) {
+    final aStart = a.startTime.millisecondsSinceEpoch;
+    final bStart = b.startTime.millisecondsSinceEpoch;
+    if (aStart != bStart) {
+      return aStart.compareTo(bStart);
+    }
+    return a.endTime.millisecondsSinceEpoch.compareTo(b.endTime.millisecondsSinceEpoch);
+  });
+  
+  final totalOverlapping = overlappingLessons.length;
+  final lessonIndex = overlappingLessons.indexOf(lesson);
+  
+  if (totalOverlapping <= 1) {
+    // Немає перекриттів - займає майже всю ширину клітинки
     return Positioned(
       top: topPosition,
-      left: 4 + (lessonIndex - 1) * (1.0 / overlapCount) * (100 - 8),
-      right: 4 + (overlapCount - lessonIndex) * (1.0 / overlapCount) * (100 - 8),
-      height: height.clamp(40.0, double.infinity),
-      child: _buildDesktopLessonCard(lesson, isTablet),
+      left: 0,
+      right: 0,
+      height: height, // 👈 висота правильно встановлена
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2.0),
+        child: _buildDesktopLessonCard(lesson, isTablet),
+      ),
+    );
+  } else {
+    // Є перекриття - ділимо ширину клітинки
+    return Positioned(
+      top: topPosition,
+      left: 0,
+      right: 0,
+      height: height, // 👈 висота правильно встановлена
+      child: SizedBox(
+        height: height, // 👈 ВАЖЛИВО: явно задаємо висоту для Row
+        child: Row(
+          children: List.generate(totalOverlapping, (index) {
+            if (index == lessonIndex) {
+              // Це наше заняття
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    left: index == 0 ? 2.0 : 1.0,
+                    right: index == totalOverlapping - 1 ? 2.0 : 1.0,
+                  ),
+                  child: SizedBox(
+                    height: height, // 👈 ВАЖЛИВО: явно задаємо висоту для картки
+                    child: _buildDesktopLessonCard(lesson, isTablet),
+                  ),
+                ),
+              );
+            } else {
+              // Це місце для іншого заняття (пусте)
+              return const Expanded(child: SizedBox.shrink());
+            }
+          }),
+        ),
+      ),
     );
   }
+}
 
   Widget _buildDesktopLessonCard(LessonModel lesson, bool isTablet) {
-    final isRegistered = _calendarService.isUserRegisteredForLesson(lesson);
+    final isRegistered = _calendarService.isUserInstructorForLesson(lesson);
+    final needsInstructor = _calendarService.doesLessonNeedInstructor(lesson);
     final color = CalendarUtils.getGroupColor(lesson.groupName);
-    final status = CalendarUtils.getLessonStatus(
-      lesson.currentParticipants, 
-      lesson.maxParticipants, 
-      isRegistered
-    );
-
+    
     return GestureDetector(
       onTap: () => widget.onLessonTap?.call(lesson),
       child: Container(
-        margin: const EdgeInsets.all(2),
-        padding: const EdgeInsets.all(8),
+        margin: const EdgeInsets.all(1), // Зменшений відступ
+        padding: const EdgeInsets.all(6), // Зменшений внутрішній відступ
         decoration: BoxDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(4),
           border: Border.all(
-            color: color.withOpacity(0.3),
+            color: needsInstructor 
+              ? Colors.orange.shade400 
+              : isRegistered 
+                ? Colors.green.shade400
+                : color.withOpacity(0.5),
+            width: needsInstructor || isRegistered ? 2 : 1,
           ),
           boxShadow: [
             BoxShadow(
@@ -490,51 +551,72 @@ class _CalendarGridState extends State<CalendarGrid> {
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
+            // Заголовок з іконкою
             Row(
               children: [
                 Icon(
                   CalendarUtils.getLessonTypeIcon(lesson.tags.isNotEmpty ? lesson.tags.first : ''),
-                  size: 12,
+                  size: 10,
                   color: Colors.grey.shade700,
                 ),
-                const SizedBox(width: 4),
+                const SizedBox(width: 2),
                 Expanded(
                   child: Text(
                     lesson.title,
                     style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
+                      color: Colors.black87,
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                Icon(
-                  status.icon,
-                  size: 10,
-                  color: status.color,
-                ),
+                // Статус іконка
+                if (needsInstructor)
+                  Icon(
+                    Icons.person_add,
+                    size: 8,
+                    color: Colors.orange.shade700,
+                  )
+                else if (isRegistered)
+                  Icon(
+                    Icons.school,
+                    size: 8,
+                    color: Colors.green.shade700,
+                  ),
               ],
             ),
+            
             const SizedBox(height: 2),
+            
+            // Інструктор або "Потрібен викладач"
             Text(
-              lesson.groupName,
+              needsInstructor ? 'Потрібен викладач' : lesson.instructor,
               style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey.shade700,
+                fontSize: 8,
+                color: needsInstructor ? Colors.orange.shade700 : Colors.grey.shade700,
+                fontWeight: needsInstructor ? FontWeight.w600 : FontWeight.normal,
               ),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+            
+            // Підрозділ та кількість (тільки якщо є місце)
             if (!isTablet) ...[
-              const SizedBox(height: 2),
+              const SizedBox(height: 1),
               Text(
-                '${lesson.currentParticipants}/${lesson.maxParticipants}',
+                lesson.unit.isNotEmpty 
+                  ? '${lesson.unit} • ${lesson.maxParticipants}'
+                  : '${lesson.maxParticipants} учнів',
                 style: TextStyle(
-                  fontSize: 10,
+                  fontSize: 7,
                   color: Colors.grey.shade600,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ],
@@ -553,6 +635,8 @@ class _CalendarGridState extends State<CalendarGrid> {
       lesson.maxParticipants, 
       isRegistered
     );
+    final needsInstructor = _calendarService.doesLessonNeedInstructor(lesson);
+    final isUserInstructor = _calendarService.isUserInstructorForLesson(lesson);
     
     return GestureDetector(
       onTap: () => widget.onLessonTap?.call(lesson),
@@ -676,32 +760,77 @@ class _CalendarGridState extends State<CalendarGrid> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Text(
-                      '${lesson.currentParticipants}/${lesson.maxParticipants} учасників',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey.shade600,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: status.color.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        status.label,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: status.color.withOpacity(0.8),
-                          fontWeight: FontWeight.w500,
+                Expanded(
+                  child: Row(
+                    children: [
+                      // Інформація про підрозділ та учасників
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (lesson.unit.isNotEmpty) ...[
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.military_tech,
+                                    size: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      lesson.unit,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 2),
+                            ],
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.group,
+                                  size: 12,
+                                  color: Colors.grey.shade600,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  '${lesson.maxParticipants} учнів',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      // Статус заняття
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: status.color.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          status.label,
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: status.color.withOpacity(0.8),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 if (!isRegistered && !CalendarUtils.isFull(lesson.currentParticipants, lesson.maxParticipants))
                   ElevatedButton(
@@ -746,18 +875,46 @@ class _CalendarGridState extends State<CalendarGrid> {
     );
   }
 
-  List<LessonModel> _getLessonsForDay(int dayIndex) {
-    final weekDays = CalendarUtils.getWeekDays(widget.selectedDate);
-    final targetDate = weekDays[dayIndex];
-    
-    return _lessons.where((lesson) {
-      final lessonDate = lesson.startTime;
-      return lessonDate.year == targetDate.year &&
-             lessonDate.month == targetDate.month &&
-             lessonDate.day == targetDate.day;
-    }).toList();
+List<LessonModel> _getLessonsForDay(int dayIndex) {
+  final weekDays = CalendarUtils.getWeekDays(widget.selectedDate);
+  final targetDate = weekDays[dayIndex];
+  
+  // 👈 ВИПРАВЛЕННЯ: нормалізуємо дати до початку дня (00:00:00)
+  final normalizedTargetDate = DateTime(targetDate.year, targetDate.month, targetDate.day);
+  
+  if (dayIndex == 0) {
+    debugPrint('🔍 ПОНЕДІЛОК DEBUG:');
+    debugPrint('  Original target: $targetDate');
+    debugPrint('  Normalized target: $normalizedTargetDate');
+    debugPrint('  Total lessons: ${_lessons.length}');
   }
-
+  
+  final dayLessons = _lessons.where((lesson) {
+    // 👈 ВИПРАВЛЕННЯ: нормалізуємо дату заняття
+    final normalizedLessonDate = DateTime(
+      lesson.startTime.year, 
+      lesson.startTime.month, 
+      lesson.startTime.day
+    );
+    
+    final matches = normalizedLessonDate.isAtSameMomentAs(normalizedTargetDate);
+    
+    if (dayIndex == 0) {
+      debugPrint('  Lesson: ${lesson.title}');
+      debugPrint('    Original: ${lesson.startTime}');
+      debugPrint('    Normalized: $normalizedLessonDate');
+      debugPrint('    Matches: $matches');
+    }
+    
+    return matches;
+  }).toList();
+  
+  if (dayIndex == 0) {
+    debugPrint('  RESULT: ${dayLessons.length} lessons for Monday');
+  }
+  
+  return dayLessons;
+}
   bool _hasLessonsOnDay(int dayIndex) {
     return _getLessonsForDay(dayIndex).isNotEmpty;
   }
