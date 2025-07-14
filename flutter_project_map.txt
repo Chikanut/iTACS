@@ -80,18 +80,6 @@ sdk: flutter
 🏷️ PROPERTIES:
   final user
 
-==== lib\pages\calendar_page.dart ====
-
-📦 IMPORTS:
-  import 'package:flutter/material.dart';
-
-🏗️ CLASSES:
-  class CalendarPage extends StatelessWidget {
-
-⚙️ METHODS:
-    const CalendarPage(
-    Widget build(BuildContext context)
-
 ==== lib\pages\email_check_page.dart ====
 
 📦 IMPORTS:
@@ -200,6 +188,360 @@ sdk: flutter
   final user
   final data
   final user
+
+==== lib\pages\calendar_page\calendar_page.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/foundation.dart';
+  import 'package:flutter/material.dart';
+  import 'package:intl/intl.dart';
+
+🏗️ CLASSES:
+  class CalendarPage extends StatefulWidget {
+  class _CalendarPageState extends State<CalendarPage> {
+
+⚙️ METHODS:
+    const CalendarPage(
+    bool isMobile(BuildContext context)
+  Widget build(BuildContext context)
+  return Scaffold(
+  const Divider(height: 1),
+
+🏷️ PROPERTIES:
+    final shortestSide
+  final isOnMobileDevice
+  Widget content;
+
+==== lib\pages\calendar_page\calendar_utils.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+
+🏗️ CLASSES:
+  class CalendarUtils {
+
+🔢 ENUMS:
+  enum LessonStatus {
+
+⚡ EXTENSIONS:
+  extension LessonStatusExtension on LessonStatus {
+
+⚙️ METHODS:
+    static Color getGroupColor(String groupName)
+  static IconData getLessonTypeIcon(String lessonType)
+  static bool timesOverlap(TimeOfDay start1, TimeOfDay end1, TimeOfDay start2, TimeOfDay end2)
+  static double getTimePosition(TimeOfDay time)
+  static double getDurationHeight(TimeOfDay start, TimeOfDay end)
+  static String formatTime(TimeOfDay time)
+  static String getDayName(int weekday,
+  static String getMonthName(int month,
+  static bool isToday(DateTime date)
+  static List<DateTime> getWeekDays(DateTime selectedDate)
+  static DateTime getStartOfWeek(DateTime date)
+  static DateTime getEndOfWeek(DateTime date)
+  return getStartOfWeek(date).add(const Duration(days: 6));
+  static DateTime getStartOfMonth(DateTime date)
+  return DateTime(date.year, date.month, 1);
+  static DateTime getEndOfMonth(DateTime date)
+  return DateTime(date.year, date.month + 1, 0);
+  static double getOccupancyRate(int filled, int total)
+  static bool isAlmostFull(int filled, int total)
+  return getOccupancyRate(filled, total) >= 0.8;
+  static bool isFull(int filled, int total)
+  static LessonStatus getLessonStatus(int filled, int total, bool isRegistered)
+  static List<Map<String, dynamic>> sortLessonsByTime(List<Map<String, dynamic>> lessons)
+  static Map<int, List<Map<String, dynamic>>> groupLessonsByDay(List<Map<String, dynamic>> lessons)
+  static List<Map<String, dynamic>> findOverlappingLessons(
+  static Color generateGroupColor(String groupName)
+  Color get color {
+  String get label {
+  IconData get icon {
+
+🏷️ PROPERTIES:
+    static const double timeColumnWidth
+    static const double minHour
+    static const double maxHour
+    static const double hourHeight
+    static const double minuteHeight
+  final type
+  final start1Minutes
+  final end1Minutes
+  final start2Minutes
+  final end2Minutes
+  final startMinutes
+  final endMinutes
+  final durationMinutes
+  const days
+  const days
+  const months
+  const months
+  final now
+  final startOfWeek
+  final timeA
+  final timeB
+  final minutesA
+  final minutesB
+  final dayOffset
+  return grouped;
+  final targetStart
+  final targetEnd
+  final overlapCount
+  final lessonIndex
+  final actualIndex
+  final availableWidth
+  final lessonWidth
+  final left
+  final right
+  final startMinutes
+  final endMinutes
+  return null;
+  final hash
+  final hue
+
+==== lib\pages\calendar_page\models\calendar_event.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+
+🏗️ CLASSES:
+  class CalendarEvent {
+
+⚙️ METHODS:
+    return CalendarEvent(
+
+🏷️ PROPERTIES:
+    final LessonModel lesson;
+    final DateTime start;
+    final DateTime end;
+    final Color color;
+
+==== lib\pages\calendar_page\models\calendar_view_type.dart ====
+
+🔢 ENUMS:
+  enum CalendarViewType {
+
+⚡ EXTENSIONS:
+  extension CalendarViewTypeExtension on CalendarViewType {
+
+⚙️ METHODS:
+  String get label {
+
+==== lib\pages\calendar_page\models\lesson_model.dart ====
+
+📦 IMPORTS:
+  import 'package:cloud_firestore/cloud_firestore.dart';
+
+🏗️ CLASSES:
+  class LessonModel {
+  class Recurrence {
+
+⚙️ METHODS:
+    return LessonModel(
+    return Recurrence(
+
+🏷️ PROPERTIES:
+    final String id;
+    final String title;
+    final String description;
+    final DateTime startTime;
+    final DateTime endTime;
+    final String groupId;
+    final String groupName;
+    final String unit;
+    final String instructor;
+    final String location;
+    final int maxParticipants;
+    final int currentParticipants;
+    final String status;
+    final String createdBy;
+    final DateTime createdAt;
+    final DateTime updatedAt;
+    final Recurrence? recurrence;
+    final String type; // none, daily, weekly, monthly
+    final int interval;
+    final DateTime endDate;
+
+==== lib\pages\calendar_page\widgets\calendar_grid.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import '../models/calendar_view_type.dart';
+
+🏗️ CLASSES:
+  class CalendarGrid extends StatefulWidget {
+  class _CalendarGridState extends State<CalendarGrid> {
+
+⚙️ METHODS:
+    final Function(Map<String, dynamic>)? onLessonTap;
+    const CalendarGrid(
+    Widget build(BuildContext context)
+    return LayoutBuilder(
+  return Column(
+  const Divider(height: 1),
+  return Column(
+  const Divider(height: 1),
+  return Container(
+  return Container(
+  const SizedBox(height: 4),
+  const SizedBox(height: 4),
+  return Container(
+  return Expanded(
+  const SizedBox(height: 4),
+  const SizedBox(width: 4),
+  return Center(
+  const SizedBox(height: 16),
+  return Container(
+  return SingleChildScrollView(
+  return Expanded(
+  return Container(
+  return Container(
+  return Container(
+  return Positioned(
+  return Positioned(
+  return GestureDetector(
+  const SizedBox(height: 2),
+  const SizedBox(height: 2),
+  return GestureDetector(
+  const SizedBox(height: 8),
+  const SizedBox(width: 4),
+  const SizedBox(height: 4),
+  const SizedBox(width: 4),
+  const SizedBox(height: 8),
+
+🏷️ PROPERTIES:
+    final CalendarViewType viewType;
+    final DateTime selectedDate;
+    static const double timeColumnWidth
+    static const double minHour
+    static const double maxHour
+    static const double hourHeight
+    static const double minuteHeight
+    final isMobile
+    final isTablet
+  final days
+  final day
+  final isToday
+  final hasLessons
+  final days
+  final index
+  final day
+  final isToday
+  final hasLessons
+  final currentDayIndex
+  final dayLessons
+  final lesson
+  final hour
+  final dayLessons
+  final start
+  final end
+  final startMinutes
+  final endMinutes
+  final durationMinutes
+  final topPosition
+  final height
+  final overlappingLessons
+  final overlapCount
+  final lessonIndex
+  final start
+  final end
+  final startOfWeek
+  const days
+  final now
+  final start1Minutes
+  final end1Minutes
+  final start2Minutes
+  final end2Minutes
+
+==== lib\pages\calendar_page\widgets\calendar_header.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import '../models/calendar_view_type.dart';
+
+🏗️ CLASSES:
+  class CalendarHeader extends StatelessWidget {
+
+⚙️ METHODS:
+    const CalendarHeader(
+    Widget build(BuildContext context)
+    return Padding(
+    const Spacer(),
+    const SizedBox(width: 12),
+
+🏷️ PROPERTIES:
+    final CalendarViewType viewType;
+    final DateTime selectedDate;
+    final VoidCallback onPrevious;
+    final VoidCallback onNext;
+    final VoidCallback onToday;
+    String formattedDate
+
+==== lib\pages\calendar_page\widgets\calendar_navigation.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import '../models/calendar_view_type.dart';
+
+🏗️ CLASSES:
+  class CalendarPage extends StatefulWidget {
+  class _CalendarPageState extends State<CalendarPage> {
+
+⚙️ METHODS:
+    const CalendarPage(
+  Widget build(BuildContext context)
+  return Scaffold(
+  const Divider(height: 1),
+
+==== lib\pages\calendar_page\widgets\lesson_card.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+
+🏗️ CLASSES:
+  class LessonCard extends StatelessWidget {
+
+⚙️ METHODS:
+    const LessonCard(
+    Widget build(BuildContext context)
+  return GestureDetector(
+  const SizedBox(height: 2),
+  const SizedBox(height: 2),
+  return GestureDetector(
+  const SizedBox(height: 12),
+  const SizedBox(width: 8),
+  const SizedBox(height: 6),
+  const SizedBox(width: 8),
+  const SizedBox(height: 6),
+  const SizedBox(width: 8),
+  const SizedBox(height: 12),
+  const SizedBox(height: 4),
+  const SizedBox(width: 12),
+  const SizedBox(height: 12),
+  const SizedBox(height: 16),
+  const SizedBox(width: 12),
+  return Container(
+  const SizedBox(width: 4),
+  return Container(
+
+🏷️ PROPERTIES:
+    final String title;
+    final String group;
+    final String? instructor;
+    final String? location;
+    final int filled;
+    final int total;
+    final Color? backgroundColor;
+    final bool isCompact;
+    final VoidCallback? onTap;
+    final VoidCallback? onRegister;
+    final bool isRegistered;
+  final occupancyRate
+  final isAlmostFull
+  final isFull
+  Color backgroundColor;
+  Color textColor;
+  String text;
+  IconData icon;
 
 ==== lib\pages\materials_page\materials_page.dart ====
 

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'home_page.dart';
+import 'calendar_page/calendar_page.dart'; // додано
 import 'materials_page/materials_page.dart';
 import 'profile_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'email_check_page.dart';
 import '../globals.dart';
-import 'tools_page/tools_page.dart'; // нова сторінка
+import 'tools_page/tools_page.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -21,7 +22,8 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   final List<Widget> _pages = const [
     HomePage(),
-    ToolsPage(),     // 🔄 замість CalendarPage
+    CalendarPage(),   // 🗓️ нова сторінка — календар
+    ToolsPage(),
     MaterialsPage(),
   ];
 
@@ -52,11 +54,14 @@ class _MainScaffoldState extends State<MainScaffold> {
       case 'home':
         setState(() => _currentIndex = 0);
         break;
-      case 'tools':
+      case 'calendar':
         setState(() => _currentIndex = 1);
         break;
-      case 'materials':
+      case 'tools':
         setState(() => _currentIndex = 2);
+        break;
+      case 'materials':
+        setState(() => _currentIndex = 3);
         break;
       case 'logout':
         FirebaseAuth.instance.signOut();
@@ -133,6 +138,7 @@ class _MainScaffoldState extends State<MainScaffold> {
               onSelected: _onMenuSelect,
               itemBuilder: (_) => const [
                 PopupMenuItem(value: 'home', child: Text('Головна')),
+                PopupMenuItem(value: 'calendar', child: Text('Календар')),
                 PopupMenuItem(value: 'tools', child: Text('Інструменти')),
                 PopupMenuItem(value: 'materials', child: Text('Матеріали')),
               ],
@@ -149,6 +155,7 @@ class _MainScaffoldState extends State<MainScaffold> {
               onTap: (index) => setState(() => _currentIndex = index),
               items: const [
                 BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Головна'),
+                BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Календар'),
                 BottomNavigationBarItem(icon: Icon(Icons.build), label: 'Інструменти'),
                 BottomNavigationBarItem(icon: Icon(Icons.article), label: 'Матеріали'),
               ],
