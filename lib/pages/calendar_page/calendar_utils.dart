@@ -1,12 +1,35 @@
 import 'package:flutter/material.dart';
+import 'models/lesson_model.dart';
 
 class CalendarUtils {
   // Константи для календаря
   static const double timeColumnWidth = 60.0;
-  static const double minHour = 7.0;
-  static const double maxHour = 20.0;
   static const double hourHeight = 80.0;
   static const double minuteHeight = hourHeight / 60.0;
+
+  // Отримати мінімальний час з списку занять
+  static double getMinHourFromLessons(List<LessonModel> lessons) {
+    if (lessons.isEmpty) return 8.0; // fallback якщо немає занять
+    
+    final minTime = lessons
+        .map((lesson) => lesson.startTime.hour + (lesson.startTime.minute / 60.0))
+        .reduce((a, b) => a < b ? a : b);
+    
+    // Округлюємо вниз до цілої години з буфером 30 хв
+    return (minTime - 0.5).floorToDouble().clamp(0.0, 23.0);
+  }
+
+  /// Отримати максимальний час з списку занять
+  static double getMaxHourFromLessons(List<LessonModel> lessons) {
+    if (lessons.isEmpty) return 20.0; // fallback якщо немає занять
+    
+    final maxTime = lessons
+        .map((lesson) => lesson.endTime.hour + (lesson.endTime.minute / 60.0))
+        .reduce((a, b) => a > b ? a : b);
+    
+    // Округлюємо вгору до цілої години з буфером 30 хв
+    return (maxTime + 0.5).ceilToDouble().clamp(1.0, 24.0);
+  }
   
   // Кольори для різних рот
   static const Map<String, Color> groupColors = {
@@ -51,7 +74,7 @@ class CalendarUtils {
   }
 
   /// Отримати позицію елемента в часовій сітці
-  static double getTimePosition(TimeOfDay time) {
+  static double getTimePosition(TimeOfDay time, double minHour) {
     return (time.hour - minHour) * hourHeight + (time.minute * minuteHeight);
   }
 
@@ -215,7 +238,7 @@ class CalendarUtils {
   }
 
   /// Валідація часу заняття
-  static String? validateLessonTime(TimeOfDay start, TimeOfDay end) {
+  static String? validateLessonTime(TimeOfDay start, TimeOfDay end, {double? minHour, double? maxHour}) {
     final startMinutes = start.hour * 60 + start.minute;
     final endMinutes = end.hour * 60 + end.minute;
     
@@ -227,8 +250,11 @@ class CalendarUtils {
       return 'Мінімальна тривалість заняття - 30 хвилин';
     }
     
-    if (start.hour < minHour || end.hour > maxHour) {
-      return 'Заняття повинні проводитися з ${minHour.toInt()}:00 до ${maxHour.toInt()}:00';
+    // Перевіряти межі тільки якщо вони передані
+    if (minHour != null && maxHour != null) {
+      if (start.hour < minHour || end.hour > maxHour) {
+        return 'Заняття повинні проводитися з ${minHour.toInt()}:00 до ${maxHour.toInt()}:00';
+      }
     }
     
     return null;

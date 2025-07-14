@@ -1,12 +1,19 @@
 import 'package:flutter/material.dart';
 import '../models/calendar_view_type.dart';
+import '../models/lesson_model.dart';
+
+import 'package:flutter/material.dart';
+import '../models/calendar_view_type.dart';
+import '../models/lesson_model.dart';
+import '../../../services/calendar_service.dart';
+import '../calendar_utils.dart';
 import 'lesson_card.dart';
 
 class CalendarGrid extends StatefulWidget {
   final CalendarViewType viewType;
   final DateTime selectedDate;
   final List<String>? filteredGroups;
-  final Function(Map<String, dynamic>)? onLessonTap;
+  final Function(LessonModel)? onLessonTap;
 
   const CalendarGrid({
     super.key,
@@ -22,101 +29,93 @@ class CalendarGrid extends StatefulWidget {
 
 class _CalendarGridState extends State<CalendarGrid> {
   static const double timeColumnWidth = 60.0;
-  static const double minHour = 7.0;
-  static const double maxHour = 20.0;
+  double _minHour = 8.0;
+  double _maxHour = 20.0;
   static const double hourHeight = 80.0;
   static const double minuteHeight = hourHeight / 60.0;
 
-  // Мок-дані занять
-  final List<Map<String, dynamic>> lessons = [
-    {
-      'id': '1',
-      'dayOffset': 0,
-      'start': const TimeOfDay(hour: 8, minute: 15),
-      'end': const TimeOfDay(hour: 9, minute: 45),
-      'title': 'Тактика',
-      'group': '1-а рота',
-      'instructor': 'Іванов І.І.',
-      'location': 'Навчальний клас №1',
-      'filled': 25,
-      'total': 30,
-      'color': const Color(0xFFE3F2FD),
-      'tags': ['тактика', 'теорія'],
-    },
-    {
-      'id': '2',
-      'dayOffset': 0,
-      'start': const TimeOfDay(hour: 8, minute: 15),
-      'end': const TimeOfDay(hour: 9, minute: 45),
-      'title': 'Фізпідготовка',
-      'group': '2-а рота',
-      'instructor': 'Петров П.П.',
-      'location': 'Спортивний зал',
-      'filled': 22,
-      'total': 28,
-      'color': const Color(0xFFF3E5F5),
-      'tags': ['фізична', 'практика'],
-    },
-    {
-      'id': '3',
-      'dayOffset': 0,
-      'start': const TimeOfDay(hour: 10, minute: 0),
-      'end': const TimeOfDay(hour: 11, minute: 30),
-      'title': 'Стройова',
-      'group': '1-а рота',
-      'instructor': 'Іванов І.І.',
-      'location': 'Плац',
-      'filled': 28,
-      'total': 30,
-      'color': const Color(0xFFE3F2FD),
-      'tags': ['стройова', 'практика'],
-    },
-    {
-      'id': '4',
-      'dayOffset': 1,
-      'start': const TimeOfDay(hour: 9, minute: 0),
-      'end': const TimeOfDay(hour: 12, minute: 30),
-      'title': 'Тактика',
-      'group': '3-я рота',
-      'instructor': 'Сидоров С.С.',
-      'location': 'Навчальний клас №2',
-      'filled': 18,
-      'total': 25,
-      'color': const Color(0xFFE8F5E8),
-      'tags': ['тактика', 'теорія'],
-    },
-    {
-      'id': '5',
-      'dayOffset': 2,
-      'start': const TimeOfDay(hour: 14, minute: 0),
-      'end': const TimeOfDay(hour: 15, minute: 30),
-      'title': 'Теорія',
-      'group': '2-а рота',
-      'instructor': 'Петров П.П.',
-      'location': 'Актовий зал',
-      'filled': 15,
-      'total': 28,
-      'color': const Color(0xFFF3E5F5),
-      'tags': ['теорія'],
-    },
-    {
-      'id': '6',
-      'dayOffset': 4,
-      'start': const TimeOfDay(hour: 16, minute: 0),
-      'end': const TimeOfDay(hour: 17, minute: 30),
-      'title': 'Стрільби',
-      'group': '4-а рота',
-      'instructor': 'Коваленко К.К.',
-      'location': 'Тир',
-      'filled': 12,
-      'total': 20,
-      'color': const Color(0xFFFFF3E0),
-      'tags': ['стрільби', 'практика'],
-    },
-  ];
+  final CalendarService _calendarService = CalendarService();
+  List<LessonModel> _lessons = [];
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLessons();
+  }
+
+  @override
+  void didUpdateWidget(CalendarGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selectedDate != widget.selectedDate ||
+        oldWidget.viewType != widget.viewType) {
+      _loadLessons();
+    }
+  }
+
+  Future<void> _loadLessons() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      List<LessonModel> lessons;
+      
+      switch (widget.viewType) {
+        case CalendarViewType.day:
+          lessons = await _calendarService.getLessonsForDay(widget.selectedDate);
+          break;
+        case CalendarViewType.week:
+          lessons = await _calendarService.getLessonsForWeek(widget.selectedDate);
+          break;
+        case CalendarViewType.month:
+          final startOfMonth = CalendarUtils.getStartOfMonth(widget.selectedDate);
+          final endOfMonth = CalendarUtils.getEndOfMonth(widget.selectedDate);
+          lessons = await _calendarService.getLessonsForPeriod(
+            startDate: startOfMonth,
+            endDate: endOfMonth,
+          );
+          break;
+        case CalendarViewType.year:
+          final startOfYear = DateTime(widget.selectedDate.year, 1, 1);
+          final endOfYear = DateTime(widget.selectedDate.year, 12, 31);
+          lessons = await _calendarService.getLessonsForPeriod(
+            startDate: startOfYear,
+            endDate: endOfYear,
+          );
+          break;
+      }
+
+      if (mounted) {
+        setState(() {
+          _lessons = lessons;
+          
+          // Динамічно обчислюємо межі часу
+          if (lessons.isNotEmpty) {
+            _minHour = CalendarUtils.getMinHourFromLessons(lessons);
+            _maxHour = CalendarUtils.getMaxHourFromLessons(lessons);
+          } else {
+            _minHour = 8.0;  // fallback
+            _maxHour = 20.0;
+          }
+          
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('CalendarGrid: Помилка завантаження занять: $e');
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
+    }
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 600;
@@ -156,7 +155,7 @@ class _CalendarGridState extends State<CalendarGrid> {
   }
 
   Widget _buildMobileDateHeader() {
-    final days = _getWeekDays();
+    final days = CalendarUtils.getWeekDays(widget.selectedDate);
     
     return Container(
       height: 80,
@@ -168,7 +167,7 @@ class _CalendarGridState extends State<CalendarGrid> {
         itemCount: days.length,
         itemBuilder: (context, index) {
           final day = days[index];
-          final isToday = _isToday(day);
+          final isToday = CalendarUtils.isToday(day);
           final hasLessons = _hasLessonsOnDay(index);
           
           return Container(
@@ -184,7 +183,7 @@ class _CalendarGridState extends State<CalendarGrid> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  _getDayName(day.weekday),
+                  CalendarUtils.getDayName(day.weekday),
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -220,7 +219,7 @@ class _CalendarGridState extends State<CalendarGrid> {
   }
 
   Widget _buildDesktopDateHeader(bool isTablet) {
-    final days = _getWeekDays();
+    final days = CalendarUtils.getWeekDays(widget.selectedDate);
     
     return Container(
       height: 60,
@@ -233,7 +232,7 @@ class _CalendarGridState extends State<CalendarGrid> {
           ...days.asMap().entries.map((entry) {
             final index = entry.key;
             final day = entry.value;
-            final isToday = _isToday(day);
+            final isToday = CalendarUtils.isToday(day);
             final hasLessons = _hasLessonsOnDay(index);
             
             return Expanded(
@@ -248,7 +247,7 @@ class _CalendarGridState extends State<CalendarGrid> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      _getDayName(day.weekday),
+                      CalendarUtils.getDayName(day.weekday),
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
@@ -291,8 +290,7 @@ class _CalendarGridState extends State<CalendarGrid> {
   }
 
   Widget _buildMobileDayView() {
-    final currentDayIndex = widget.selectedDate.weekday - 1;
-    final dayLessons = lessons.where((lesson) => lesson['dayOffset'] == currentDayIndex).toList();
+    final dayLessons = _getLessonsForDay(widget.selectedDate.weekday - 1);
     
     if (dayLessons.isEmpty) {
       return Center(
@@ -312,28 +310,37 @@ class _CalendarGridState extends State<CalendarGrid> {
                 color: Colors.grey.shade600,
               ),
             ),
+            const SizedBox(height: 8),
+            ElevatedButton.icon(
+              onPressed: () => _loadLessons(),
+              icon: const Icon(Icons.refresh, size: 16),
+              label: const Text('Оновити'),
+            ),
           ],
         ),
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: dayLessons.length,
-      itemBuilder: (context, index) {
-        final lesson = dayLessons[index];
-        return Container(
-          margin: const EdgeInsets.only(bottom: 16),
-          child: _buildMobileLessonCard(lesson),
-        );
-      },
+    return RefreshIndicator(
+      onRefresh: _loadLessons,
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: dayLessons.length,
+        itemBuilder: (context, index) {
+          final lesson = dayLessons[index];
+          return Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            child: _buildMobileLessonCard(lesson),
+          );
+        },
+      ),
     );
   }
 
   Widget _buildDesktopWeekView(bool isTablet) {
     return SingleChildScrollView(
       child: Container(
-        height: (maxHour - minHour) * hourHeight,
+        height: (_maxHour - _minHour) * hourHeight,
         child: Row(
           children: [
             // Часова колонка
@@ -365,8 +372,8 @@ class _CalendarGridState extends State<CalendarGrid> {
         ),
       ),
       child: Column(
-        children: List.generate((maxHour - minHour).toInt(), (index) {
-          final hour = (minHour + index).toInt();
+        children: List.generate((_maxHour - _minHour).toInt(), (index) {
+          final hour = (_minHour + index).toInt();
           return Container(
             height: hourHeight,
             alignment: Alignment.topRight,
@@ -385,7 +392,7 @@ class _CalendarGridState extends State<CalendarGrid> {
   }
 
   Widget _buildDayColumn(int dayIndex, bool isTablet) {
-    final dayLessons = lessons.where((lesson) => lesson['dayOffset'] == dayIndex).toList();
+    final dayLessons = _getLessonsForDay(dayIndex);
     
     return Container(
       decoration: BoxDecoration(
@@ -396,7 +403,7 @@ class _CalendarGridState extends State<CalendarGrid> {
       child: Stack(
         children: [
           // Сітка годин
-          ...List.generate((maxHour - minHour).toInt(), (index) {
+          ...List.generate((_maxHour - _minHour).toInt(), (index) {
             return Positioned(
               top: index * hourHeight,
               left: 0,
@@ -418,22 +425,27 @@ class _CalendarGridState extends State<CalendarGrid> {
     );
   }
 
-  Widget _buildPositionedLesson(Map<String, dynamic> lesson, int dayIndex, bool isTablet) {
-    final start = lesson['start'] as TimeOfDay;
-    final end = lesson['end'] as TimeOfDay;
+  Widget _buildPositionedLesson(LessonModel lesson, int dayIndex, bool isTablet) {
+    final start = TimeOfDay.fromDateTime(lesson.startTime);
+    final end = TimeOfDay.fromDateTime(lesson.endTime);
     
     final startMinutes = start.hour * 60 + start.minute;
     final endMinutes = end.hour * 60 + end.minute;
     final durationMinutes = endMinutes - startMinutes;
     
-    final topPosition = (start.hour - minHour) * hourHeight + (start.minute * minuteHeight);
+    final topPosition = (start.hour - _minHour) * hourHeight + (start.minute * minuteHeight);
     final height = durationMinutes * minuteHeight;
     
+    final dayLessons = _getLessonsForDay(widget.selectedDate.weekday - 1);
+
     // Перевірка на перекриття з іншими заняттями в цей час
-    final overlappingLessons = lessons.where((other) => 
-      other['dayOffset'] == dayIndex && 
-      other['id'] != lesson['id'] &&
-      _timesOverlap(other['start'], other['end'], start, end)
+    final overlappingLessons = dayLessons.where((other) => 
+      other.id != lesson.id &&
+      CalendarUtils.timesOverlap(
+        TimeOfDay.fromDateTime(other.startTime),
+        TimeOfDay.fromDateTime(other.endTime),
+        start, end
+      )
     ).toList();
     
     final overlapCount = overlappingLessons.length + 1;
@@ -448,17 +460,25 @@ class _CalendarGridState extends State<CalendarGrid> {
     );
   }
 
-  Widget _buildDesktopLessonCard(Map<String, dynamic> lesson, bool isTablet) {
+  Widget _buildDesktopLessonCard(LessonModel lesson, bool isTablet) {
+    final isRegistered = _calendarService.isUserRegisteredForLesson(lesson);
+    final color = CalendarUtils.getGroupColor(lesson.groupName);
+    final status = CalendarUtils.getLessonStatus(
+      lesson.currentParticipants, 
+      lesson.maxParticipants, 
+      isRegistered
+    );
+
     return GestureDetector(
       onTap: () => widget.onLessonTap?.call(lesson),
       child: Container(
         margin: const EdgeInsets.all(2),
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: lesson['color'] as Color,
+          color: color,
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
-            color: (lesson['color'] as Color).withOpacity(0.3),
+            color: color.withOpacity(0.3),
           ),
           boxShadow: [
             BoxShadow(
@@ -471,18 +491,35 @@ class _CalendarGridState extends State<CalendarGrid> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              lesson['title'],
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            Row(
+              children: [
+                Icon(
+                  CalendarUtils.getLessonTypeIcon(lesson.tags.isNotEmpty ? lesson.tags.first : ''),
+                  size: 12,
+                  color: Colors.grey.shade700,
+                ),
+                const SizedBox(width: 4),
+                Expanded(
+                  child: Text(
+                    lesson.title,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                Icon(
+                  status.icon,
+                  size: 10,
+                  color: status.color,
+                ),
+              ],
             ),
             const SizedBox(height: 2),
             Text(
-              lesson['group'],
+              lesson.groupName,
               style: TextStyle(
                 fontSize: 10,
                 color: Colors.grey.shade700,
@@ -493,7 +530,7 @@ class _CalendarGridState extends State<CalendarGrid> {
             if (!isTablet) ...[
               const SizedBox(height: 2),
               Text(
-                '${lesson['filled']}/${lesson['total']}',
+                '${lesson.currentParticipants}/${lesson.maxParticipants}',
                 style: TextStyle(
                   fontSize: 10,
                   color: Colors.grey.shade600,
@@ -506,19 +543,26 @@ class _CalendarGridState extends State<CalendarGrid> {
     );
   }
 
-  Widget _buildMobileLessonCard(Map<String, dynamic> lesson) {
-    final start = lesson['start'] as TimeOfDay;
-    final end = lesson['end'] as TimeOfDay;
+  Widget _buildMobileLessonCard(LessonModel lesson) {
+    final start = TimeOfDay.fromDateTime(lesson.startTime);
+    final end = TimeOfDay.fromDateTime(lesson.endTime);
+    final isRegistered = _calendarService.isUserRegisteredForLesson(lesson);
+    final color = CalendarUtils.getGroupColor(lesson.groupName);
+    final status = CalendarUtils.getLessonStatus(
+      lesson.currentParticipants, 
+      lesson.maxParticipants, 
+      isRegistered
+    );
     
     return GestureDetector(
       onTap: () => widget.onLessonTap?.call(lesson),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: lesson['color'] as Color,
+          color: color,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: (lesson['color'] as Color).withOpacity(0.3),
+            color: color.withOpacity(0.3),
           ),
           boxShadow: [
             BoxShadow(
@@ -535,20 +579,42 @@ class _CalendarGridState extends State<CalendarGrid> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Expanded(
-                  child: Text(
-                    lesson['title'],
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        CalendarUtils.getLessonTypeIcon(lesson.tags.isNotEmpty ? lesson.tags.first : ''),
+                        size: 20,
+                        color: Colors.grey.shade700,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          lesson.title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Text(
-                  '${_formatTime(start)} - ${_formatTime(end)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
+                Row(
+                  children: [
+                    Icon(
+                      status.icon,
+                      size: 16,
+                      color: status.color,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      '${CalendarUtils.formatTime(start)} - ${CalendarUtils.formatTime(end)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -562,7 +628,25 @@ class _CalendarGridState extends State<CalendarGrid> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  lesson['group'],
+                  lesson.groupName,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey.shade700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(
+                  Icons.person,
+                  size: 16,
+                  color: Colors.grey.shade600,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  lesson.instructor,
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey.shade700,
@@ -580,7 +664,7 @@ class _CalendarGridState extends State<CalendarGrid> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  lesson['location'],
+                  lesson.location,
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey.shade700,
@@ -588,69 +672,117 @@ class _CalendarGridState extends State<CalendarGrid> {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  '${lesson['filled']}/${lesson['total']} учасників',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                  ),
+                Row(
+                  children: [
+                    Text(
+                      '${lesson.currentParticipants}/${lesson.maxParticipants} учасників',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: status.color.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        status.label,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: status.color.withOpacity(0.8),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                Container(
+                if (!isRegistered && !CalendarUtils.isFull(lesson.currentParticipants, lesson.maxParticipants))
+                  ElevatedButton(
+                    onPressed: () => _registerForLesson(lesson),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      minimumSize: Size.zero,
+                    ),
+                    child: const Text(
+                      'Записатися',
+                      style: TextStyle(fontSize: 12),
+                    ),
+                  ),
+              ],
+            ),
+            if (lesson.tags.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: lesson.tags.take(3).map((tag) => Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Colors.green.shade100,
+                    color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
                   ),
                   child: Text(
-                    'Доступно',
+                    tag,
                     style: TextStyle(
                       fontSize: 10,
-                      color: Colors.green.shade800,
+                      color: Colors.grey.shade700,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                ),
-              ],
-            ),
+                )).toList(),
+              ),
+            ],
           ],
         ),
       ),
     );
   }
 
-  List<DateTime> _getWeekDays() {
-    final startOfWeek = widget.selectedDate.subtract(Duration(days: widget.selectedDate.weekday - 1));
-    return List.generate(7, (index) => startOfWeek.add(Duration(days: index)));
-  }
-
-  String _getDayName(int weekday) {
-    const days = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'НД'];
-    return days[weekday - 1];
-  }
-
-  bool _isToday(DateTime date) {
-    final now = DateTime.now();
-    return date.year == now.year && date.month == now.month && date.day == now.day;
+  List<LessonModel> _getLessonsForDay(int dayIndex) {
+    final weekDays = CalendarUtils.getWeekDays(widget.selectedDate);
+    final targetDate = weekDays[dayIndex];
+    
+    return _lessons.where((lesson) {
+      final lessonDate = lesson.startTime;
+      return lessonDate.year == targetDate.year &&
+             lessonDate.month == targetDate.month &&
+             lessonDate.day == targetDate.day;
+    }).toList();
   }
 
   bool _hasLessonsOnDay(int dayIndex) {
-    return lessons.any((lesson) => lesson['dayOffset'] == dayIndex);
+    return _getLessonsForDay(dayIndex).isNotEmpty;
   }
 
-  bool _timesOverlap(TimeOfDay start1, TimeOfDay end1, TimeOfDay start2, TimeOfDay end2) {
-    final start1Minutes = start1.hour * 60 + start1.minute;
-    final end1Minutes = end1.hour * 60 + end1.minute;
-    final start2Minutes = start2.hour * 60 + start2.minute;
-    final end2Minutes = end2.hour * 60 + end2.minute;
-    
-    return start1Minutes < end2Minutes && start2Minutes < end1Minutes;
-  }
-
-  String _formatTime(TimeOfDay time) {
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  Future<void> _registerForLesson(LessonModel lesson) async {
+    try {
+      final success = await _calendarService.registerForLesson(lesson.id);
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Успішно зареєстровано на заняття "${lesson.title}"'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        _loadLessons(); // Оновлюємо дані
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Помилка реєстрації: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }
