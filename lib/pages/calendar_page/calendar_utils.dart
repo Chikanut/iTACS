@@ -131,7 +131,7 @@ extension LessonReadinessStatusExtension on LessonReadinessStatus {
 class LessonStatusUtils {
   // Критичні поля для звітності - ДОДАНО trainingPeriod
   static const List<String> criticalFields = [
-    'instructor',
+    'instructorId',
     'location', 
     'unit',
     'maxParticipants',
@@ -141,7 +141,7 @@ class LessonStatusUtils {
   /// Перевірити чи заповнені критичні поля
   static bool areCriticalFieldsFilled(LessonModel lesson) {
     // Інструктор
-    if (lesson.instructor.isEmpty || lesson.instructor == 'Не призначено') {
+    if (lesson.instructorId.isEmpty || lesson.instructorId == 'Не призначено') {
       return false;
     }
     
@@ -184,8 +184,8 @@ class LessonStatusUtils {
   static LessonReadinessStatus getReadinessStatus(LessonModel lesson) {
     final progressStatus = getProgressStatus(lesson);
     final criticalFieldsFilled = areCriticalFieldsFilled(lesson);
-    final hasInstructor = lesson.instructor.isNotEmpty && 
-                         lesson.instructor != 'Не призначено';
+    final hasInstructor = lesson.instructorId.isNotEmpty && 
+                         lesson.instructorId != 'Не призначено';
     
     switch (progressStatus) {
       case LessonProgressStatus.scheduled:
@@ -234,7 +234,7 @@ class LessonStatusUtils {
   static List<String> getMissingCriticalFields(LessonModel lesson) {
     final List<String> missing = [];
     
-    if (lesson.instructor.isEmpty || lesson.instructor == 'Не призначено') {
+    if (lesson.instructorId.isEmpty || lesson.instructorId == 'Не призначено') {
       missing.add('Інструктор');
     }
     
@@ -262,7 +262,7 @@ class LessonStatusUtils {
     int filledCount = 0;
     const int totalCount = 5; // 👈 ЗБІЛЬШЕНО до 5 критичних полів
     
-    if (lesson.instructor.isNotEmpty && lesson.instructor != 'Не призначено') {
+    if (lesson.instructorId.isNotEmpty && lesson.instructorId != 'Не призначено') {
       filledCount++;
     }
     
@@ -664,7 +664,7 @@ class CalendarUtils {
     /// Отримати статус заняття для викладача
   static InstructorLessonStatus getInstructorLessonStatus(LessonModel lesson, bool isUserInstructor) {
     if (isUserInstructor) return InstructorLessonStatus.teaching;
-    if (lesson.instructor.isEmpty || lesson.instructor == 'Не призначено') {
+    if (lesson.instructorId.isEmpty || lesson.instructorId == 'Не призначено') {
       return InstructorLessonStatus.needsInstructor;
     }
     return InstructorLessonStatus.assigned;

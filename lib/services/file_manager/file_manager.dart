@@ -337,6 +337,11 @@ static FileManager? _instance;
     await FileSharer().shareFile(bytes, name);
   }
 
+  /// Поділитися файлом безпосередньо по даті та імені
+  Future<void> shareFileByData(String fileName, Uint8List data) async {
+    await FileSharer().shareFile(data, fileName);
+  }
+
   /// Перевірка наявності файлу в кеші
   Future<bool> isCached(String fileId) async => await _cacheService.isCached(fileId);
 

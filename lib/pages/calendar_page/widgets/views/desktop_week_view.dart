@@ -365,7 +365,7 @@ Widget _buildDesktopLessonCard(LessonModel lesson) {
 
           // Інструктор або "Потрібен викладач"
           Text(
-            needsInstructor ? 'Потрібен викладач' : lesson.instructor,
+            needsInstructor ? 'Потрібен викладач' : lesson.instructorName,
             style: TextStyle(
               fontSize: 8,
               color: needsInstructor ? Colors.orange.shade700 : Colors.grey.shade700,

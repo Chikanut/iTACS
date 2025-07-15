@@ -41,7 +41,6 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   // Контролери для текстових полів
   late final TextEditingController _titleController;
   late final TextEditingController _descriptionController;
-  late final TextEditingController _instructorController;
   late final TextEditingController _locationController;
   late final TextEditingController _unitController;
   late final TextEditingController _maxParticipantsController;
@@ -80,7 +79,6 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   void _initializeControllers() {
     _titleController = TextEditingController();
     _descriptionController = TextEditingController();
-    _instructorController = TextEditingController();
     _locationController = TextEditingController();
     _unitController = TextEditingController();
     _maxParticipantsController = TextEditingController(text: '30');
@@ -94,7 +92,6 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
       final lesson = widget.lesson!;
       _titleController.text = lesson.title;
       _descriptionController.text = lesson.description;
-      _instructorController.text = lesson.instructor;
       _locationController.text = lesson.location;
       _unitController.text = lesson.unit;
       _maxParticipantsController.text = lesson.maxParticipants.toString();
@@ -162,7 +159,6 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   void dispose() {
     _titleController.dispose();
     _descriptionController.dispose();
-    _instructorController.dispose();
     _locationController.dispose();
     _unitController.dispose();
     _maxParticipantsController.dispose();
@@ -430,20 +426,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         const Text(
           'Деталі заняття',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        
-        // Інструктор
-        AutocompleteField(
-          controller: _instructorController,
-          labelText: 'Інструктор',
-          hintText: 'Залишити пустим якщо не призначено',
-          prefixIcon: Icons.person,
-          getSuggestions: (query) => _templatesService.getInstructorSuggestions(query),
-          onNewValue: (value) => _templatesService.addInstructor(value),
-          textCapitalization: TextCapitalization.words,
-        ),
-        
+        ),        
         const SizedBox(height: 16),
         
         // Місце проведення
@@ -974,10 +957,10 @@ DateTimeRange? _parseCurrentPeriod() {
         groupId: Globals.profileManager.currentGroupId ?? '',
         groupName: currentGroup,
         unit: _unitController.text.trim(),
-        instructor: _instructorController.text.trim(),
+        instructorId: widget.lesson?.instructorId ?? '',
+        instructorName: widget.lesson?.instructorName ?? '',
         location: _locationController.text.trim(),
         maxParticipants: int.parse(_maxParticipantsController.text),
-        currentParticipants: widget.lesson?.currentParticipants ?? 0,
         participants: widget.lesson?.participants ?? [],
         status: widget.lesson?.status ?? 'scheduled',
         tags: _selectedTags,
@@ -996,7 +979,6 @@ DateTimeRange? _parseCurrentPeriod() {
           'description': lesson.description,
           'startTime': lesson.startTime,
           'endTime': lesson.endTime,
-          'instructor': lesson.instructor,
           'location': lesson.location,
           'unit': lesson.unit,
           'maxParticipants': lesson.maxParticipants,
@@ -1009,8 +991,13 @@ DateTimeRange? _parseCurrentPeriod() {
           } : null,
         });
       } else {
+
+        final newLesson = lesson.copyWith(
+          instructorId: '',
+          instructorName: '',
+        );
         // Створення нового заняття
-        final lessonId = await _calendarService.createLesson(lesson);
+        final lessonId = await _calendarService.createLesson(newLesson);
         success = lessonId != null;
       }
 

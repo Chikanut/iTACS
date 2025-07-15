@@ -36,10 +36,6 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   @override
   Widget build(BuildContext context) {
     final lesson = widget.lesson;
-    final occupancyRate = CalendarUtils.getOccupancyRate(
-      lesson.currentParticipants, 
-      lesson.maxParticipants
-    );
     final status = LessonStatusUtils.getProgressStatus(lesson);
 
     return Dialog(
@@ -118,7 +114,9 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                     _buildDetailRow(
                       icon: Icons.person,
                       label: 'Інструктор',
-                      value: lesson.instructor,
+                      value: lesson.instructorName.isNotEmpty
+                          ? lesson.instructorName
+                          : 'Не призначено',
                     ),
                     
                     const SizedBox(height: 16),
@@ -309,7 +307,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                   Text(
                     needsInstructor
                         ? 'Викладач не призначений'
-                        : 'Викладач: ${lesson.instructor}',
+                        : 'Викладач: ${lesson.instructorName}',
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
@@ -427,7 +425,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
       children: [
         // Кнопки для викладачів
         if (canTakeLesson) ...[
-          if (!isUserInstructor && needsInstructor)
+          if (needsInstructor)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(

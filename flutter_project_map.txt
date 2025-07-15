@@ -110,18 +110,104 @@ sdk: flutter
 📦 IMPORTS:
   import 'package:flutter/material.dart';
   import 'package:firebase_auth/firebase_auth.dart';
+  import 'package:intl/intl.dart';
+  import '../globals.dart';
+  import '../services/dashboard_service.dart';
+  import '../pages/calendar_page/models/lesson_model.dart';
+  import '../pages/calendar_page/calendar_utils.dart';
+  import '../services/reports_service.dart';
+  import '../services/file_manager/file_manager.dart';
 
 🏗️ CLASSES:
-  class HomePage extends StatelessWidget {
+  class HomePage extends StatefulWidget {
+  class _HomePageState extends State<HomePage> {
+  class _CurrentLessonsCard extends StatelessWidget {
+  class _TodayWithoutInstructorCard extends StatelessWidget {
+  class _TomorrowWithoutInstructorCard extends StatelessWidget {
+  class _PersonalStatsCard extends StatelessWidget {
+  class _StatItem extends StatelessWidget {
+  class _ReportsCard extends StatelessWidget {
+  class _ReportButton extends StatelessWidget {
+  class _LastUpdatedCard extends StatelessWidget {
+  class _LessonListTile extends StatelessWidget {
 
 ⚙️ METHODS:
     const HomePage(
+    void initState()
+  Widget build(BuildContext context)
+  return Scaffold(
+  const SliverFillRemaining(
+  return SliverAppBar(
+  const SizedBox(height: 8),
+  const Icon(Icons.group, size: 16, color: Colors.white70),
+  const SizedBox(width: 4),
+  return SliverList(
+  const SizedBox(height: 16),
+  const SizedBox(height: 100), // Відступ для навігації
+  return SliverFillRemaining(
+  const SizedBox(height: 16),
+  const SizedBox(height: 8),
+  const SizedBox(height: 24),
     Widget build(BuildContext context)
-    return Scaffold(
+    return Card(
+    const SizedBox(width: 8),
+    const SizedBox(height: 12),
+    Widget build(BuildContext context)
+    return Card(
+    const SizedBox(width: 8),
+    const SizedBox(height: 12),
+    Widget build(BuildContext context)
+    return Card(
+    const SizedBox(width: 8),
+    const SizedBox(height: 12),
+    Widget build(BuildContext context)
+    return Card(
+    const SizedBox(width: 8),
+    const SizedBox(height: 16),
+    const SizedBox(height: 16),
+    Widget build(BuildContext context)
+    return Column(
+    const SizedBox(height: 8),
+    Widget build(BuildContext context)
+    return Card(
+    const SizedBox(width: 8),
+    const SizedBox(height: 12),
+    Widget build(BuildContext context)
+    Widget build(BuildContext context)
+    return Padding(
+    Widget build(BuildContext context)
+    return Padding(
+    const SizedBox(width: 12),
 
 🏷️ PROPERTIES:
-  const String kAppVersion
-    final email
+  final feed
+  final feed
+  final user
+  final now
+  final hour
+  String greeting;
+  final userName
+  final groupName
+    final UserStats stats;
+    final String label;
+    final String value;
+    final IconData icon;
+    final Color color;
+    final ReportsService reportsService;
+  final now
+  final data
+  final periodName
+  final fileName
+  final now
+  final startOfMonth
+  final data
+  final fileName
+    final String label;
+    final IconData icon;
+    final VoidCallback onPressed;
+    final DateTime? lastUpdated;
+    final LessonModel lesson;
+    final bool showWarning;
 
 ==== lib\pages\login_page.dart ====
 
@@ -172,6 +258,7 @@ sdk: flutter
   import 'package:flutter/material.dart';
   import 'package:firebase_auth/firebase_auth.dart';
   import '../globals.dart';
+  import '../services/profile_manager.dart';
 
 🏗️ CLASSES:
   class ProfilePage extends StatefulWidget {
@@ -180,18 +267,36 @@ sdk: flutter
 ⚙️ METHODS:
     const ProfilePage(
     void initState()
+  void dispose()
   Widget build(BuildContext context)
   return Scaffold(
-  const SizedBox(height: 20),
-  const Text('Навчальні групи:', style: TextStyle(fontWeight: FontWeight.bold)),
-  const SizedBox(height: 10),
-  const SizedBox(height: 20),
+  return Scaffold(
+  const SizedBox(height: 24),
+  const SizedBox(height: 24),
+  const SizedBox(height: 24),
+  return Card(
+  const SizedBox(width: 16),
+  return Card(
+  const SizedBox(height: 16),
+  const SizedBox(height: 16),
+  const SizedBox(height: 16),
+  const SizedBox(height: 16),
+  const SizedBox(height: 16),
+  return Card(
+  const SizedBox(height: 12),
+  return Container(
+  return Column(
+  const SizedBox(height: 16),
   const Divider(),
+  const SizedBox(height: 16),
 
 🏷️ PROPERTIES:
-  final user
-  final data
-  final user
+  final profile
+  final success
+  final shouldSignOut
+  final profile
+  final role
+  final isCurrentGroup
 
 ==== lib\pages\calendar_page\calendar_page.dart ====
 
@@ -213,8 +318,6 @@ sdk: flutter
   const SnackBar(
   const SnackBar(
   const Divider(height: 1),
-  return InkWell(
-  const SizedBox(height: 4),
 
 🏷️ PROPERTIES:
     final shortestSide
@@ -229,19 +332,40 @@ sdk: flutter
 
 📦 IMPORTS:
   import 'package:flutter/material.dart';
+  import 'package:intl/intl.dart';
 
 🏗️ CLASSES:
+  class LessonStatusUtils {
   class CalendarUtils {
 
 🔢 ENUMS:
   enum InstructorLessonStatus {
+  enum LessonProgressStatus {
+  enum LessonReadinessStatus {
   enum LessonStatus {
 
 ⚡ EXTENSIONS:
+  extension LessonProgressStatusExtension on LessonProgressStatus {
+  extension LessonReadinessStatusExtension on LessonReadinessStatus {
   extension InstructorLessonStatusExtension on InstructorLessonStatus {
   extension LessonStatusExtension on LessonStatus {
 
 ⚙️ METHODS:
+  String get label {
+  IconData get icon {
+  Color get color {
+  String get label {
+  IconData get icon {
+  String get description {
+    static bool areCriticalFieldsFilled(LessonModel lesson)
+  static LessonProgressStatus getProgressStatus(LessonModel lesson)
+  static LessonReadinessStatus getReadinessStatus(LessonModel lesson)
+  static List<String> getMissingCriticalFields(LessonModel lesson)
+  static double getCriticalFieldsProgress(LessonModel lesson)
+  static String formatTrainingPeriod(String trainingPeriod)
+  static bool isValidTrainingPeriod(String period)
+  static String createTrainingPeriod(DateTime startDate, DateTime endDate)
+  static bool isTrainingPeriodActive(String period)
   Color get color {
   String get label {
   IconData get icon {
@@ -280,6 +404,31 @@ sdk: flutter
   IconData get icon {
 
 🏷️ PROPERTIES:
+    return false;
+  return false;
+  return false;
+  return false;
+  return false;
+  return true;
+  final now
+  final progressStatus
+  final criticalFieldsFilled
+  final hasInstructor
+  final progress
+  final readiness
+  final issues
+  return missing;
+  int filledCount
+  const int totalCount
+  final parts
+  return trainingPeriod;
+  final regex
+  final formatter
+  final parts
+  final formatter
+  final startDate
+  final endDate
+  final now
     static const double timeColumnWidth
     static const double hourHeight
     static const double minuteHeight
@@ -360,6 +509,8 @@ sdk: flutter
 
 📦 IMPORTS:
   import 'package:cloud_firestore/cloud_firestore.dart';
+  import 'package:flutter/material.dart';
+  import 'package:intl/intl.dart';
 
 🏗️ CLASSES:
   class LessonModel {
@@ -367,7 +518,37 @@ sdk: flutter
 
 ⚙️ METHODS:
     return LessonModel(
+  return LessonModel(
+  Map<String, dynamic> toMap()
+  Map<String, dynamic> toFirestore()
+  LessonModel copyWith(
+  return LessonModel(
+  String get type {
+  int get durationInMinutes {
+  bool get isPast {
+  bool get isActive {
+  bool get isFuture {
+  String get timeString {
+  String get dateString {
+  return DateFormat('dd.MM.yyyy').format(startTime);
+  String get dateTimeString {
+  String toString()
+  int get hashCode
     return Recurrence(
+  return Recurrence(
+  Map<String, dynamic> toMap()
+  Map<String, dynamic> toFirestore()
+  Recurrence copyWith(
+  return Recurrence(
+  bool get isActive {
+  bool get isExpired {
+  List<DateTime> getOccurrencesInPeriod(DateTime startDate, DateTime periodStart, DateTime periodEnd)
+  String get description {
+  String get shortDescription {
+  IconData get icon {
+  bool isOccurrenceDate(DateTime date, DateTime originalDate)
+  String toString()
+  int get hashCode
 
 🏷️ PROPERTIES:
     final String id;
@@ -378,25 +559,72 @@ sdk: flutter
     final String groupId;
     final String groupName;
     final String unit;
-    final String instructor;
+    final String instructorId;
+    final String instructorName;
     final String location;
     final int maxParticipants;
-    final int currentParticipants;
     final String status;
     final String createdBy;
     final DateTime createdAt;
     final DateTime updatedAt;
     final Recurrence? recurrence;
+    final String trainingPeriod; // 👈 НОВЕ ПОЛЕ
+  final now
+  final formatter
+  bool operator
     final String type; // none, daily, weekly, monthly
     final int interval;
     final DateTime endDate;
+  return null;
+  DateTime nextDate;
+  return null;
+  DateTime currentDate
+  final nextDate
+  return occurrences;
+  String intervalText
+  String typeText;
+  final endDateStr
+  return interval
+  return interval
+  return interval
+  final difference
+  final monthsDiff
+  return false;
+  bool operator
+
+==== lib\pages\calendar_page\widgets\autocomplete_field.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+
+🏗️ CLASSES:
+  class AutocompleteField extends StatefulWidget {
+  class _AutocompleteFieldState extends State<AutocompleteField> {
+
+⚙️ METHODS:
+    const AutocompleteField(
+    void initState()
+  void dispose()
+  return InkWell(
+  Widget build(BuildContext context)
+  return CompositedTransformTarget(
+
+🏷️ PROPERTIES:
+    final TextEditingController controller;
+    final String labelText;
+    final String? hintText;
+    final IconData? prefixIcon;
+    final TextCapitalization textCapitalization;
+  final query
+  final suggestions
+  final RenderBox? renderBox
+  final size
+  final offset
+  final suggestion
 
 ==== lib\pages\calendar_page\widgets\calendar_grid.dart ====
 
 📦 IMPORTS:
-  import 'package:flutter/material.dart';
-  import '../models/calendar_view_type.dart';
-  import '../models/lesson_model.dart';
   import 'package:flutter/material.dart';
   import '../models/calendar_view_type.dart';
   import '../models/lesson_model.dart';
@@ -409,130 +637,57 @@ sdk: flutter
 
 ⚙️ METHODS:
     final Function(LessonModel)? onLessonTap;
+    final Function(DateTime)? onDateSelected;
     const CalendarGrid(
     void initState()
   void didUpdateWidget(CalendarGrid oldWidget)
+  List<LessonModel> getLessonsForSpecificDate(DateTime date)
+  List<LessonModel> getLessonsForDay(int dayIndex)
+  return getLessonsForSpecificDate(targetDate);
+  bool hasLessonsOnDay(int dayIndex)
+  return getLessonsForDay(dayIndex).isNotEmpty;
   Widget build(BuildContext context)
   return LayoutBuilder(
-  return Column(
-  const Divider(height: 1),
-  return Column(
-  const Divider(height: 1),
-  return Container(
-  return Container(
-  const SizedBox(height: 4),
-  const SizedBox(height: 4),
-  return Container(
-  return Expanded(
-  const SizedBox(height: 4),
-  const SizedBox(width: 4),
-  return Center(
-  const SizedBox(height: 16),
-  const SizedBox(height: 8),
-  return RefreshIndicator(
-  return Container(
-  return SingleChildScrollView(
-  return Container(
-  return Container(
-  return Container(
-  return Positioned(
-  return Positioned(
-  return Positioned(
-  return Expanded(
-  return GestureDetector(
-  const SizedBox(width: 2),
-  else if (isRegistered)
-  const SizedBox(height: 2),
-  const SizedBox(height: 1),
-  return GestureDetector(
-  const SizedBox(width: 8),
-  const SizedBox(width: 4),
-  const SizedBox(height: 8),
-  const SizedBox(width: 4),
-  const SizedBox(height: 4),
-  const SizedBox(width: 4),
-  const SizedBox(height: 4),
-  const SizedBox(width: 4),
-  const SizedBox(height: 12),
-  const SizedBox(width: 4),
-  const SizedBox(height: 2),
-  const SizedBox(width: 4),
-  const SizedBox(width: 8),
-  const SizedBox(height: 8),
+  return MobileDayView(
+  return MobileWeekView(
+  return DesktopWeekView(
+  return MonthView(
+  return YearView(
 
 🏷️ PROPERTIES:
     final CalendarViewType viewType;
     final DateTime selectedDate;
-    static const double timeColumnWidth
-    static const double hourHeight
-    static const double minuteHeight
   final startOfMonth
   final endOfMonth
   final startOfYear
   final endOfYear
-  final isMobile
-  final isTablet
-  final days
-  final day
-  final isToday
-  final hasLessons
-  final days
-  final index
-  final day
-  final isToday
-  final hasLessons
-  final dayLessons
-  final lesson
-  final hour
-  final dayLessons
-  final start
-  final end
-  final startMinutes
-  final endMinutes
-  final durationMinutes
-  final topPosition
-  final height
-  final allDayLessons
-  final overlappingLessons
-  final aStart
-  final bStart
-  final totalOverlapping
-  final lessonIndex
-  final isRegistered
-  final needsInstructor
-  final color
-  final start
-  final end
-  final isRegistered
-  final color
-  final status
-  final needsInstructor
-  final isUserInstructor
+  final normalizedTargetDate
+  final normalizedLessonDate
   final weekDays
   final targetDate
-  final normalizedTargetDate
-  final dayLessons
-  final normalizedLessonDate
-  final matches
-  return matches;
-  return dayLessons;
-  final success
+  final isMobile
+  final isTablet
 
 ==== lib\pages\calendar_page\widgets\calendar_header.dart ====
 
 📦 IMPORTS:
   import 'package:flutter/material.dart';
+  import 'package:intl/intl.dart';
   import '../models/calendar_view_type.dart';
+  import '../calendar_utils.dart';
 
 🏗️ CLASSES:
   class CalendarHeader extends StatelessWidget {
 
 ⚙️ METHODS:
     const CalendarHeader(
-    Widget build(BuildContext context)
-    return Padding(
-    const Spacer(),
-    const SizedBox(width: 12),
+    return DateFormat('dd MMMM yyyy', 'uk').format(selectedDate);
+    return DateFormat('MMMM yyyy', 'uk').format(selectedDate);
+    return DateFormat('yyyy').format(selectedDate);
+  Widget build(BuildContext context)
+  return Padding(
+  const Spacer(), // 👈 Відштовхує кнопки вправо
+  const SizedBox(width: 12),
 
 🏷️ PROPERTIES:
     final CalendarViewType viewType;
@@ -540,7 +695,8 @@ sdk: flutter
     final VoidCallback onPrevious;
     final VoidCallback onNext;
     final VoidCallback onToday;
-    String formattedDate
+    final startOfWeek
+    final endOfWeek
 
 ==== lib\pages\calendar_page\widgets\calendar_navigation.dart ====
 
@@ -639,6 +795,7 @@ sdk: flutter
   const SizedBox(height: 16),
   const SizedBox(height: 16),
   const SizedBox(height: 16),
+  const SizedBox(height: 16),
   const Text(
   const SizedBox(height: 8),
   const SizedBox(height: 16),
@@ -668,12 +825,14 @@ sdk: flutter
     final LessonModel lesson;
     final VoidCallback? onUpdated;
   final lesson
-  final occupancyRate
   final status
   bool isMultiline
   final needsInstructor
   final isUserInstructor
   final status
+  final readinessStatus
+  final missingFields
+  final hasProblems
   String statusText;
   Color statusColor;
   final canEdit
@@ -701,6 +860,7 @@ sdk: flutter
   import '../../../services/calendar_service.dart';
   import '../calendar_utils.dart';
   import '../../../globals.dart';
+  import '../../../services/lesson_templates_service.dart';
 
 🏗️ CLASSES:
   class LessonFormDialog extends StatefulWidget {
@@ -721,6 +881,9 @@ sdk: flutter
   return Column(
   const Text(
   const SizedBox(height: 12),
+  const SizedBox(height: 12),
+  const Text('Шаблони занять:', style: TextStyle(fontWeight: FontWeight.w500)),
+  const SizedBox(height: 8),
   const SizedBox(height: 16),
   return Column(
   const Text(
@@ -730,10 +893,13 @@ sdk: flutter
   const SizedBox(height: 8),
   return Column(
   const Text(
-  const SizedBox(height: 12),
   const SizedBox(height: 16),
   const SizedBox(height: 16),
   const SizedBox(height: 16),
+  const SizedBox(width: 12),
+  const SizedBox(height: 16),
+  return Theme(
+  return DateTimeRange(start: startDate, end: endDate);
   return Column(
   const Text(
   const Spacer(),
@@ -765,8 +931,14 @@ sdk: flutter
   final currentGroup
   final isEditing
   return null;
+  final endMinutes
+  return null;
   return null;
   final number
+  return null;
+  final DateTimeRange? picked
+  final formattedPeriod
+  final text
   return null;
   final isSelected
   final date
@@ -781,7 +953,325 @@ sdk: flutter
   Recurrence? recurrence;
   final lesson
   bool success;
+  final newLesson
   final lessonId
+
+==== lib\pages\calendar_page\widgets\mobile_lesson_card.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import '../models/lesson_model.dart';
+  import '../calendar_utils.dart';
+  import '../../../services/calendar_service.dart';
+
+🏗️ CLASSES:
+  class MobileLessonCard extends StatelessWidget {
+
+⚙️ METHODS:
+    const MobileLessonCard(
+    Widget build(BuildContext context)
+    return GestureDetector(
+    const SizedBox(width: 8),
+    const SizedBox(width: 4),
+    const SizedBox(height: 8),
+    const SizedBox(width: 8),
+    const SizedBox(height: 4),
+    const SizedBox(height: 8),
+    const SizedBox(width: 4),
+    const SizedBox(height: 4),
+    const SizedBox(width: 4),
+    const SizedBox(height: 4),
+    const SizedBox(width: 4),
+    const SizedBox(height: 4),
+    const SizedBox(width: 4),
+    const SizedBox(height: 4),
+    const SizedBox(width: 4),
+    const SizedBox(height: 4),
+    const SizedBox(width: 4),
+    const SizedBox(height: 4),
+    const SizedBox(width: 4),
+    const SizedBox(height: 4),
+    const SizedBox(width: 4),
+    const SizedBox(height: 12),
+    const SizedBox(width: 4),
+    const SizedBox(height: 8),
+
+🏷️ PROPERTIES:
+    final LessonModel lesson;
+    final VoidCallback? onTap;
+    final start
+    final end
+    final calendarService
+    final isRegistered
+    final color
+    final progressStatus
+    final readinessStatus
+    final criticalFieldsProgress
+    final missingFields
+    final statusColor
+    final statusLabel
+    final statusIcon
+
+==== lib\pages\calendar_page\widgets\views\desktop_week_view.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import '../../models/lesson_model.dart';
+  import '../../calendar_utils.dart';
+  import '../../../../services/calendar_service.dart';
+
+🏗️ CLASSES:
+  class DesktopWeekView extends StatelessWidget {
+
+⚙️ METHODS:
+    final Function(LessonModel)? onLessonTap;
+    const DesktopWeekView(
+    Widget build(BuildContext context)
+    return Column(
+    const Divider(height: 1),
+  return Container(
+  return Expanded(
+  const SizedBox(height: 4),
+  const SizedBox(width: 4),
+  return SingleChildScrollView(
+  return Container(
+  return Container(
+  return Container(
+  return Positioned(
+  return Positioned(
+  return Positioned(
+  return Expanded(
+  return GestureDetector(
+  const SizedBox(width: 2),
+  const SizedBox(height: 2),
+  const SizedBox(height: 1),
+
+🏷️ PROPERTIES:
+    final DateTime selectedDate;
+    final double minHour;
+    final double maxHour;
+    final bool isTablet;
+    final bool showSingleDay;
+    static const double timeColumnWidth
+    static const double hourHeight
+    static const double minuteHeight
+  final days
+  final displayDays
+  final index
+  final day
+  final isToday
+  final hasLessons
+  final hour
+  final dayLessons
+  final start
+  final end
+  final startMinutes
+  final endMinutes
+  final durationMinutes
+  final topPosition
+  final height
+  final allDayLessons
+  final overlappingLessons
+  final aStart
+  final bStart
+  final totalOverlapping
+  final lessonIndex
+  final calendarService
+  final isRegistered
+  final needsInstructor
+  final color
+  final readinessStatus
+
+==== lib\pages\calendar_page\widgets\views\mobile_day_view.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import '../../models/lesson_model.dart';
+  import '../../calendar_utils.dart';
+  import '../mobile_lesson_card.dart';
+
+🏗️ CLASSES:
+  class MobileDayView extends StatelessWidget {
+
+⚙️ METHODS:
+    final Function(LessonModel)? onLessonTap;
+    final Function(DateTime)? onDateSelected;
+    const MobileDayView(
+    Widget build(BuildContext context)
+    return Column(
+    const Divider(height: 1),
+  return Container(
+  return GestureDetector(
+  const SizedBox(height: 4),
+  const SizedBox(height: 4),
+  return RefreshIndicator(
+  return Container(
+  return Center(
+  const SizedBox(height: 16),
+  const SizedBox(height: 8),
+
+🏷️ PROPERTIES:
+    final DateTime selectedDate;
+  final weekDays
+  final day
+  final isSelected
+  final isToday
+  final hasLessons
+  final dayLessons
+  final lesson
+
+==== lib\pages\calendar_page\widgets\views\mobile_week_view.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import 'package:intl/intl.dart';
+  import '../../models/lesson_model.dart';
+  import '../../calendar_utils.dart';
+  import '../mobile_lesson_card.dart';
+
+🏗️ CLASSES:
+  class MobileWeekView extends StatelessWidget {
+
+⚙️ METHODS:
+    final Function(LessonModel)? onLessonTap;
+    const MobileWeekView(
+    Widget build(BuildContext context)
+  return RefreshIndicator(
+  return Column(
+  const Divider(height: 32),
+  return Padding(
+  const SizedBox(width: 8),
+  return Center(
+  const SizedBox(height: 16),
+  const SizedBox(height: 8),
+
+🏷️ PROPERTIES:
+    final DateTime selectedDate;
+    final weekDays
+    final daysWithLessons
+    final dayLessons
+  final date
+  final lessonsForDay
+
+==== lib\pages\calendar_page\widgets\views\month_view.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import 'package:intl/intl.dart';
+  import '../../models/lesson_model.dart';
+  import '../../calendar_utils.dart';
+
+🏗️ CLASSES:
+  class MonthView extends StatelessWidget {
+
+⚙️ METHODS:
+    final Function(DateTime)? onDateSelected;
+    const MonthView(
+    Widget build(BuildContext context)
+  return RefreshIndicator(
+  const SizedBox(height: 20),
+  const SizedBox(height: 20),
+  return Container(
+  const SizedBox(height: 8),
+  return Container(
+  return Container(
+  return GestureDetector(
+  const SizedBox(height: 2),
+  return Container(
+  return Container(
+  const Text(
+  const SizedBox(height: 12),
+  const SizedBox(width: 12),
+  const SizedBox(height: 16),
+  const Text(
+  const SizedBox(height: 8),
+  return Container(
+  const SizedBox(height: 8),
+  const SizedBox(height: 4),
+
+🏷️ PROPERTIES:
+    final DateTime selectedDate;
+    final bool isMobile;
+    final monthStart
+    final monthEnd
+    final daysInMonth
+  const maxCellHeight
+  final screenHeight
+  final maxGridHeight
+  final calculatedHeight
+  final gridHeight
+  final dayIndex
+  final day
+  final dayNames
+  final lessonsForDay
+  final isToday
+  final isSelected
+  final weekdayPosition
+  final readinessStatus
+  final totalLessons
+  final daysWithLessons
+  final tagCounts
+  final topTags
+  final totalLessons
+  final uniqueDays
+
+==== lib\pages\calendar_page\widgets\views\year_view.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import '../../models/lesson_model.dart';
+  import '../../calendar_utils.dart';
+
+🏗️ CLASSES:
+  class YearView extends StatelessWidget {
+
+⚙️ METHODS:
+    final Function(DateTime)? onDateSelected;
+    const YearView(
+    Widget build(BuildContext context)
+    return RefreshIndicator(
+    const SizedBox(height: 20),
+    const SizedBox(height: 20),
+  return Container(
+  const SizedBox(height: 8),
+  return Container(
+  return GestureDetector(
+  const SizedBox(height: 8),
+  const SizedBox(height: 8),
+  return Column(
+  return Container(
+  const SizedBox(height: 16),
+  const SizedBox(width: 12),
+  const SizedBox(height: 12),
+  const SizedBox(width: 12),
+  const SizedBox(height: 16),
+  const Text(
+  const SizedBox(height: 8),
+  return Container(
+  const SizedBox(height: 6),
+  const SizedBox(height: 2),
+
+🏷️ PROPERTIES:
+    final DateTime selectedDate;
+    final bool isMobile;
+    final year
+  final yearLessons
+  const maxCellWidth
+  const maxCellHeight
+  final month
+  final monthDate
+  final monthLessons
+  final isCurrentMonth
+  final tagCounts
+  final topTags
+  final yearLessons
+  final totalLessons
+  final monthlyStats
+  final tagCounts
+  final topTags
+  final mostActiveMonth
+  final activeMonths
+  final uniqueMonths
 
 ==== lib\pages\materials_page\materials_page.dart ====
 
@@ -1149,11 +1639,8 @@ sdk: flutter
   final completedLessons
   final scheduledLessons
   final cancelledLessons
-  final totalParticipants
   final totalCapacity
-  final occupancyRate
   final currentUser
-  final userData
   final instructorName
   final success
   return success;
@@ -1162,6 +1649,98 @@ sdk: flutter
   return success;
   return false;
   final currentUser
+
+==== lib\services\dashboard_service.dart ====
+
+📦 IMPORTS:
+  import 'package:cloud_firestore/cloud_firestore.dart';
+  import 'package:flutter/foundation.dart';
+  import '../pages/calendar_page/models/lesson_model.dart';
+  import '../pages/calendar_page/calendar_utils.dart';
+  import '../globals.dart';
+
+🏗️ CLASSES:
+  class UserStats {
+  class DashboardFeed {
+  class DashboardService {
+
+🔢 ENUMS:
+  enum StatsPeriod { week, month, quarter, year }
+
+⚙️ METHODS:
+    const UserStats(
+    const DashboardFeed(
+    Future<List<LessonModel>> getCurrentUserLessons() async
+  Future<List<LessonModel>> getLessonsWithoutInstructor(DateTime date) async
+  Future<UserStats> getUserStatistics(StatsPeriod period) async
+  return UserStats(
+  Future<DashboardFeed> getDashboardFeed(
+  void clearCache()
+  Future<List<LessonModel>> getLessonsForPeriod(
+  Future<Map<String, UserStats>> getInstructorsStatistics(
+
+🏷️ PROPERTIES:
+    final int conductedLessons;
+    final int totalLessons;
+    final int thisWeekLessons;
+    final int thisMonthLessons;
+    final double completionRate;
+    static const empty
+    final UserStats userStats;
+    final DateTime lastUpdated;
+    static final empty
+    final currentUser
+    final today
+    final startOfDay
+    final endOfDay
+    final currentGroupId
+    final querySnapshot
+    final lessons
+    final data
+    return lessons;
+  final startOfDay
+  final endOfDay
+  final currentGroupId
+  final querySnapshot
+  final lessons
+  final data
+  return lessons;
+  final currentUser
+  final currentGroupId
+  final now
+  DateTime startDate;
+  final quarter
+  final allLessonsQuery
+  final allLessons
+  final data
+  final conductedLessons
+  final type
+  final startOfWeek
+  final weekLessons
+  final startOfMonth
+  final monthLessons
+  final completionRate
+  final timeSinceCache
+  final today
+  final tomorrow
+  final results
+  final feed
+  return feed;
+  final currentGroupId
+  Query query
+  final querySnapshot
+  final data
+  final currentGroupId
+  final querySnapshot
+  final allLessons
+  final data
+  final instructor
+  final now
+  final instructor
+  final lessons
+  final conductedLessons
+  final completionRate
+  return instructorStats;
 
 ==== lib\services\error_notification_manager.dart ====
 
@@ -1345,7 +1924,7 @@ sdk: flutter
 
 📦 IMPORTS:
   import 'package:flutter/foundation.dart';
-  import 'package:shared_preferences/shared_preferences.dart';
+  import 'package:hive_flutter/hive_flutter.dart';
   import 'dart:convert';
 
 🏗️ CLASSES:
@@ -1367,6 +1946,7 @@ sdk: flutter
   Future<void> addTag(String tag) async
   Map<String, dynamic> createLessonFromTemplate(LessonTemplate template)
   Future<void> clearAllData() async
+  Future<void> dispose() async
 
 🏷️ PROPERTIES:
     final String id;
@@ -1377,42 +1957,195 @@ sdk: flutter
     final int durationMinutes;
     final bool isDefault;
   final existingIndex
-  final prefs
   final templatesJson
-  final prefs
   final templatesJson
-  final prefs
-  final instructorsJson
-  final locationsJson
-  final unitsJson
-  final tagsJson
-  final prefs
-  final prefs
+  final instructors
+  final locations
+  final units
+  final tags
 
 ==== lib\services\profile_manager.dart ====
 
 📦 IMPORTS:
-  import 'package:shared_preferences/shared_preferences.dart';
+  import 'package:flutter/foundation.dart';
+  import 'package:hive_flutter/hive_flutter.dart';
   import '../globals.dart';
 
 🏗️ CLASSES:
+  class UserProfile {
+  class CurrentGroup {
   class ProfileManager {
 
 ⚙️ METHODS:
-    Future<void> setCurrentGroup(String groupId, String groupName, [String? role]) async
+    const UserProfile(
+    String get fullName {
+  String get initials {
+  UserProfile copyWith(
+  return UserProfile(
+  Map<String, dynamic> toMap()
+  return UserProfile(
+    const CurrentGroup(
+    Map<String, dynamic> toMap()
+  return CurrentGroup(
+    Future<void> initialize() async
+  UserProfile get profile
+  String get currentUserName
+  String get currentUserInitials
+  Future<bool> loadAndSyncProfile() async
+  Future<bool> updatePersonalInfo(
+  Future<void> setCurrentGroup(String groupId, String groupName, [String? role]) async
   Future<void> loadSavedGroupWithFallback(Map<String, String> allGroups) async
-  void clearGroup() async
+  await setCurrentGroup(firstGroupId, firstGroupName, role);
+  Future<void> clearCurrentGroup() async
+  Future<void> clearProfile() async
+  bool needsSync()
+  Map<String, String> getAvailableGroups()
+  bool get isCurrentGroupAdmin {
+  bool get isCurrentGroupEditor {
+  Future<void> dispose() async
+  String toString()
 
 🏷️ PROPERTIES:
-    final prefs
-  final prefs
-  final savedId
-  final savedName
-  final email
+    final String? firstName;
+    final String? lastName;
+    final String? rank;
+    final String? position;
+    final String? phone;
+    final String? email;
+    final String? uid;
+    final DateTime? lastUpdated;
+    final first
+    final last
+  final first
+  final last
+  final emailName
+  static const empty
+    final String id;
+    final String name;
+    final String? role;
+  final user
+  final firestoreData
+  final groups
   final roles
-  final email
+  final updatedProfile
+  return true;
+  return false;
+  final user
+  final updatedProfile
+  return true;
+  return false;
+  final newGroup
   final roles
-  final prefs
+  final updatedRole
+  final firstGroupId
+  final firstGroupName
+  final role
+  final timeSinceUpdate
+  final groups
+  return groups;
+  final role
+  return role
+  final data
+  final data
+
+==== lib\services\reports_service.dart ====
+
+📦 IMPORTS:
+  import 'dart:typed_data';
+  import 'package:excel/excel.dart';
+  import 'package:flutter/foundation.dart';
+  import 'package:intl/intl.dart';
+  import '../pages/calendar_page/models/lesson_model.dart';
+  import '../pages/calendar_page/calendar_utils.dart';
+  import '../globals.dart';
+
+🏗️ CLASSES:
+  class ReportsService {
+
+🔢 ENUMS:
+  enum CalendarPeriod { week, month }
+  enum ReportFormat { excel, csv }
+
+⚙️ METHODS:
+    Future<Uint8List> generateCalendarExcel(
+  Future<Uint8List> generateInstructorReport(
+  Future<Uint8List> generateLessonsReport(
+  return DateFormat('MMMM yyyy', 'uk').format(date);
+
+🏷️ PROPERTIES:
+    final excel
+    final sheet
+    final DateTime endDate;
+    final weekStart
+    final monthStart
+  final dashboardService
+  final lessons
+  final excel
+  final sheet
+  final dashboardService
+  final instructorStats
+  final excel
+  final sheet
+  final dashboardService
+  final lessons
+  final titleText
+  final titleCell
+  final dateRange
+  final subtitleCell
+  const startRow
+  const timeColumn
+  final day
+  final dayName
+  final dayDate
+  final lessonsGrouped
+  final minHour
+  final maxHour
+  int currentRow
+  final day
+  final dayLessons
+  final hourLessons
+  final lesson
+  final lessonHour
+  return lessonHour
+  String cellContent
+  final lesson
+  final timeRange
+  const startRow
+  const weekDays
+  final lessonsByDate
+  final date
+  int currentRow
+  int currentWeekDay
+  final firstDay
+  final startWeekDay
+  final daysInMonth
+  final date
+  final dayLessons
+  String cellContent
+  final time
+  const startRow
+  final headers
+  final cell
+  int currentRow
+  final instructor
+  final stats
+  const startRow
+  final headers
+  final cell
+  int currentRow
+  final totalLessons
+  final totalConducted
+  final avgCompletion
+  final startRow
+  final startRow
+  final now
+  final conducted
+  final withInstructor
+  final titleText
+  final dateRange
+  final start
+  final end
+  final daysInMonth
 
 ==== lib\services\file_manager\file_cache_entry.dart ====
 
@@ -1601,6 +2334,8 @@ sdk: flutter
   Future<void> shareFile(String fileId) async
   throw FileAccessException('Немає кешованого файлу для надсилання', fileId);
   await FileSharer().shareFile(bytes, name);
+  Future<void> shareFileByData(String fileName, Uint8List data) async
+  await FileSharer().shareFile(data, fileName);
 
 🏷️ PROPERTIES:
     final manager

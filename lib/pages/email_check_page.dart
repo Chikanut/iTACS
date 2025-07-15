@@ -38,6 +38,8 @@ class _EmailCheckPageState extends State<EmailCheckPage> {
       await FirebaseAuth.instance.signOut();
       _goTo(const AccessDeniedPage());
     } else {
+      await Globals.profileManager.initialize();
+      await Globals.profileManager.loadAndSyncProfile();
       _goTo(const MainScaffold());
     }
   }
