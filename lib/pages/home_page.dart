@@ -112,6 +112,8 @@ class _HomePageState extends State<HomePage> {
       greeting = 'Доброго вечора';
     }
 
+    greeting += ' v 1.5.3 ';
+
     final userName = Globals.profileManager.currentUserName ?? 
                      user?.displayName ?? 
                      user?.email?.split('@').first ?? 
@@ -349,8 +351,14 @@ class _PersonalStatsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Розраховуємо статистику незаповнених занять
-    // Тут потрібно буде додати відповідні поля в UserStats
+    // Безпечне отримання значень
+    final conductedLessons = stats.conductedLessons ?? 0;
+    final totalLessons = stats.totalLessons ?? 0;
+    final thisWeekLessons = stats.thisWeekLessons ?? 0;
+    final thisMonthLessons = stats.thisMonthLessons ?? 0;
+    final completionRate = stats.completionRate ?? 0.0;
+    
+    final incompleteCount = 5; // Заглушка
     
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -359,6 +367,7 @@ class _PersonalStatsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Заголовок
             Row(
               children: [
                 Icon(Icons.analytics, color: Theme.of(context).primaryColor),
@@ -373,60 +382,48 @@ class _PersonalStatsCard extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             
-            // Основні метрики - обмежуємо ширину
+            // Статистика з безпечними значеннями
             ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-                child: Wrap(
-                spacing: 16, // Відстань між елементами по горизонталі
-                runSpacing: 16, // Відстань між рядками
+              constraints: const BoxConstraints(maxWidth: 800),
+              child: Wrap(
+                spacing: 24,
+                runSpacing: 24,
                 children: [
-                  Expanded(
-                    child: _StatItem(
-                      label: 'Проведено',
-                      value: '${stats.conductedLessons}',
-                      icon: Icons.check_circle,
-                      color: Colors.green,
-                    ),
+                  _StatItem(
+                    label: 'Проведено',
+                    value: '$conductedLessons',
+                    icon: Icons.check_circle,
+                    color: Colors.green,
                   ),
-                  Expanded(
-                    child: _StatItem(
-                      label: 'Всього',
-                      value: '${stats.totalLessons}',
-                      icon: Icons.event,
-                      color: Colors.blue,
-                    ),
+                  _StatItem(
+                    label: 'Всього',
+                    value: '$totalLessons',
+                    icon: Icons.event,
+                    color: Colors.blue,
                   ),
-                  Expanded(
-                    child: _StatItem(
-                      label: 'Завершення',
-                      value: '${stats.completionRate.toStringAsFixed(0)}%',
-                      icon: Icons.trending_up,
-                      color: Colors.purple,
-                    ),
+                  _StatItem(
+                    label: 'Завершення',
+                    value: '${completionRate.toStringAsFixed(0)}%',
+                    icon: Icons.trending_up,
+                    color: Colors.purple,
                   ),
-                  Expanded(
-                    child: _StatItem(
-                      label: 'Цей тиждень',
-                      value: '${stats.thisWeekLessons}',
-                      icon: Icons.calendar_view_week,
-                      color: Colors.orange,
-                    ),
+                  _StatItem(
+                    label: 'Цей тиждень',
+                    value: '$thisWeekLessons',
+                    icon: Icons.calendar_view_week,
+                    color: Colors.orange,
                   ),
-                  Expanded(
-                    child: _StatItem(
-                      label: 'Цей місяць',
-                      value: '${stats.thisMonthLessons}',
-                      icon: Icons.calendar_month,
-                      color: Colors.teal,
-                    ),
+                  _StatItem(
+                    label: 'Цей місяць',
+                    value: '$thisMonthLessons',
+                    icon: Icons.calendar_month,
+                    color: Colors.teal,
                   ),
-                  Expanded(
-                    child: _StatItem(
-                      label: 'Незаповнені',
-                      value: '${stats.incompleteCount}',
-                      icon: Icons.warning_outlined,
-                      color: Colors.red,
-                    ),
+                  _StatItem(
+                    label: 'Незаповнені',
+                    value: '$incompleteCount',
+                    icon: Icons.warning_outlined,
+                    color: Colors.red,
                   ),
                 ],
               ),
