@@ -5,21 +5,44 @@ import 'tool_dialog.dart';
 import 'tool_tile.dart';
 
 IconData iconFromData(Map<String, dynamic> item, bool isFolder) {
-  if (item['icon'] != null && item['iconFontFamily'] != null) {
-    try {
-      final iconCode = item['icon'];
-      final fontFamily = item['iconFontFamily'];
-      
-      // Перевіряємо чи це валідні значення
-      if (iconCode is int && fontFamily is String && fontFamily.isNotEmpty) {
-        return IconData(iconCode, fontFamily: fontFamily);
+    if (item['icon'] != null && item['iconFontFamily'] != null) {
+      try {
+        final iconCode = item['icon'];
+        final fontFamily = item['iconFontFamily'];
+        
+        if (iconCode is int && fontFamily == 'MaterialIcons') {
+          // Повертаємо константну іконку з Map
+          return _iconMap[iconCode] ?? (isFolder ? Icons.folder : Icons.web);
+        }
+      } catch (e) {
+        // Fallback
       }
-    } catch (e) {
-      // Якщо помилка - повертаємо fallback
     }
-  }
-  return isFolder ? Icons.folder : Icons.web;
+    return isFolder ? Icons.folder : Icons.web;
 }
+
+ const Map<int, IconData> _iconMap = {
+    0xe047: Icons.web,
+    0xe86f: Icons.code,
+    0xe1ae: Icons.calculate,
+    0xe3f6: Icons.lightbulb,
+    0xe873: Icons.description,
+    0xe192: Icons.access_time,
+    0xe5ca: Icons.check_circle,
+    0xe80c: Icons.school,
+    0xe4e9: Icons.construction,
+    0xe412: Icons.camera,
+    0xe55b: Icons.map,
+    0xe63e: Icons.wifi,
+    0xe855: Icons.alarm,
+    0xe868: Icons.bug_report,
+    0xe865: Icons.book,
+    0xe566: Icons.directions_run,
+    0xe2c4: Icons.download,
+    0xe3c9: Icons.edit,
+    0xe87a: Icons.explore,
+    0xe173: Icons.file_copy,
+  };
 
 Future<IconData?> showIconPickerDialog(BuildContext context) async {
   const allIcons = [

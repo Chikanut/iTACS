@@ -34,9 +34,9 @@ class _ToolDialogState extends State<ToolDialog> {
       titleController.text = item['title'] ?? '';
       fileIdController.text = item['fileId'] ?? '';
       selectedType = item['type'] ?? 'tool';
-      if (item['icon'] != null && item['iconFontFamily'] != null) {
-        selectedIcon = IconData(item['icon'], fontFamily: item['iconFontFamily']);
-      }
+      
+      // Використовуємо новий підхід для отримання іконки
+      selectedIcon = iconFromData(item, selectedType == 'folder');
     }
   }
 
