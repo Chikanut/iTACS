@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'dart:math' as math;
 import '../../models/lesson_model.dart';
 import '../../calendar_utils.dart';
 
@@ -83,96 +84,123 @@ class MonthView extends StatelessWidget {
   }
 
   Widget _buildCalendarGrid(BuildContext context, List<DateTime> daysInMonth) {
-    // Обмежуємо максимальну висоту календаря
-    const maxCellHeight = 80.0;
-    final screenHeight = MediaQuery.of(context).size.height;
-    final maxGridHeight = screenHeight * 0.6; // 60% екрана максимум
-    final calculatedHeight = (daysInMonth.length / 7).ceil() * maxCellHeight + maxCellHeight; // +заголовки
-    final gridHeight = calculatedHeight > maxGridHeight ? maxGridHeight : calculatedHeight;
-    
-    return Container(
-      height: gridHeight,
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 7,
-          childAspectRatio: 1.2, // Трохи менше квадрати
-          crossAxisSpacing: 0,
-          mainAxisSpacing: 0,
-          mainAxisExtent: maxCellHeight, // Фіксована висота клітинки
-        ),
-        itemCount: 7 + daysInMonth.length, // 7 заголовків + дні
-        itemBuilder: (context, index) {
-          // Заголовки днів тижня
-          if (index < 7) {
-            return _buildDayHeader(index);
-          }
-          
-          // Дні місяця
-          final dayIndex = index - 7;
-          final day = daysInMonth[dayIndex];
-          return _buildDayCell(context, day);
-        },
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Розраховуємо оптимальну висоту клітинки
+        final screenWidth = constraints.maxWidth;
+        final screenHeight = MediaQuery.of(context).size.height;
+        
+        // Ширина клітинки = (доступна ширина - borders) / 7 колонок
+        final cellWidth = (screenWidth - 6) / 7; // -6 для 6 borders між колонками
+        
+        // Висота клітинки залежить від ширини та розміру екрана
+        double cellHeight;
+        if (screenHeight < 600) {
+          // Дуже маленькі екрани - мінімальна висота
+          cellHeight = math.max(60, cellWidth * 0.8);
+        } else if (screenHeight < 800) {
+          // Середні екрани
+          cellHeight = math.max(70, cellWidth * 0.9);
+        } else {
+          // Великі екрани
+          cellHeight = math.max(80, cellWidth);
+        }
+        
+        // Розраховуємо кількість рядків
+        final weekRows = (daysInMonth.length / 7).ceil();
+        final totalRows = weekRows + 1; // +1 для заголовків
+        final totalHeight = totalRows * cellHeight;
+        
+        return Container(
+          height: totalHeight,
+          decoration: BoxDecoration(
+            border: Border.all(color: Colors.grey.shade300),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 7,
+              childAspectRatio: cellWidth / cellHeight,
+              crossAxisSpacing: 0,
+              mainAxisSpacing: 0,
+              mainAxisExtent: cellHeight,
+            ),
+            itemCount: 7 + daysInMonth.length,
+            itemBuilder: (context, index) {
+              if (index < 7) {
+                return _buildDayHeader(index);
+              }
+              
+              final dayIndex = index - 7;
+              final day = daysInMonth[dayIndex];
+              return _buildDayCell(context, day, cellHeight);
+            },
+          ),
+        );
+      },
     );
   }
 
   Widget _buildDayHeader(int index) {
     final dayNames = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'НД'];
     
-    return Container(
-      alignment: Alignment.center,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.shade300),
-          right: index < 6 ? BorderSide(color: Colors.grey.shade300) : BorderSide.none,
-        ),
-      ),
-      child: Text(
-        dayNames[index],
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          color: Colors.grey.shade600,
-          fontSize: 12,
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isSmall = constraints.maxHeight < 70;
+        
+        return Container(
+          alignment: Alignment.center,
+          padding: EdgeInsets.symmetric(vertical: isSmall ? 4 : 8),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            border: Border(
+              bottom: BorderSide(color: Colors.grey.shade300),
+              right: index < 6 ? BorderSide(color: Colors.grey.shade300) : BorderSide.none,
+            ),
+          ),
+          child: Text(
+            dayNames[index],
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.grey.shade600,
+              fontSize: isSmall ? 10 : 12,
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildDayCell(BuildContext context, DateTime day) {
+  Widget _buildDayCell(BuildContext context, DateTime day, double cellHeight) {
     final lessonsForDay = getLessonsForSpecificDate(day);
     final isToday = CalendarUtils.isToday(day);
     final isSelected = day.year == selectedDate.year &&
                       day.month == selectedDate.month &&
                       day.day == selectedDate.day;
     
-    // Отримуємо позицію в тижні (0 = понеділок, 6 = неділя)
-    final weekdayPosition = (day.weekday - 1) % 7;
+    // Адаптивні розміри залежно від висоти клітинки
+    final isSmallCell = cellHeight < 70;
+    final isTinyCell = cellHeight < 60;
     
     return GestureDetector(
       onTap: () => onDateSelected?.call(day),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white, // 👈 Завжди білий фон
+          color: Colors.white,
           border: Border.all(
             color: isSelected 
-              ? Colors.green // 👈 Зелена рамка для вибраного дня
+              ? Colors.green
               : isToday 
                 ? Theme.of(context).primaryColor 
                 : Colors.grey.shade300,
-            width: (isToday || isSelected) ? 2 : 1, // 👈 Товща рамка для спеціальних днів
+            width: (isToday || isSelected) ? 2 : 1,
           ),
           borderRadius: (isToday || isSelected) ? BorderRadius.circular(4) : null,
         ),
         child: Padding(
-          padding: const EdgeInsets.all(4),
+          padding: EdgeInsets.all(isSmallCell ? 2 : 4),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.start,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -184,7 +212,7 @@ class MonthView extends StatelessWidget {
                   Text(
                     day.day.toString(),
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: isTinyCell ? 10 : isSmallCell ? 11 : 12,
                       fontWeight: (isToday || isSelected) ? FontWeight.bold : FontWeight.normal,
                       color: isSelected
                         ? Colors.green
@@ -195,16 +223,19 @@ class MonthView extends StatelessWidget {
                   ),
                   if (lessonsForDay.isNotEmpty)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isSmallCell ? 3 : 4, 
+                        vertical: 1,
+                      ),
                       decoration: BoxDecoration(
                         color: Theme.of(context).primaryColor,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         lessonsForDay.length.toString(),
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
-                          fontSize: 8,
+                          fontSize: isTinyCell ? 6 : 8,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
@@ -212,26 +243,30 @@ class MonthView extends StatelessWidget {
                 ],
               ),
               
-              // Плашки занять (максимум 3)
-              if (lessonsForDay.isNotEmpty) ...[
-                const SizedBox(height: 2),
+              // Плашки занять
+              if (lessonsForDay.isNotEmpty && !isTinyCell) ...[
+                SizedBox(height: isSmallCell ? 1 : 2),
                 Expanded(
                   child: Column(
                     children: [
-                      ...lessonsForDay.take(3).map((lesson) {
+                      // Показуємо менше занять для маленьких клітинок
+                      ...lessonsForDay.take(isSmallCell ? 2 : 3).map((lesson) {
                         final readinessStatus = LessonStatusUtils.getReadinessStatus(lesson);
                         return Container(
                           width: double.infinity,
                           margin: const EdgeInsets.only(bottom: 1),
-                          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: isSmallCell ? 1 : 2, 
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: readinessStatus.color.withAlpha(100),
                             borderRadius: BorderRadius.circular(2),
                           ),
                           child: Text(
                             lesson.title,
-                            style: const TextStyle(
-                              fontSize: 7,
+                            style: TextStyle(
+                              fontSize: isSmallCell ? 6 : 7,
                               fontWeight: FontWeight.w500,
                               color: Colors.black87,
                             ),
@@ -240,16 +275,26 @@ class MonthView extends StatelessWidget {
                           ),
                         );
                       }),
-                      if (lessonsForDay.length > 3)
+                      if (lessonsForDay.length > (isSmallCell ? 2 : 3))
                         Text(
-                          '+${lessonsForDay.length - 3} ще',
+                          '+${lessonsForDay.length - (isSmallCell ? 2 : 3)} ще',
                           style: TextStyle(
-                            fontSize: 6,
+                            fontSize: isSmallCell ? 5 : 6,
                             color: Colors.grey.shade600,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                     ],
+                  ),
+                ),
+              ] else if (lessonsForDay.isNotEmpty && isTinyCell) ...[
+                // Для дуже маленьких клітинок показуємо тільки крапку
+                Container(
+                  width: 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).primaryColor,
+                    shape: BoxShape.circle,
                   ),
                 ),
               ],

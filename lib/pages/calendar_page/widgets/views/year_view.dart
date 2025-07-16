@@ -79,27 +79,45 @@ class YearView extends StatelessWidget {
     const maxCellWidth = 200.0;
     const maxCellHeight = 150.0;
     
-    return Container(
-      constraints: const BoxConstraints(
-        maxHeight: 600, // Максимальна висота сітки
-      ),
-      child: GridView.builder(
-        shrinkWrap: true,
-        physics: const NeverScrollableScrollPhysics(),
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: isMobile ? 2 : 3,
-          childAspectRatio: maxCellWidth / maxCellHeight, // Фіксоване співвідношення
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          mainAxisExtent: maxCellHeight, // Фіксована висота
-        ),
-        itemCount: 12,
-        itemBuilder: (context, index) {
-          final month = index + 1;
-          final monthDate = DateTime(year, month, 1);
-          return _buildMonthCard(context, monthDate, month);
-        },
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Визначаємо кількість колонок залежно від ширини
+        final screenWidth = constraints.maxWidth;
+        int crossAxisCount;
+        
+        if (screenWidth < 400) {
+          crossAxisCount = 1; // Дуже вузькі екрани - 1 колонка
+        } else if (screenWidth < 600) {
+          crossAxisCount = 2; // Мобільні - 2 колонки
+        } else {
+          crossAxisCount = 3; // Планшет/десктоп - 3 колонки
+        }
+        
+        // Розраховуємо висоту сітки динамічно
+        final rows = (12 / crossAxisCount).ceil();
+        final gridHeight = rows * maxCellHeight + (rows - 1) * 16; // +16 для mainAxisSpacing
+        
+        return Container(
+          height: gridHeight, // Динамічна висота замість maxHeight
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossAxisCount,
+              childAspectRatio: maxCellWidth / maxCellHeight,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              mainAxisExtent: maxCellHeight,
+            ),
+            itemCount: 12,
+            itemBuilder: (context, index) {
+              final month = index + 1;
+              final monthDate = DateTime(year, month, 1);
+              return _buildMonthCard(context, monthDate, month);
+            },
+          ),
+        );
+      },
     );
   }
 
@@ -108,78 +126,88 @@ class YearView extends StatelessWidget {
     final isCurrentMonth = monthDate.year == DateTime.now().year &&
                           monthDate.month == DateTime.now().month;
     
-    return GestureDetector(
-      onTap: () => onDateSelected?.call(monthDate),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: isCurrentMonth 
-              ? Theme.of(context).primaryColor 
-              : Colors.grey.shade300,
-            width: isCurrentMonth ? 2 : 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Назва місяця
-              Text(
-                CalendarUtils.getMonthName(month),
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: isCurrentMonth 
-                    ? Theme.of(context).primaryColor 
-                    : Colors.black,
-                ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Адаптуємо розмір шрифту для вузьких карток
+        final isNarrow = constraints.maxWidth < 150;
+        
+        return GestureDetector(
+          onTap: () => onDateSelected?.call(monthDate),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: isCurrentMonth 
+                  ? Theme.of(context).primaryColor 
+                  : Colors.grey.shade300,
+                width: isCurrentMonth ? 2 : 1,
               ),
-              const SizedBox(height: 8),
-              
-              // Кількість занять
-              if (monthLessons.isNotEmpty) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    '${monthLessons.length} занять',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                
-                // Топ категорії
-                _buildMonthTopCategories(monthLessons),
-              ] else ...[
-                Text(
-                  'Немає занять',
-                  style: TextStyle(
-                    color: Colors.grey.shade500,
-                    fontSize: 12,
-                  ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
                 ),
               ],
-            ],
+            ),
+            child: Padding(
+              padding: EdgeInsets.all(isNarrow ? 8 : 12), // Менший padding для вузьких карток
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Назва місяця
+                  Text(
+                    CalendarUtils.getMonthName(month, short: isNarrow), // Короткі назви для вузьких карток
+                    style: TextStyle(
+                      fontSize: isNarrow ? 14 : 16,
+                      fontWeight: FontWeight.bold,
+                      color: isCurrentMonth 
+                        ? Theme.of(context).primaryColor 
+                        : Colors.black,
+                    ),
+                  ),
+                  SizedBox(height: isNarrow ? 4 : 8),
+                  
+                  // Кількість занять
+                  if (monthLessons.isNotEmpty) ...[
+                    Container(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isNarrow ? 8 : 12, 
+                        vertical: isNarrow ? 4 : 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Text(
+                        '${monthLessons.length} занять',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: isNarrow ? 10 : 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: isNarrow ? 4 : 8),
+                    
+                    // Топ категорії (показуємо тільки для широких карток)
+                    if (!isNarrow) _buildMonthTopCategories(monthLessons),
+                  ] else ...[
+                    Text(
+                      'Немає занять',
+                      style: TextStyle(
+                        color: Colors.grey.shade500,
+                        fontSize: isNarrow ? 10 : 12,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 

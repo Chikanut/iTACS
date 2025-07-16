@@ -5,8 +5,10 @@ import '../globals.dart';
 import '../services/dashboard_service.dart';
 import '../pages/calendar_page/models/lesson_model.dart';
 import '../pages/calendar_page/calendar_utils.dart';
-import '../services/reports_service.dart';
 import '../pages/calendar_page/widgets/lesson_details_dialog.dart';
+import '../services/reports_service.dart';
+import '../services/reports/base_report.dart';
+import '../services/reports/quick_report_dialog.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -119,10 +121,8 @@ class _HomePageState extends State<HomePage> {
                      user?.email?.split('@').first ?? 
                      'Користувач';
 
-    final groupName = Globals.profileManager.currentGroupName;
-
     return SliverAppBar(
-      expandedHeight: 140, // Збільшуємо висоту
+      expandedHeight: 80, // Збільшуємо висоту
       floating: false,
       pinned: true,
       flexibleSpace: FlexibleSpaceBar(
@@ -150,33 +150,6 @@ class _HomePageState extends State<HomePage> {
                 Theme.of(context).primaryColor,
                 Theme.of(context).primaryColor.withOpacity(0.8),
               ],
-            ),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  if (groupName != null) ...[
-                    const SizedBox(height: 24), // Більший відступ
-                    Row(
-                      children: [
-                        const Icon(Icons.group, size: 16, color: Colors.white70),
-                        const SizedBox(width: 4),
-                        Text(
-                          groupName,
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
             ),
           ),
         ),
@@ -357,8 +330,7 @@ class _PersonalStatsCard extends StatelessWidget {
     final thisWeekLessons = stats.thisWeekLessons ?? 0;
     final thisMonthLessons = stats.thisMonthLessons ?? 0;
     final completionRate = stats.completionRate ?? 0.0;
-    
-    final incompleteCount = 5; // Заглушка
+    final incompleteCount = stats.incompleteCount ?? 0;
     
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -513,20 +485,15 @@ class _ReportsCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _ReportButton(
-                  label: 'Календар тижня',
-                  icon: Icons.calendar_view_week,
-                  onPressed: () => _generateCalendar(context, CalendarPeriod.week),
+               _ReportButton(
+                  label: 'Список занять',
+                  icon: Icons.list_alt, // Змінити іконку
+                  onPressed: () => _generateLessonsList(context), // Прибрати параметр period
                 ),
                 _ReportButton(
-                  label: 'Календар місяця',
-                  icon: Icons.calendar_month,
-                  onPressed: () => _generateCalendar(context, CalendarPeriod.month),
-                ),
-                _ReportButton(
-                  label: 'Звіт інструкторів',
-                  icon: Icons.people,
-                  onPressed: () => _generateInstructorReport(context),
+                  label: 'Календарна сітка',
+                  icon: Icons.calendar_view_month,
+                  onPressed: () => _generateCalendarGrid(context),
                 ),
               ],
             ),
@@ -536,87 +503,139 @@ class _ReportsCard extends StatelessWidget {
     );
   }
 
-  Future<void> _generateCalendar(BuildContext context, CalendarPeriod period) async {
-    try {
-      // Показуємо індикатор завантаження
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+  Future<void> _generateLessonsList(BuildContext context) async {
+    // Спочатку показуємо діалог вибору періоду
+    await showQuickReportDialog(
+      context: context,
+      reportTitle: 'Список занять',
+      onGenerate: (startDate, endDate) async {
+        try {
+          // Показуємо індикатор завантаження
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const Dialog(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Генерація звіту...'),
+                  ],
+                ),
+              ),
+            ),
+          );
 
-      final now = DateTime.now();
-      final data = await reportsService.generateCalendarExcel(
-        startDate: period == CalendarPeriod.week 
-            ? CalendarUtils.getStartOfWeek(now)
-            : CalendarUtils.getStartOfMonth(now),
-        period: period,
-      );
+          // Використовуємо новий ReportsService
+          final data = await Globals.reportsService.generateReport(
+            reportId: 'lessons_list',
+            format: ReportFormat.excel,
+            startDate: startDate,
+            endDate: endDate,
+            parameters: null, // Без фільтрів - всі інструктори
+          );
 
-      // Закриваємо індикатор
-      if (context.mounted) {
-        Navigator.of(context).pop();
-      }
+          // Закриваємо індикатор
+          if (context.mounted) {
+            Navigator.of(context).pop();
+          }
 
-      // Зберігаємо файл
-      final periodName = period == CalendarPeriod.week ? 'тиждень' : 'місяць';
-      final fileName = 'календар_${periodName}_${DateFormat('dd_MM_yyyy').format(now)}.xlsx';
-      
-      await Globals.fileManager.shareFileByData(fileName, data);
-      
-      if (context.mounted) {
-        Globals.errorNotificationManager.showSuccess('Календар згенеровано!');
-      }
-    } catch (e) {
-      // Закриваємо індикатор якщо відкритий
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        Globals.errorNotificationManager.showError('Помилка генерації: ${e.toString()}');
-      }
-    }
+          // Отримуємо ім'я файлу
+          final fileName = Globals.reportsService.getReportFileName(
+            reportId: 'lessons_list',
+            format: ReportFormat.excel,
+            startDate: startDate,
+            endDate: endDate,
+          );
+          
+          await Globals.fileManager.shareFileByData(fileName, data);
+          
+          if (context.mounted) {
+            Globals.errorNotificationManager.showSuccess(
+              'Список занять згенеровано!\nПеріод: ${DateFormat('dd.MM.yyyy').format(startDate)} - ${DateFormat('dd.MM.yyyy').format(endDate)}'
+            );
+          }
+        } catch (e) {
+          // Закриваємо індикатор якщо відкритий
+          if (context.mounted) {
+            Navigator.of(context).pop();
+            Globals.errorNotificationManager.showError(
+              'Помилка генерації звіту: ${e.toString()}'
+            );
+          }
+        }
+      },
+    );
   }
 
-  Future<void> _generateInstructorReport(BuildContext context) async {
-    try {
-      // Показуємо індикатор завантаження
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+  Future<void> _generateCalendarGrid(BuildContext context) async {
+    await showQuickReportDialog(
+      context: context,
+      reportTitle: 'Календарна сітка',
+      onGenerate: (startDate, endDate) async {
+        try {
+          // Показуємо індикатор завантаження
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const Dialog(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Генерація календарної сітки...'),
+                  ],
+                ),
+              ),
+            ),
+          );
 
-      final now = DateTime.now();
-      final startOfMonth = CalendarUtils.getStartOfMonth(now);
-      
-      final data = await reportsService.generateInstructorReport(
-        startDate: startOfMonth,
-        endDate: now,
-      );
+          // Використовуємо новий ReportsService
+          final data = await Globals.reportsService.generateReport(
+            reportId: 'calendar_grid',
+            format: ReportFormat.excel,
+            startDate: startDate,
+            endDate: endDate,
+            parameters: null,
+          );
 
-      // Закриваємо індикатор
-      if (context.mounted) {
-        Navigator.of(context).pop();
-      }
+          // Закриваємо індикатор
+          if (context.mounted) {
+            Navigator.of(context).pop();
+          }
 
-      // Зберігаємо файл
-      final fileName = 'звіт_інструкторів_${DateFormat('dd_MM_yyyy').format(now)}.xlsx';
-      
-      await Globals.fileManager.shareFileByData(fileName, data);
-      
-      if (context.mounted) {
-        Globals.errorNotificationManager.showSuccess('Звіт згенеровано!');
-      }
-    } catch (e) {
-      // Закриваємо індикатор якщо відкритий
-      if (context.mounted) {
-        Navigator.of(context).pop();
-        Globals.errorNotificationManager.showError('Помилка генерації: ${e.toString()}');
-      }
-    }
+          // Отримуємо ім'я файлу
+          final fileName = Globals.reportsService.getReportFileName(
+            reportId: 'calendar_grid',
+            format: ReportFormat.excel,
+            startDate: startDate,
+            endDate: endDate,
+          );
+          
+          await Globals.fileManager.shareFileByData(fileName, data);
+          
+          if (context.mounted) {
+            Globals.errorNotificationManager.showSuccess(
+              'Календарну сітку згенеровано!\nПеріод: ${DateFormat('dd.MM.yyyy').format(startDate)} - ${DateFormat('dd.MM.yyyy').format(endDate)}'
+            );
+          }
+        } catch (e) {
+          // Закриваємо індикатор якщо відкритий
+          if (context.mounted) {
+            Navigator.of(context).pop();
+            Globals.errorNotificationManager.showError(
+              'Помилка генерації календарної сітки: ${e.toString()}'
+            );
+          }
+        }
+      },
+    );
   }
 }
 

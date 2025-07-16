@@ -480,15 +480,19 @@ class CalendarUtils {
 
   /// Отримати назву місяця
   static String getMonthName(int month, {bool short = false}) {
-    if (short) {
-      const months = ['Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер', 
-                     'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'];
-      return months[month - 1];
-    } else {
-      const months = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень',
-                     'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'];
-      return months[month - 1];
-    }
+    const monthNames = [
+      'Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень',
+      'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'
+    ];
+    
+    const shortMonthNames = [
+      'Січ', 'Лют', 'Бер', 'Кві', 'Тра', 'Чер',
+      'Лип', 'Сер', 'Вер', 'Жов', 'Лис', 'Гру'
+    ];
+    
+    if (month < 1 || month > 12) return '';
+    
+    return short ? shortMonthNames[month - 1] : monthNames[month - 1];
   }
 
   /// Перевірити чи дата сьогоднішня

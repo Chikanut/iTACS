@@ -73,6 +73,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                           style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
+                            color: Color.fromARGB(255, 29, 28, 28),
                           ),
                         ),
                         const SizedBox(height: 4),

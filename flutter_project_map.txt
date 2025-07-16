@@ -49,6 +49,21 @@ sdk: flutter
 🏷️ PROPERTIES:
   final dir
 
+==== lib\mixins\loading_state_mixin.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+
+🔧 MIXINS:
+  mixin LoadingStateMixin<T extends StatefulWidget> on State<T> {
+
+⚙️ METHODS:
+  void setLoading(String key, bool loading)
+  void clearLoading(String key)
+  void clearAllLoading()
+  Future<T> withLoading<T>(String key, Future<T> Function() operation) async
+  throw Exception('Операція вже виконується');
+
 ==== lib\pages\access_denied_page.dart ====
 
 📦 IMPORTS:
@@ -116,20 +131,19 @@ sdk: flutter
   import '../pages/calendar_page/models/lesson_model.dart';
   import '../pages/calendar_page/calendar_utils.dart';
   import '../services/reports_service.dart';
-  import '../services/file_manager/file_manager.dart';
+  import '../pages/calendar_page/widgets/lesson_details_dialog.dart';
 
 🏗️ CLASSES:
   class HomePage extends StatefulWidget {
   class _HomePageState extends State<HomePage> {
-  class _CurrentLessonsCard extends StatelessWidget {
-  class _TodayWithoutInstructorCard extends StatelessWidget {
+  class _UpcomingLessonsCard extends StatelessWidget {
   class _TomorrowWithoutInstructorCard extends StatelessWidget {
   class _PersonalStatsCard extends StatelessWidget {
   class _StatItem extends StatelessWidget {
   class _ReportsCard extends StatelessWidget {
   class _ReportButton extends StatelessWidget {
   class _LastUpdatedCard extends StatelessWidget {
-  class _LessonListTile extends StatelessWidget {
+  class _EnhancedLessonListTile extends StatelessWidget {
 
 ⚙️ METHODS:
     const HomePage(
@@ -138,9 +152,6 @@ sdk: flutter
   return Scaffold(
   const SliverFillRemaining(
   return SliverAppBar(
-  const SizedBox(height: 8),
-  const Icon(Icons.group, size: 16, color: Colors.white70),
-  const SizedBox(width: 4),
   return SliverList(
   const SizedBox(height: 16),
   const SizedBox(height: 100), // Відступ для навігації
@@ -159,15 +170,10 @@ sdk: flutter
     Widget build(BuildContext context)
     return Card(
     const SizedBox(width: 8),
-    const SizedBox(height: 12),
-    Widget build(BuildContext context)
-    return Card(
-    const SizedBox(width: 8),
-    const SizedBox(height: 16),
     const SizedBox(height: 16),
     Widget build(BuildContext context)
     return Column(
-    const SizedBox(height: 8),
+    const SizedBox(height: 12),
     Widget build(BuildContext context)
     return Card(
     const SizedBox(width: 8),
@@ -176,8 +182,8 @@ sdk: flutter
     Widget build(BuildContext context)
     return Padding(
     Widget build(BuildContext context)
-    return Padding(
-    const SizedBox(width: 12),
+  return Padding(
+  const SizedBox(width: 12),
 
 🏷️ PROPERTIES:
   final feed
@@ -187,8 +193,22 @@ sdk: flutter
   final hour
   String greeting;
   final userName
-  final groupName
+  final upcomingLessons
+  final tomorrow
+  final currentUser
+  final dateCompare
+  return dateCompare;
+    final VoidCallback? onLessonUpdated;
+    final VoidCallback? onLessonUpdated;
+    final tomorrow
+    final tomorrowFormatted
     final UserStats stats;
+    final conductedLessons
+    final totalLessons
+    final thisWeekLessons
+    final thisMonthLessons
+    final completionRate
+    final incompleteCount
     final String label;
     final String value;
     final IconData icon;
@@ -208,6 +228,16 @@ sdk: flutter
     final DateTime? lastUpdated;
     final LessonModel lesson;
     final bool showWarning;
+    final Color? titleColor;
+    final VoidCallback? onLessonUpdated;
+    final progressStatus
+    final readinessStatus
+    Color backgroundColor;
+    Color textColor
+  final now
+  final isToday
+  final isTomorrow
+  String datePrefix
 
 ==== lib\pages\login_page.dart ====
 
@@ -444,8 +474,8 @@ sdk: flutter
   final durationMinutes
   const days
   const days
-  const months
-  const months
+  const monthNames
+  const shortMonthNames
   final now
   final startOfWeek
   final weekDays
@@ -673,6 +703,7 @@ sdk: flutter
 📦 IMPORTS:
   import 'package:flutter/material.dart';
   import 'package:intl/intl.dart';
+  import 'dart:math' as math;
   import '../models/calendar_view_type.dart';
   import '../calendar_utils.dart';
 
@@ -686,8 +717,11 @@ sdk: flutter
     return DateFormat('yyyy').format(selectedDate);
   Widget build(BuildContext context)
   return Padding(
-  const Spacer(), // 👈 Відштовхує кнопки вправо
+  return Row(
+  const Spacer(),
   const SizedBox(width: 12),
+  return Column(
+  const SizedBox(height: 8),
 
 🏷️ PROPERTIES:
     final CalendarViewType viewType;
@@ -697,6 +731,7 @@ sdk: flutter
     final VoidCallback onToday;
     final startOfWeek
     final endOfWeek
+  final isWideScreen
 
 ==== lib\pages\calendar_page\widgets\calendar_navigation.dart ====
 
@@ -1158,6 +1193,7 @@ sdk: flutter
 📦 IMPORTS:
   import 'package:flutter/material.dart';
   import 'package:intl/intl.dart';
+  import 'dart:math' as math;
   import '../../models/lesson_model.dart';
   import '../../calendar_utils.dart';
 
@@ -1173,10 +1209,11 @@ sdk: flutter
   const SizedBox(height: 20),
   return Container(
   const SizedBox(height: 8),
+  return LayoutBuilder(
   return Container(
+  return LayoutBuilder(
   return Container(
   return GestureDetector(
-  const SizedBox(height: 2),
   return Container(
   return Container(
   const Text(
@@ -1195,18 +1232,22 @@ sdk: flutter
     final monthStart
     final monthEnd
     final daysInMonth
-  const maxCellHeight
+  final screenWidth
   final screenHeight
-  final maxGridHeight
-  final calculatedHeight
-  final gridHeight
+  final cellWidth
+  double cellHeight;
+  final weekRows
+  final totalRows
+  final totalHeight
   final dayIndex
   final day
   final dayNames
+  final isSmall
   final lessonsForDay
   final isToday
   final isSelected
-  final weekdayPosition
+  final isSmallCell
+  final isTinyCell
   final readinessStatus
   final totalLessons
   final daysWithLessons
@@ -1234,10 +1275,10 @@ sdk: flutter
     const SizedBox(height: 20),
   return Container(
   const SizedBox(height: 8),
+  return LayoutBuilder(
   return Container(
+  return LayoutBuilder(
   return GestureDetector(
-  const SizedBox(height: 8),
-  const SizedBox(height: 8),
   return Column(
   return Container(
   const SizedBox(height: 16),
@@ -1258,10 +1299,15 @@ sdk: flutter
   final yearLessons
   const maxCellWidth
   const maxCellHeight
+  final screenWidth
+  int crossAxisCount;
+  final rows
+  final gridHeight
   final month
   final monthDate
   final monthLessons
   final isCurrentMonth
+  final isNarrow
   final tagCounts
   final topTags
   final yearLessons
@@ -1279,20 +1325,39 @@ sdk: flutter
   import 'package:flutter/material.dart';
   import 'package:flutter/foundation.dart';
   import '../../../globals.dart';
+  import '../../../mixins/loading_state_mixin.dart';
+  import '../../../widgets/loading_indicator.dart';
 
 🏗️ CLASSES:
   class MaterialsPage extends StatefulWidget {
-  class _MaterialsPageState extends State<MaterialsPage> {
+  class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
 
 ⚙️ METHODS:
     const MaterialsPage(
     void initState()
+  void dispose()
   Future<void> fetchMaterials() async
   void toggleTag(String tag)
+  void clearAllFilters()
+  void toggleSearch()
   bool matchesTags(List<String> itemTags)
+  bool get hasActiveFilters {
+  return Container(
+  const SizedBox(width: 8),
+  return Container(
+  const SizedBox(width: 8),
+  const Spacer(),
+  const SizedBox(height: 8),
+  return Padding(
+  return Container(
+  const SizedBox(width: 8),
   Widget build(BuildContext context)
   return Scaffold(
+  return Center(
+  const SizedBox(height: 16),
   const SizedBox(height: 8),
+  const SizedBox(height: 16),
+  const SizedBox(height: 24),
 
 🏷️ PROPERTIES:
     String userRole
@@ -1300,6 +1365,7 @@ sdk: flutter
     bool isSearching
     String searchQuery
     final searchController
+    final FocusNode searchFocusNode
   final user
   final email
   final userData
@@ -1309,50 +1375,80 @@ sdk: flutter
   final d
   return d;
   final roles
-  final userRole
-  final tags
+  final currentUserRole
+  final tagCounts
   final tagsList
-  final filtered
+  final sortedTags
   final tags
   final title
   final matchTags
   final matchSearch
+  final tag
+  final isSelected
+  final filteredCount
+  final totalCount
 
 ==== lib\pages\materials_page\material_dialogs.dart ====
 
 📦 IMPORTS:
   import 'package:flutter/material.dart';
+  import 'package:flutter/services.dart';
   import '../../../globals.dart';
+  import '../../../mixins/loading_state_mixin.dart';
+  import '../../../widgets/loading_indicator.dart';
+
+🏗️ CLASSES:
+  class MaterialDialog extends StatefulWidget {
+  class _MaterialDialogState extends State<MaterialDialog> with LoadingStateMixin {
 
 ⚙️ METHODS:
+    const MaterialDialog(
+    bool get isEditing
+    void initState()
+  void dispose()
+  await withLoading('save', () async
+  return Column(
+  const SizedBox(height: 8),
+  const Text(
+  const SizedBox(height: 4),
+  return ActionChip(
+  Widget build(BuildContext context)
+  return AlertDialog(
+  const SizedBox(width: 8),
+  const SizedBox(height: 16),
+  const Icon(Icons.error, color: Colors.red),
+  const SizedBox(height: 16),
+  const SizedBox(height: 8),
+  const SizedBox(width: 8),
   Future<void> showAddMaterialDialog(BuildContext context, VoidCallback onRefresh) async
-  await showDialog(
-  const SizedBox(height: 12),
-  const SnackBar(content: Text('Невалідне посилання на Google Drive')),
-  Future<void> showEditMaterialDialog(BuildContext context, Map<String, dynamic> material, VoidCallback onRefresh) async
-  await showDialog(
-  const SnackBar(content: Text('Невалідне посилання на Google Drive')),
+  return showDialog(
+  Future<void> showEditMaterialDialog(
+  return showDialog(
 
 🏷️ PROPERTIES:
-  final titleController
-  final urlController
-  final tagsController
-  final user
+    final VoidCallback onRefresh;
+    final formKey
+  final groupId
+  final docs
+  final allTags
+  final data
+  final tags
+  final url
+  final fileId
+  final clipboardData
   final title
   final url
+  final tagsText
   final tags
   final fileId
   final modifiedTime
-  final titleController
-  final urlController
-  final tagsController
-  final String docId
-  final title
-  final url
-  final tags
-  final fileId
+  final data
   final metadata
-  final modifiedTime
+  final currentTags
+  final newTags
+  final isSaving
+  return null;
+  return null;
 
 ==== lib\pages\materials_page\material_tile.dart ====
 
@@ -1360,19 +1456,30 @@ sdk: flutter
   import 'package:flutter/foundation.dart';
   import 'package:flutter/material.dart';
   import '../../../globals.dart';
+  import '../../../mixins/loading_state_mixin.dart';
+  import '../../../widgets/loading_indicator.dart';
 
 🏗️ CLASSES:
   class MaterialTile extends StatefulWidget {
-  class _MaterialTileState extends State<MaterialTile> {
+  class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
 
 ⚙️ METHODS:
     const MaterialTile(
     void initState()
+  return Container(
+  const SizedBox(width: 2),
+  return Container(
+  const SizedBox(width: 2),
   Widget build(BuildContext context)
-  return ListTile(
-  await showEditMaterialDialog(context, widget.material, widget.onRefresh);
-  const PopupMenuItem(value: 'edit', child: Text('Редагувати')),
-  const PopupMenuItem(value: 'delete', child: Text('Видалити локальні файли')),
+  return Card(
+  const SizedBox(width: 16),
+  const SizedBox(height: 4),
+  const SizedBox(width: 8),
+  const SizedBox(height: 4),
+  await showEditMaterialDialog(
+  const PopupMenuItem(
+  const PopupMenuItem(
+  const PopupMenuItem(
 
 🏷️ PROPERTIES:
     final VoidCallback onRefresh;
@@ -1381,17 +1488,31 @@ sdk: flutter
     late bool isSaved
     late String? fileId;
     final url
+  final modifiedAt
+  return null;
+  return null;
+  final now
+  final difference
+  final weeks
+  final months
+  final years
   final saved
-  final url
-  final title
-  final tags
-  final userRole
-  final canEdit
-  final isAdmin
+  final confirmed
   final docId
   final result
   final deleted
   final skipped
+  final title
+  final url
+  final title
+  final tags
+  final canEdit
+  final isAdmin
+  final isDownloading
+  final isOpening
+  final isDeleting
+  final isDeletingGlobal
+  final isAnyLoading
 
 ==== lib\pages\tools_page\tools_page.dart ====
 
@@ -1399,23 +1520,26 @@ sdk: flutter
   import 'package:flutter/material.dart';
   import 'package:cloud_firestore/cloud_firestore.dart';
   import '../../../globals.dart';
+  import '../../../mixins/loading_state_mixin.dart';
+  import '../../../widgets/loading_indicator.dart';
 
 🏗️ CLASSES:
   class ToolsPage extends StatefulWidget {
-  class _ToolsPageState extends State<ToolsPage> {
+  class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
 
 ⚙️ METHODS:
   IconData iconFromData(Map<String, dynamic> item, bool isFolder)
-  return IconData(iconCode, fontFamily: fontFamily);
   Future<IconData?> showIconPickerDialog(BuildContext context) async
-  return IconButton(
+  return Material(
     const ToolsPage(
     void initState()
+  void dispose()
   Future<void> fetchItems() async
+  await withLoading('fetch', () async
   Future<void> navigateToFolder(String folderId) async
+  await withLoading('navigate', () async
+  await fetchItems();
   void goBack()
-  Widget buildBreadcrumbs()
-  return Padding(
   Future<void> openTool(Map<String, dynamic> item) async
   Future<void> editItem(Map<String, dynamic> item) async
   await showDialog(
@@ -1426,14 +1550,35 @@ sdk: flutter
   await fetchItems();
   Future<void> showAddDialog() async
   await showDialog(
+  const SizedBox(width: 4),
+  return Container(
+  const SizedBox(width: 8),
+  return Container(
+  return Container(
+  const SizedBox(width: 8),
+  return Center(
+  const SizedBox(height: 16),
+  const SizedBox(height: 8),
+  return Center(
+  const SizedBox(height: 16),
+  const SizedBox(height: 8),
+  const SizedBox(height: 24),
   Widget build(BuildContext context)
   return Scaffold(
+  return Card(
+  const SizedBox(height: 8),
+  const Text(
   return ToolTile(
+  await navigateToFolder(item['id']);
+  await openTool(item);
 
 🏷️ PROPERTIES:
   final iconCode
   final fontFamily
   const allIcons
+  final iconData
+    String? searchQuery;
+    final TextEditingController searchController
   final groupId
   final parentId
   final docs
@@ -1445,7 +1590,19 @@ sdk: flutter
   final children
   final childData
   final childId
+  return currentItems;
+  final title
+  final description
+  final query
+  final totalItems
+  final folders
+  final tools
+  final filteredCount
   final isAdmin
+  final isAdmin
+  final isNavigating
+  final itemIndex
+  final item
   final isFolder
   final icon
 
@@ -1453,24 +1610,45 @@ sdk: flutter
 
 📦 IMPORTS:
   import 'package:flutter/material.dart';
+  import 'package:flutter/services.dart';
   import '../../../globals.dart';
+  import '../../../mixins/loading_state_mixin.dart';
+  import '../../../widgets/loading_indicator.dart';
 
 🏗️ CLASSES:
   class ToolDialog extends StatefulWidget {
-  class _ToolDialogState extends State<ToolDialog> {
+  class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
 
 ⚙️ METHODS:
     const ToolDialog(
+    bool get isEditing
+    bool get isFolder
     void initState()
-  Future<void> save() async
+  void dispose()
+  await withLoading('save', () async
+  throw Exception('Немає активної групи');
+  return Column(
+  const Text(
+  const SizedBox(height: 8),
+  const SizedBox(width: 12),
+  const Spacer(),
+  return Column(
+  const Text(
+  const SizedBox(height: 8),
+  return Column(
+  const Text(
+  const SizedBox(height: 8),
+  const SizedBox(width: 16),
   Widget build(BuildContext context)
   return AlertDialog(
+  const SizedBox(width: 8),
+  const SizedBox(height: 20),
+  const SizedBox(height: 16),
+  const SizedBox(height: 16),
+  const Icon(Icons.error, color: Colors.red),
   const SizedBox(height: 8),
-  const SizedBox(height: 8),
-  const SizedBox(height: 8),
-  const Text('Іконка:'),
-  const SizedBox(width: 10),
-  const SizedBox(width: 10),
+  const SizedBox(width: 6),
+  const SizedBox(height: 20),
 
 🏷️ PROPERTIES:
     final bool isEditing;
@@ -1478,30 +1656,58 @@ sdk: flutter
     final VoidCallback onSave;
     final titleController
     final fileIdController
+    final descriptionController
+    final formKey
     String selectedType
     IconData? selectedIcon;
     final item
+  final fileId
+  final isValid
+  final clipboardData
+  final text
+  final fileId
+  final icon
   final title
   final fileId
+  final description
   final groupId
   final data
-  final icon
+  final isSelectingIcon
+  final isSaving
+  return null;
+  return null;
 
 ==== lib\pages\tools_page\tool_tile.dart ====
 
 📦 IMPORTS:
   import 'package:flutter/material.dart';
+  import '../../../mixins/loading_state_mixin.dart';
+  import '../../../widgets/loading_indicator.dart';
 
 🏗️ CLASSES:
-  class ToolTile extends StatelessWidget {
+  class ToolTile extends StatefulWidget {
+  class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
 
 ⚙️ METHODS:
     const ToolTile(
-    Widget build(BuildContext context)
-    return Card(
-    const SizedBox(height: 8),
+    await withLoading('tap', () async
+  await withLoading('edit', () async
+  await withLoading('delete', () async
+  const SizedBox(width: 8),
+  const Text('Підтвердження'),
+  const SizedBox(height: 8),
+  const SizedBox(width: 8),
+  const SizedBox(height: 12),
+  const SizedBox(width: 6),
+  return Positioned(
   const PopupMenuItem(
   const PopupMenuItem(
+  Widget build(BuildContext context)
+  return MouseRegion(
+  const SizedBox(height: 8),
+  const SizedBox(height: 2),
+  const SizedBox(height: 4),
+  const SizedBox(width: 2),
 
 🏷️ PROPERTIES:
     final String title;
@@ -1510,6 +1716,13 @@ sdk: flutter
     final bool isAdmin;
     final VoidCallback? onEdit;
     final VoidCallback? onDelete;
+    final bool isFolder;
+    final String? description;
+  final confirmed
+  final theme
+  final isAnyLoading
+  final theme
+  final isAnyLoading
 
 ==== lib\services\auth_service.dart ====
 
@@ -1684,6 +1897,7 @@ sdk: flutter
     final int totalLessons;
     final int thisWeekLessons;
     final int thisMonthLessons;
+    final int incompleteCount; // Кількість незаповнених занять
     final double completionRate;
     static const empty
     final UserStats userStats;
@@ -1691,6 +1905,7 @@ sdk: flutter
     static final empty
     final currentUser
     final today
+    final tomorrow
     final startOfDay
     final endOfDay
     final currentGroupId
@@ -1714,6 +1929,7 @@ sdk: flutter
   final allLessons
   final data
   final conductedLessons
+  final incompleteCount
   final type
   final startOfWeek
   final weekLessons
@@ -2372,213 +2588,6 @@ sdk: flutter
   final match
   return null;
 
-==== lib\services\file_manager\file_manager_old.dart ====
-
-📦 IMPORTS:
-  import 'dart:convert';
-  import 'dart:io';
-  import 'dart:typed_data';
-  import 'dart:async';
-  import 'package:flutter/foundation.dart';
-  import 'package:flutter/material.dart';
-  import 'package:cloud_firestore/cloud_firestore.dart';
-  import 'package:firebase_auth/firebase_auth.dart';
-  import 'package:flutter_application_1/globals.dart';
-  import 'package:http/http.dart' as http;
-  import 'package:path_provider/path_provider.dart';
-  import 'package:shared_preferences/shared_preferences.dart';
-  import 'package:share_plus/share_plus.dart';
-  import 'package:file_selector/file_selector.dart';
-  import 'package:open_filex/open_filex.dart';
-  import 'dart:html' as html show Blob, Url, AnchorElement, window, document, IFrameElement, MessageEvent;
-  import 'dart:html' if (dart.library.io) 'dart:io' as platform;
-
-🏗️ CLASSES:
-  class WebDownloadException implements Exception {
-  class FileMetadata {
-  class CachedFileData {
-  class FileVersionInfo {
-  class FileWithName {
-  class FileManager {
-  class FileCard extends StatefulWidget {
-  class _FileCardState extends State<FileCard> {
-
-⚙️ METHODS:
-    String toString() => 'WebDownloadException: $message';
-    return FileMetadata(
-  Map<String, dynamic> toJson() =>
-    Map<String, dynamic> toJson() =>
-    return CachedFileData(
-    String toString()
-  Future<Uint8List> downloadFile(String fileId) async
-  throw Exception('Помилка завантаження файлу: $
-  throw WebDownloadException('Не вдалося отримати метадані для файлу', fileId);
-  throw WebDownloadException(
-  throw WebDownloadException(
-  throw Exception('Fetch API доступний лише для Web');
-  throw Exception('Fetch failed with status: $
-  Future<File?> getLocalFile(String fileId) async
-  Future<void> updateFileIfNeeded(String fileId, String latestVersion) async
-  Future<void> clearCache() async
-  bool isFileCached(String fileId)
-  Future<void> shareOrDownloadFile(String fileId) async
-  throw Exception('Не вдалося отримати метадані файлу');
-  Future<void> openFile(String fileId) async
-  throw Exception('Не вдалося отримати метадані файлу');
-  Future<bool> checkForUpdate(String fileId) async
-  Future<Map<String, bool>> checkForUpdates(List<String> fileIds) async
-  Future<FileVersionInfo?> getFileVersionInfo(String fileId) async
-  return FileVersionInfo(
-  Future<void> forceRefreshFile(String fileId) async
-  await removeCachedData(fileId);
-  await downloadFile(fileId);
-  Future<FileMetadata?> getFileMetadata(String fileId) async
-  return FileMetadata(
-  Future<void> removeCachedData(String fileId) async
-    const FileCard(
-    void initState()
-  Widget build(BuildContext context)
-  return Card(
-  const SizedBox(width: 2),
-  const SizedBox(height: 8),
-  return Chip(
-  const SizedBox(height: 8),
-  const SizedBox(height: 16),
-  const Padding(
-  return AlertDialog(
-  const Text(
-  const SizedBox(height: 12),
-  const Text(
-  const Text(
-  const SizedBox(height: 16),
-  const SnackBar(content: Text('Файл успішно поширено')),
-  const SnackBar(content: Text('Файл оновлено')),
-
-🏷️ PROPERTIES:
-    final String message;
-    final String fileId;
-    final String? downloadUrl;
-    final String title;
-    final String fileId;
-    final String version;
-    final String type;
-    final String groupId;
-    final DateTime? lastModified;
-    final data
-    final Uint8List data;
-    final String version;
-    final DateTime cachedAt;
-    final String fileId;
-    final String? currentVersion;
-    final String latestVersion;
-    final bool isCached;
-    final bool hasUpdate;
-    final DateTime? cachedAt;
-    final DateTime? lastModified;
-    final String filename;
-    final Uint8List bytes;
-    final regExp
-    final match
-  final cachedData
-  Uint8List data;
-  return data;
-  final url
-  final response
-  final metadata
-  final titleEncoded
-  final ext
-  final proxyUrl
-  final response
-  final url
-  final response
-  final arrayBuffer
-  return null;
-  final dir
-  final file
-  return file;
-  return null;
-  return null;
-  final cachedData
-  final newData
-  final prefs
-  final keys
-  final dir
-  final cacheDir
-  final data
-  final metadata
-  final fileName
-  final data
-  final metadata
-  final file
-  final latestMetadata
-  return false;
-  final cachedData
-  return true;
-  final hasUpdate
-  return hasUpdate;
-  return false;
-  final futures
-  final entries
-  final updatesCount
-  return results;
-  final metadata
-  final cachedData
-  return null;
-  final user
-  final querySnapshot
-  final token
-  return null;
-  final url
-  final response
-  final data
-  final name
-  final modified
-  final mimeType
-  final parts
-  final title
-  final type
-  return null;
-  final cachedData
-  final prefs
-  final dir
-  final cacheDir
-  final file
-  final metaFile
-  final prefs
-  final jsonString
-  final data
-  return data;
-  final dir
-  final file
-  final metaFile
-  final data
-  final metaJson
-  final cachedData
-  return cachedData;
-  return null;
-  return null;
-  final prefs
-  final dir
-  final file
-  final metaFile
-  final blob
-  final url
-  final anchor
-  final tempFile
-  final targetPath
-  final file
-  final blob
-  final url
-  final tempDir
-  final fileName
-  final file
-  return file;
-    final FileMetadata metadata;
-    final VoidCallback? onRefresh;
-  final hasUpdate
-  final isCached
-  final url
-
 ==== lib\services\file_manager\file_metadata.dart ====
 
 🏗️ CLASSES:
@@ -2679,3 +2688,33 @@ sdk: flutter
     final dir
     final filePath
     final file
+
+==== lib\widgets\loading_indicator.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+
+🏗️ CLASSES:
+  class LoadingIndicator extends StatelessWidget {
+  class OverlayLoadingIndicator extends StatelessWidget {
+
+⚙️ METHODS:
+    const LoadingIndicator(
+    Widget build(BuildContext context)
+    const SizedBox(height: 8),
+  return Container(
+    const OverlayLoadingIndicator(
+    Widget build(BuildContext context)
+    return Stack(
+
+🏷️ PROPERTIES:
+    final String? message;
+    final double size;
+    final Color? color;
+    final bool showBackground;
+    final theme
+    Widget indicator
+  return indicator;
+    final Widget child;
+    final bool isLoading;
+    final String? message;

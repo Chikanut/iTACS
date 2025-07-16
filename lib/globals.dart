@@ -7,6 +7,7 @@ import 'services/auth_service.dart';
 import 'services/file_manager/file_manager.dart';
 import 'services/firestore_manager.dart';
 import 'services/profile_manager.dart';
+import 'services/reports_service.dart';
 
 class Globals {
   static final FirebaseAuth firebaseAuth = FirebaseAuth.instance;
@@ -14,12 +15,25 @@ class Globals {
   static final ErrorNotificationManager errorNotificationManager = ErrorNotificationManager();
   static final FirestoreManager firestoreManager = FirestoreManager();
   static final ProfileManager profileManager = ProfileManager(); 
+  static final ReportsService reportsService = ReportsService(); // 👈 ДОДАЄМО
 
      // Оголошуємо як `late`, щоб ініціалізувати в init()
   static late FileManager fileManager;
 
-  static Future<void> init() async {
-    await AuthService.initializeAuth();
-    fileManager = await FileManager.create(authService: authService);
+static Future<void> init() async {
+    try {
+      // Ініціалізуємо FileManager
+      fileManager = await FileManager.create(
+        authService: authService,
+      );
+      
+      // Ініціалізуємо ReportsService 👈 ДОДАЄМО
+      await reportsService.initialize();
+      
+      print('✅ Globals ініціалізовано успішно');
+    } catch (e) {
+      print('❌ Помилка ініціалізації Globals: $e');
+      rethrow;
+    }
   }
 }
