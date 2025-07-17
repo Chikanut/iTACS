@@ -9,7 +9,6 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'services/firebase_options.dart';
 import 'pages/auth_gate.dart';
 import 'globals.dart';
-import 'services/lesson_templates_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,7 +31,6 @@ void main() async {
   }
 
   await Globals.init();
-  await LessonTemplatesService().initialize();
 
   runApp(const MyApp());
 }

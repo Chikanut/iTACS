@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firestore Templates Setup Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            padding: 30px;
+            color: white;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .config-section {
+            background: #f8f9ff;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            border: 2px solid #e3e8ff;
+        }
+        
+        .section-title {
+            font-size: 1.4rem;
+            color: #4c51bf;
+            margin-bottom: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        input, textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin: 10px 10px 10px 0;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, #f56565 0%, #e53e3e 100%);
+        }
+        
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-weight: 500;
+        }
+        
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .status.info {
+            background: #cce7ff;
+            color: #004085;
+            border: 1px solid #b3d9ff;
+        }
+        
+        .progress {
+            width: 100%;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            transition: width 0.3s ease;
+            width: 0%;
+        }
+        
+        .template-preview {
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        
+        .template-preview h4 {
+            color: #4c51bf;
+            margin-bottom: 8px;
+        }
+        
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Firestore Templates Setup</h1>
+            <p>Швидке налаштування темплейтів для груп</p>
+        </div>
+        
+        <div class="content">
+            <div class="config-section">
+                <h2 class="section-title">⚠️ Важливо: Налаштування Firestore Rules</h2>
+                <p><strong>Перед використанням тулзи</strong> тимчасово змініть правила Firestore на тестові:</p>
+                <div class="template-preview">
+                    <h4>🔓 Тимчасові правила (ТІЛЬКИ ДЛЯ НАЛАШТУВАННЯ!):</h4>
+                    <pre style="background: #f1f5f9; padding: 10px; border-radius: 5px; font-size: 12px;">
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}</pre>
+                    <p style="color: #dc2626; font-weight: 600; margin-top: 10px;">
+                        ⚠️ Після створення темплейтів обов'язково поверніть безпечні правила!
+                    </p>
+                </div>
+                <p><strong>Де змінити:</strong> Firebase Console → Firestore Database → Rules → Publish</p>
+            </div>
+            <div class="config-section">
+                <h2 class="section-title">🔧 Налаштування Firebase</h2>
+                <div class="grid">
+                    <div class="form-group">
+                        <label for="apiKey">API Key:</label>
+                        <input type="text" id="apiKey" placeholder="Ваш Firebase API Key">
+                    </div>
+                    <div class="form-group">
+                        <label for="projectId">Project ID:</label>
+                        <input type="text" id="projectId" placeholder="your-project-id">
+                    </div>
+                </div>
+                <button class="btn" onclick="initFirebase()">
+                    🔌 Підключитися до Firebase
+                </button>
+            </div>
+            
+            <!-- Авторизація -->
+            <div class="config-section">
+                <h2 class="section-title">🔐 Авторизація</h2>
+                <p>Для створення темплейтів потрібна авторизація в Firebase:</p>
+                <button class="btn" onclick="signInAnonymously()" id="authBtn">
+                    🔑 Авторизуватися анонімно
+                </button>
+                <div id="authStatus" class="status info" style="display: none;">
+                    Статус авторизації: <span id="authStatusText">Не авторизований</span>
+                </div>
+            </div>
+            
+            <!-- Налаштування групи -->
+            <div class="config-section">
+                <h2 class="section-title">👥 Налаштування групи</h2>
+                <div class="form-group">
+                    <label for="groupId">ID групи:</label>
+                    <input type="text" id="groupId" placeholder="military_group_1" value="military_group_1">
+                </div>
+                <div class="form-group">
+                    <label for="groupName">Назва групи:</label>
+                    <input type="text" id="groupName" placeholder="Військова група 1" value="Військова група 1">
+                </div>
+            </div>
+            
+            <!-- Попередній перегляд -->
+            <div class="config-section">
+                <h2 class="section-title">👀 Попередній перегляд темплейтів</h2>
+                <p>Буде створено <strong>12 темплейтів</strong> та <strong>3 набори автодоповнення</strong>:</p>
+                <div id="templatesPreview">
+                    <div class="template-preview">
+                        <h4>📚 Темплейти занять (4 шт.)</h4>
+                        <p>Т1-Т4: Психологічна підготовка, НТК ПСП, Обкатка танком</p>
+                    </div>
+                    <div class="template-preview">
+                        <h4>💪 Темплейти тренувань (4 шт.)</h4>
+                        <p>Стройова, фізична, стрілецька підготовка, технічна підготовка</p>
+                    </div>
+                    <div class="template-preview">
+                        <h4>🎯 Інші темплейти (4 шт.)</h4>
+                        <p>Планерки, перевірки, церемонії, медична підготовка</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Дії -->
+            <div class="config-section">
+                <h2 class="section-title">⚡ Дії</h2>
+                <button class="btn btn-success" onclick="createTemplates()" id="createBtn">
+                    ✨ Створити всі темплейти
+                </button>
+                <button class="btn btn-danger" onclick="deleteAllTemplates()" id="deleteBtn" disabled>
+                    🗑️ Видалити всі темплейти
+                </button>
+                <button class="btn" onclick="checkExisting()" id="checkBtn" disabled>
+                    🔍 Перевірити існуючі
+                </button>
+            </div>
+            
+            <!-- Прогрес -->
+            <div class="progress hidden" id="progressContainer">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            
+            <!-- Статус -->
+            <div id="status"></div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK (v8 compat) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+
+    <script>
+        let db = null;
+        let auth = null;
+        let isFirebaseInitialized = false;
+        let isAuthenticated = false;
+
+        // Дефолтні темплейти
+        const defaultTemplates = [
+            {
+                title: "Т1",
+                description: "Прийоми психічної саморегуляції. Перша психологічна допомога та самодопомога",
+                location: "Навчальний клас",
+                unit: "",
+                tags: ["психологія", "теорія"],
+                durationMinutes: 180,
+                type: "lesson",
+                isDefault: true,
+                createdBy: "system",
+                customFields: {}
+            },
+            {
+                title: "Т2",
+                description: "Формування та зміцнення психологічної стійкості особового складу під час подолання спеціальної смуги перешкод",
+                location: "НТК ПСП",
+                unit: "",
+                tags: ["психологія", "практика"],
+                durationMinutes: 320,
+                type: "lesson",
+                isDefault: true,
+                createdBy: "system",
+                customFields: {}
+            },
+            {
+                title: "Т3",
+                description: "Формування та зміцнення психологічної стійкості особового складу під час боротьби з бронетехнікою противника",
+                location: "Обкатка танком",
+                unit: "",
+                tags: ["психологія", "практика", "бронетехніка"],
+                durationMinutes: 210,
+                type: "lesson",
+                isDefault: true,
+                createdBy: "system",
+                customFields: {}
+            },
+            {
+                title: "Т4",
+                description: "Формування та зміцнення психологічної стійкості особового складу до артилерійських обстрілів противника та психотравмуючих чинників бойових дій",
+                location: "НТК ПСП",
+                unit: "",
+                tags: ["психологія", "практика", "артилерія"],
+                durationMinutes: 320,
+                type: "lesson",
+                isDefault: true,
+                createdBy: "system",
+                customFields: {}
+            },
+            {
+                title: "Щоденна планерка",
+                description: "Планування завдань на день, розподіл обов'язків",
+                location: "Кабінет командира",
+                unit: "",
+                tags: ["планування", "нарада"],
+                durationMinutes: 30,
+                type: "meeting",
+                isDefault: true,
+                createdBy: "system",
+                customFields: {}
+            },
+            {
+                title: "Стройова підготовка",
+                description: "Заняття зі стройової підготовки: строї, повороти, пересування",
+                location: "Плац",
+                unit: "",
+                tags: ["стройова", "практика"],
+                durationMinutes: 90,
+                type: "training",
+                isDefault: true,
+                createdBy: "system",
+                customFields: {}
+            },
+            {
+                title: "Фізична підготовка",
+                description: "Ранкова фізична підготовка: біг, вправи, силові тренування",
+                location: "Спортивний зал",
+                unit: "",
+                tags: ["фізична", "практика"],
+                durationMinutes: 60,
+                type: "training",
+                isDefault: true,
+                createdBy: "system",
+                customFields: {}
+            },
+            {
+                title: "Технічна підготовка",
+                description: "Вивчення та обслуговування техніки",
+                location: "Технічний парк",
+                unit: "",
+                tags: ["технічна", "теорія", "практика"],
+                durationMinutes: 120,
+                type: "lesson",
+                isDefault: true,
+                createdBy: "system",
+                customFields: {}
+            },
+            {
+                title: "Стрілецька підготовка",
+                description: "Заняття зі стрілецької підготовки в тирі",
+                location: "Стрілецький тир",
+                unit: "",
+                tags: ["стрільби", "практика"],
+                durationMinutes: 180,
+                type: "training",
+                isDefault: true,
+                createdBy: "system",
+                customFields: {}
+            },
+            {
+                title: "Медична підготовка",
+                description: "Основи надання першої медичної допомоги",
+                location: "Медичний пункт",
+                unit: "",
+                tags: ["медична", "теорія", "практика"],
+                durationMinutes: 120,
+                type: "lesson",
+                isDefault: true,
+                createdBy: "system",
+                customFields: {}
+            },
+            {
+                title: "Перевірка готовності",
+                description: "Щоденна перевірка готовності особового складу",
+                location: "Казарма",
+                unit: "",
+                tags: ["перевірка", "готовність"],
+                durationMinutes: 45,
+                type: "inspection",
+                isDefault: true,
+                createdBy: "system",
+                customFields: {}
+            },
+            {
+                title: "Урочиста церемонія",
+                description: "Урочиста церемонія, парад, нагородження",
+                location: "Плац",
+                unit: "",
+                tags: ["церемонія", "урочистість"],
+                durationMinutes: 120,
+                type: "ceremony",
+                isDefault: true,
+                createdBy: "system",
+                customFields: {}
+            }
+        ];
+
+        // Дефолтні автодоповнення
+        const defaultAutocomplete = {
+            locations: [
+                "Навчальний клас №1", "Навчальний клас №2", "Навчальний клас №3",
+                "Актовий зал", "Спортивний зал", "Плац", "Стрілецький тир",
+                "Навчальний полігон", "Технічний парк", "Майстерня", "Їдальня",
+                "Казарма", "Автопарк", "Медичний пункт", "НТК ПСП", "Обкатка танком",
+                "Кабінет командира"
+            ],
+            units: [
+                "1 НБ 1 НР", "1 НБ 2 НР", "1 НБ 3 НР", "1 НБ 4 НР", "1 НБ 5 НР",
+                "2 НБ 1 НР", "2 НБ 2 НР", "2 НБ 3 НР", "2 НБ 4 НР", "2 НБ 5 НР",
+                "Граніт-1 1 НР", "Граніт-1 2 НР", "Граніт-1 3 НР",
+                "Граніт-95 1 НР", "Граніт-95 2 НР", "ШПР", "190 НЦ"
+            ],
+            tags: [
+                "тактика", "фізична", "стройова", "теорія", "практика", "технічна",
+                "водіння", "стрільби", "медична", "зв'язок", "інженерна", "хімзахист",
+                "топографія", "статути", "психологія", "бронетехніка", "артилерія"
+            ]
+        };
+
+        function showStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.innerHTML = message;
+        }
+
+        function updateProgress(percent) {
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            
+            if (percent > 0) {
+                progressContainer.classList.remove('hidden');
+                progressBar.style.width = `${percent}%`;
+            } else {
+                progressContainer.classList.add('hidden');
+            }
+        }
+
+        // Перевірка завантаження Firebase при загрузці сторінки
+        window.addEventListener('load', function() {
+            setTimeout(() => {
+                if (typeof firebase === 'undefined') {
+                    showStatus('⚠️ Firebase SDK не завантажений. Перевірте підключення до інтернету та перезавантажте сторінку.', 'error');
+                } else {
+                    showStatus('ℹ️ Firebase SDK завантажений. Введіть дані проекту та підключіться.', 'info');
+                }
+            }, 1000);
+        });
+
+        // Перевіряємо чи завантажений Firebase
+        function checkFirebaseAvailability() {
+            return typeof firebase !== 'undefined' && firebase.firestore;
+        }
+
+        async function initFirebase() {
+            // Перевіряємо чи завантажений Firebase
+            if (!checkFirebaseAvailability()) {
+                showStatus('❌ Firebase SDK не завантажений. Перезавантажте сторінку та спробуйте знову.', 'error');
+                return;
+            }
+            
+            const apiKey = document.getElementById('apiKey').value;
+            const projectId = document.getElementById('projectId').value;
+            
+            if (!apiKey || !projectId) {
+                showStatus('❌ Будь ласка, введіть API Key та Project ID', 'error');
+                return;
+            }
+            
+            try {
+                // Перевіряємо чи вже ініціалізований Firebase
+                if (firebase.apps.length > 0) {
+                    firebase.app().delete();
+                }
+                
+                const firebaseConfig = {
+                    apiKey: apiKey,
+                    authDomain: `${projectId}.firebaseapp.com`,
+                    projectId: projectId,
+                    storageBucket: `${projectId}.appspot.com`,
+                    messagingSenderId: "123456789",
+                    appId: "1:123456789:web:abcd1234"
+                };
+                
+                firebase.initializeApp(firebaseConfig);
+                db = firebase.firestore();
+                auth = firebase.auth();
+                isFirebaseInitialized = true;
+                
+                // Слухач стану авторизації
+                auth.onAuthStateChanged((user) => {
+                    const authStatus = document.getElementById('authStatus');
+                    const authStatusText = document.getElementById('authStatusText');
+                    
+                    if (user) {
+                        isAuthenticated = true;
+                        authStatus.style.display = 'block';
+                        authStatus.className = 'status success';
+                        authStatusText.textContent = `Авторизований: ${user.uid}`;
+                        
+                        document.getElementById('createBtn').disabled = false;
+                        document.getElementById('deleteBtn').disabled = false;
+                        document.getElementById('checkBtn').disabled = false;
+                    } else {
+                        isAuthenticated = false;
+                        authStatus.style.display = 'block';
+                        authStatus.className = 'status error';
+                        authStatusText.textContent = 'Не авторизований';
+                        
+                        document.getElementById('createBtn').disabled = true;
+                        document.getElementById('deleteBtn').disabled = true;
+                        document.getElementById('checkBtn').disabled = true;
+                    }
+                });
+                
+                showStatus('✅ Firebase успішно підключено! Тепер авторизуйтесь.', 'success');
+            } catch (error) {
+                showStatus(`❌ Помилка підключення: ${error.message}`, 'error');
+            }
+        }
+
+        async function signInAnonymously() {
+            if (!isFirebaseInitialized) {
+                showStatus('❌ Спочатку підключіться до Firebase', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('🔐 Авторизація...', 'info');
+                await auth.signInAnonymously();
+                showStatus('✅ Успішно авторизовано!', 'success');
+            } catch (error) {
+                showStatus(`❌ Помилка авторизації: ${error.message}`, 'error');
+            }
+        }
+
+        async function createTemplates() {
+            if (!isFirebaseInitialized) {
+                showStatus('❌ Спочатку підключіться до Firebase', 'error');
+                return;
+            }
+            
+            if (!isAuthenticated) {
+                showStatus('❌ Спочатку авторизуйтесь', 'error');
+                return;
+            }
+            
+            const groupId = document.getElementById('groupId').value;
+            if (!groupId) {
+                showStatus('❌ Введіть ID групи', 'error');
+                return;
+            }
+            
+            try {
+                showStatus('🚀 Створення темплейтів...', 'info');
+                updateProgress(0);
+                
+                const batch = db.batch();
+                const now = firebase.firestore.FieldValue.serverTimestamp();
+                
+                // Створюємо темплейти
+                for (let i = 0; i < defaultTemplates.length; i++) {
+                    const template = defaultTemplates[i];
+                    const templateRef = db.collection('groups')
+                        .doc(groupId)
+                        .collection('templates')
+                        .doc();
+                    
+                    batch.set(templateRef, {
+                        ...template,
+                        groupId: groupId,
+                        createdAt: now,
+                        updatedAt: now
+                    });
+                    
+                    updateProgress((i + 1) / (defaultTemplates.length + 3) * 100);
+                }
+                
+                // Створюємо автодоповнення
+                const autocompleteRef = db.collection('groups')
+                    .doc(groupId)
+                    .collection('autocomplete_data');
+                
+                batch.set(autocompleteRef.doc('locations'), {
+                    items: defaultAutocomplete.locations,
+                    updatedAt: now
+                });
+                updateProgress((defaultTemplates.length + 1) / (defaultTemplates.length + 3) * 100);
+                
+                batch.set(autocompleteRef.doc('units'), {
+                    items: defaultAutocomplete.units,
+                    updatedAt: now
+                });
+                updateProgress((defaultTemplates.length + 2) / (defaultTemplates.length + 3) * 100);
+                
+                batch.set(autocompleteRef.doc('tags'), {
+                    items: defaultAutocomplete.tags,
+                    updatedAt: now
+                });
+                updateProgress(100);
+                
+                await batch.commit();
+                
+                showStatus(`✅ Успішно створено ${defaultTemplates.length} темплейтів та автодоповнення для групи "${groupId}"!`, 'success');
+                updateProgress(0);
+                
+            } catch (error) {
+                showStatus(`❌ Помилка створення: ${error.message}`, 'error');
+                updateProgress(0);
+            }
+        }
+
+        async function deleteAllTemplates() {
+            if (!isFirebaseInitialized) {
+                showStatus('❌ Спочатку підключіться до Firebase', 'error');
+                return;
+            }
+            
+            if (!isAuthenticated) {
+                showStatus('❌ Спочатку авторизуйтесь', 'error');
+                return;
+            }
+            
+            const groupId = document.getElementById('groupId').value;
+            if (!groupId) {
+                showStatus('❌ Введіть ID групи', 'error');
+                return;
+            }
+            
+            if (!confirm(`Ви дійсно хочете видалити ВСІ темплейти групи "${groupId}"?`)) {
+                return;
+            }
+            
+            try {
+                showStatus('🗑️ Видалення темплейтів...', 'info');
+                
+                // Видаляємо темплейти
+                const templatesSnapshot = await db.collection('groups')
+                    .doc(groupId)
+                    .collection('templates')
+                    .get();
+                
+                const batch = db.batch();
+                templatesSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+                
+                // Видаляємо автодоповнення
+                const autocompleteSnapshot = await db.collection('groups')
+                    .doc(groupId)
+                    .collection('autocomplete_data')
+                    .get();
+                
+                autocompleteSnapshot.docs.forEach(doc => batch.delete(doc.ref));
+                
+                await batch.commit();
+                
+                showStatus(`✅ Всі темплейти групи "${groupId}" видалено!`, 'success');
+                
+            } catch (error) {
+                showStatus(`❌ Помилка видалення: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkExisting() {
+            if (!isFirebaseInitialized) {
+                showStatus('❌ Спочатку підключіться до Firebase', 'error');
+                return;
+            }
+            
+            if (!isAuthenticated) {
+                showStatus('❌ Спочатку авторизуйтесь', 'error');
+                return;
+            }
+            
+            const groupId = document.getElementById('groupId').value;
+            if (!groupId) {
+                showStatus('❌ Введіть ID групи', 'error');
+                return;
+            }
+            
+            try {
+                const templatesSnapshot = await db.collection('groups')
+                    .doc(groupId)
+                    .collection('templates')
+                    .get();
+                
+                const autocompleteSnapshot = await db.collection('groups')
+                    .doc(groupId)
+                    .collection('autocomplete_data')
+                    .get();
+                
+                showStatus(`📊 Група "${groupId}": ${templatesSnapshot.size} темплейтів, ${autocompleteSnapshot.size} наборів автодоповнення`, 'info');
+                
+            } catch (error) {
+                showStatus(`❌ Помилка перевірки: ${error.message}`, 'error');
+            }
+        }
+    </script>
+</body>
+</html>

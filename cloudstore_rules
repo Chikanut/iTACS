@@ -1,0 +1,133 @@
+// firestore.rules - Фінальні правила безпеки
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Функція для перевірки чи є користувач членом групи
+    function isGroupMember(groupId) {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groups != null &&
+             groupId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groups;
+    }
+    
+    // Функція для перевірки ролі користувача в групі
+    function getUserRoleInGroup(groupId) {
+      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+      return userDoc.data.groups != null && 
+             groupId in userDoc.data.groups ? 
+             userDoc.data.groups[groupId] : null;
+    }
+    
+    // Функція для перевірки чи може користувач редагувати
+    function canEdit(groupId) {
+      let role = getUserRoleInGroup(groupId);
+      return role == 'admin' || role == 'editor';
+    }
+
+    // Функція для перевірки чи є користувач адміном групи
+    function isAdmin(groupId) {
+      let role = getUserRoleInGroup(groupId);
+      return role == 'admin';
+    }
+
+    // Функція для валідації даних темплейту
+    function isValidTemplate(data) {
+      return data.keys().hasAll(['title', 'description', 'location', 'unit', 'tags', 'durationMinutes', 'type', 'isDefault', 'groupId', 'createdBy']) &&
+             data.title is string && data.title.size() > 0 &&
+             data.description is string &&
+             data.location is string &&
+             data.unit is string &&
+             data.tags is list &&
+             data.durationMinutes is int && data.durationMinutes > 0 &&
+             data.type is string &&
+             data.isDefault is bool &&
+             data.groupId is string &&
+             data.createdBy is string;
+    }
+
+    // Основні документи груп
+    match /groups/{groupId} {
+      allow read: if isGroupMember(groupId);
+      allow write: if isAdmin(groupId);
+      
+      // Темплейти групи
+      match /templates/{templateId} {
+        allow read: if isGroupMember(groupId);
+        allow create: if canEdit(groupId) && 
+                         request.auth != null &&
+                         isValidTemplate(request.resource.data) &&
+                         request.resource.data.groupId == groupId &&
+                         request.resource.data.createdBy == request.auth.uid;
+        allow update: if canEdit(groupId) && 
+                         request.auth != null &&
+                         isValidTemplate(request.resource.data) &&
+                         request.resource.data.groupId == groupId &&
+                         resource.data.groupId == groupId;
+        allow delete: if canEdit(groupId) && resource.data.groupId == groupId;
+      }
+      
+      // Автодоповнення групи
+      match /autocomplete_data/{docId} {
+        allow read: if isGroupMember(groupId);
+        allow write: if canEdit(groupId) && 
+                        request.auth != null &&
+                        docId in ['locations', 'units', 'tags'] &&
+                        request.resource.data.keys().hasAll(['items', 'updatedAt']) &&
+                        request.resource.data.items is list;
+      }
+    }
+
+    // Правила для користувачів
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Правила для календаря та уроків
+    match /lessons/{lessonId} {
+      allow read: if request.auth != null && 
+                     isGroupMember(resource.data.groupId);
+      allow create: if request.auth != null && 
+                      canEdit(request.resource.data.groupId) &&
+                      request.resource.data.createdBy == request.auth.uid;
+      allow update: if request.auth != null && 
+                      canEdit(resource.data.groupId) &&
+                      resource.data.groupId == request.resource.data.groupId;
+      allow delete: if request.auth != null && 
+                      canEdit(resource.data.groupId);
+    }
+
+    // Правила для матеріалів
+    match /materials/{materialId} {
+      allow read: if request.auth != null && 
+                     isGroupMember(resource.data.groupId);
+      allow create: if request.auth != null && 
+                      canEdit(request.resource.data.groupId) &&
+                      request.resource.data.createdBy == request.auth.uid;
+      allow update: if request.auth != null && 
+                      canEdit(resource.data.groupId) &&
+                      resource.data.groupId == request.resource.data.groupId;
+      allow delete: if request.auth != null && 
+                      canEdit(resource.data.groupId);
+    }
+
+    // Правила для інструментів
+    match /tools/{toolId} {
+      allow read: if request.auth != null && 
+                     isGroupMember(resource.data.groupId);
+      allow create: if request.auth != null && 
+                      canEdit(request.resource.data.groupId) &&
+                      request.resource.data.createdBy == request.auth.uid;
+      allow update: if request.auth != null && 
+                      canEdit(resource.data.groupId) &&
+                      resource.data.groupId == request.resource.data.groupId;
+      allow delete: if request.auth != null && 
+                      canEdit(resource.data.groupId);
+    }
+
+    // Заборона доступу до всього іншого
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

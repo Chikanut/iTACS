@@ -7,7 +7,7 @@ import '../models/lesson_model.dart';
 import '../../../services/calendar_service.dart';
 import '../calendar_utils.dart';
 import '../../../globals.dart';
-import '../../../services/lesson_templates_service.dart';
+import '../../../services/templates_service.dart';
 import 'autocomplete_field.dart';
 
 class LessonFormDialog extends StatefulWidget {
@@ -35,8 +35,8 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   final CalendarService _calendarService = CalendarService();
 
     // В клас _LessonFormDialogState додати:
-  final LessonTemplatesService _templatesService = LessonTemplatesService();
-  List<LessonTemplate> _availableTemplates = [];
+  final GroupTemplatesService _templatesService = GroupTemplatesService();
+  List<GroupTemplate> _availableTemplates = [];
   
   // Контролери для текстових полів
   late final TextEditingController _titleController;
@@ -72,7 +72,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   }
 
   Future<void> _loadTemplates() async {
-    _availableTemplates = _templatesService.getTemplates();
+    _availableTemplates = _templatesService.getTemplates(TemplateType.lesson);
     setState(() {});
   }
 
@@ -312,7 +312,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     );
   }
 
-  void _applyTemplate(LessonTemplate template) {
+  void _applyTemplate(GroupTemplate template) {
     _titleController.text = template.title;
     _descriptionController.text = template.description;
     _locationController.text = template.location;

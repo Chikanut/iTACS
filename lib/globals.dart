@@ -29,11 +29,17 @@ static Future<void> init() async {
       
       // Ініціалізуємо ReportsService 👈 ДОДАЄМО
       await reportsService.initialize();
+      await groupTemplatesService.initialize();
       
       print('✅ Globals ініціалізовано успішно');
     } catch (e) {
       print('❌ Помилка ініціалізації Globals: $e');
       rethrow;
     }
+  }
+
+   // Додатковий метод для повторної ініціалізації темплейтів при зміні групи
+  static Future<void> reinitializeTemplatesForCurrentGroup() async {
+    await groupTemplatesService.ensureInitializedForCurrentGroup();
   }
 }

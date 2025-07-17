@@ -275,7 +275,7 @@ class ProfileManager {
       
       // Зберігаємо в Hive
       await _currentGroupBox?.put(_currentGroupKey, newGroup.toMap());
-      
+      await Globals.groupTemplatesService.ensureInitializedForCurrentGroup();
       if (kDebugMode) {
         print('Встановлено поточну групу: $groupName ($groupId) з роллю: $role');
       }
