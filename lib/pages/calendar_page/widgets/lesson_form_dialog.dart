@@ -48,9 +48,9 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   late final TextEditingController _trainingPeriodController;
 
   // Дані форми
-  DateTime _selectedDate = DateTime.now();
-  TimeOfDay _startTime = const TimeOfDay(hour: 9, minute: 0);
-  TimeOfDay _endTime = const TimeOfDay(hour: 10, minute: 30);
+  DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
+  TimeOfDay _startTime = const TimeOfDay(hour: 8, minute: 15);
+  TimeOfDay _endTime = const TimeOfDay(hour: 11, minute: 45);
   List<String> _selectedTags = [];
   bool _isLoading = false;
   
@@ -81,7 +81,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     _descriptionController = TextEditingController();
     _locationController = TextEditingController();
     _unitController = TextEditingController();
-    _maxParticipantsController = TextEditingController(text: '30');
+    _maxParticipantsController = TextEditingController(text: '180');
     _tagsController = TextEditingController();
     _trainingPeriodController = TextEditingController();
   }
@@ -270,8 +270,8 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
             if (value == null || value.trim().isEmpty) {
               return 'Назва заняття обов\'язкова';
             }
-            if (value.trim().length < 3) {
-              return 'Назва повинна містити мінімум 3 символи';
+            if (value.trim().length < 2) {
+              return 'Назва повинна містити мінімум 2 символи';
             }
             return null;
           },
@@ -470,7 +470,7 @@ Row(
       child: TextFormField(
         controller: _trainingPeriodController,
         decoration: const InputDecoration(
-          labelText: 'Період навчання *',
+          labelText: 'Період навчання',
           hintText: '25.06.2025 - 16.07.2025',
           prefixIcon: Icon(Icons.date_range),
           border: OutlineInputBorder(),
@@ -478,9 +478,10 @@ Row(
         ),
         validator: (value) {
           if (value == null || value.trim().isEmpty) {
-            return 'Період навчання обов\'язковий для звітності';
+            return null;
           }
-          if (!LessonStatusUtils.isValidTrainingPeriod(value.trim())) {
+
+          if (value != null && !LessonStatusUtils.isValidTrainingPeriod(value.trim())) {
             return 'Некоректний формат. Використовуйте: дд.мм.рррр - дд.мм.рррр';
           }
           return null;
@@ -518,7 +519,7 @@ Row(
           controller: _maxParticipantsController,
           decoration: const InputDecoration(
             labelText: 'Очікувана кількість учнів',  // 👈 змінити назву
-            hintText: '30',
+            hintText: '180',
             prefixIcon: Icon(Icons.group),
             border: OutlineInputBorder(),
             suffixText: 'осіб',

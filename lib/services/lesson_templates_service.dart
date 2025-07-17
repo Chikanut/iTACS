@@ -61,7 +61,6 @@ class LessonTemplatesService {
   Box<List<String>>? _autoCompleteBox;
 
   List<LessonTemplate> _templates = [];
-  Set<String> _instructors = {};
   Set<String> _locations = {};
   Set<String> _units = {};
   Set<String> _allTags = {};
@@ -69,81 +68,47 @@ class LessonTemplatesService {
   // Дефолтні шаблони занять
   final List<LessonTemplate> _defaultTemplates = [
     LessonTemplate(
-      id: 'tactical_theory',
-      title: 'Тактична підготовка (теорія)',
-      description: 'Вивчення основ тактики піхотного підрозділу',
+      id: 'psychological_theory',
+      title: 'Т1',
+      description: 'Прийоми психічної саморегуляції. Перша психологічна допомога та самодопомога',
       location: 'Навчальний клас',
       unit: '',
-      tags: ['тактика', 'теорія'],
-      durationMinutes: 90,
-      isDefault: true,
-    ),
-    LessonTemplate(
-      id: 'tactical_practice',
-      title: 'Тактична підготовка (практика)',
-      description: 'Відпрацювання тактичних прийомів на місцевості',
-      location: 'Навчальний полігон',
-      unit: '',
-      tags: ['тактика', 'практика'],
+      tags: ['психологія', 'теорія'],
       durationMinutes: 180,
       isDefault: true,
     ),
     LessonTemplate(
-      id: 'physical_training',
-      title: 'Фізична підготовка',
-      description: 'Загальна фізична підготовка військовослужбовців',
-      location: 'Спортивний зал',
+      id: 'psychological_practice_obstacle_course',
+      title: 'Т2',
+      description: 'Формування та зміцнення психологічної стійкості особового складу під час подолання спеціальної смуги перешкод',
+      location: 'НТК ПСП',
       unit: '',
-      tags: ['фізична', 'практика'],
-      durationMinutes: 90,
+      tags: ['психологія', 'практика'],
+      durationMinutes: 320,
       isDefault: true,
     ),
     LessonTemplate(
-      id: 'drill_training',
-      title: 'Стройова підготовка',
-      description: 'Відпрацювання стройових прийомів та рухів',
-      location: 'Плац',
+      id: 'psychological_practice_countering_armored_vehicles',
+      title: 'Т3',
+      description: 'Формування та зміцнення психологічної стійкості особового складу під час боротьби з бронетехнікою противника ',
+      location: 'Обкатка танком',
       unit: '',
-      tags: ['стройова', 'практика'],
-      durationMinutes: 60,
+      tags: ['психологія', 'практика', 'бронетехніка'],
+      durationMinutes: 210,
       isDefault: true,
     ),
     LessonTemplate(
-      id: 'shooting_theory',
-      title: 'Вогнева підготовка (теорія)',
-      description: 'Основи стрільби та поводження зі зброєю',
-      location: 'Навчальний клас',
+      id: 'psychological_practice_artilery_fire',
+      title: 'Т4',
+      description: 'Формування та зміцнення психологічної стійкості особового складу до артилерійських обстрілів противника  та  психотравмуючих  чинників   бойових дій',
+      location: 'НТК ПСП',
       unit: '',
-      tags: ['стрільби', 'теорія'],
-      durationMinutes: 90,
-      isDefault: true,
-    ),
-    LessonTemplate(
-      id: 'shooting_practice',
-      title: 'Вогнева підготовка (практика)',
-      description: 'Практичні стрільби на полігоні',
-      location: 'Стрілецький тир',
-      unit: '',
-      tags: ['стрільби', 'практика'],
-      durationMinutes: 120,
-      isDefault: true,
-    ),
-    LessonTemplate(
-      id: 'technical_training',
-      title: 'Технічна підготовка',
-      description: 'Вивчення та обслуговування техніки',
-      location: 'Технічний парк',
-      unit: '',
-      tags: ['технічна', 'практика'],
-      durationMinutes: 120,
+      tags: ['психологія', 'практика', 'артилерія'],
+      durationMinutes: 320,
       isDefault: true,
     ),
   ];
 
-  // Дефолтні списки для автодоповнення
-  final Set<String> _defaultInstructors = {
-    'Не призначено',
-  };
 
   final Set<String> _defaultLocations = {
     'Навчальний клас №1',
@@ -159,23 +124,64 @@ class LessonTemplatesService {
     'Їдальня',
     'Казарма',
     'Автопарк',
+    'Медичний пункт',
+    'НТК ПСП',
+    'Обкатка танком',
   };
 
   final Set<String> _defaultUnits = {
-    '1-й батальйон',
-    '2-й батальйон',
-    '3-й батальйон',
-    '1-а рота',
-    '2-а рота',
-    '3-я рота',
-    '4-а рота',
-    '5-а рота',
-    '6-а рота',
-    'Штабна рота',
-    'Розвідувальна рота',
-    'Саперна рота',
-    'Рота зв\'язку',
-    'Медична рота',
+    '1 НБ 1 НР',
+    '1 НБ 2 НР',
+    '1 НБ 3 НР',
+    '1 НБ 4 НР',
+    '1 НБ 5 НР',
+    '2 НБ 1 НР',
+    '2 НБ 2 НР',
+    '2 НБ 3 НР',
+    '2 НБ 4 НР',
+    '2 НБ 5 НР',
+    '3 НБ 1 НР',
+    '3 НБ 2 НР',
+    '3 НБ 3 НР',
+    '3 НБ 4 НР',
+    '3 НБ 5 НР',
+    '4 НБ 1 НР',
+    '4 НБ 2 НР',
+    '4 НБ 3 НР',
+    '4 НБ 4 НР',
+    '4 НБ 5 НР',
+    '5 НБ 1 НР',
+    '5 НБ 2 НР',
+    '5 НБ 3 НР',
+    '5 НБ 4 НР',
+    '5 НБ 5 НР',
+    'Граніт-1 1 НР',
+    'Граніт-1 2 НР',
+    'Граніт-1 3 НР',
+    'Граніт-1 4 НР',
+    'Граніт-1 5 НР',
+    'Граніт-2 1 НР',
+    'Граніт-2 2 НР',
+    'Граніт-2 3 НР',
+    'Граніт-2 4 НР',
+    'Граніт-2 5 НР',
+    'Граніт-3 1 НР',
+    'Граніт-3 2 НР',
+    'Граніт-3 3 НР',
+    'Граніт-3 4 НР',
+    'Граніт-3 5 НР',
+    'Граніт-4 1 НР',
+    'Граніт-4 2 НР',
+    'Граніт-4 3 НР',
+    'Граніт-4 4 НР',
+    'Граніт-4 5 НР',
+    'Граніт-95 1 НР',
+    'Граніт-95 2 НР',
+    'Граніт-95 3 НР',
+    'Граніт-95 4 НР',
+    'Граніт-95 5 НР',
+    'ШПР',
+    '190 НЦ',
   };
 
   final Set<String> _defaultTags = {
@@ -193,6 +199,18 @@ class LessonTemplatesService {
     'хімзахист',
     'топографія',
     'статути',
+    'психологія',
+    'бронетехніка',
+    'артилерія',
+    'дрони',
+    'розвідка',
+    'протиповітряна',
+    'протитанкова',
+    'протипіхотна',
+    'протидиверсійна',
+    'протипожежна',
+    'протимінна',
+    'протидія безпілотникам',
   };
 
   Future<void> initialize() async {
@@ -237,14 +255,6 @@ class LessonTemplatesService {
     }
   }
 
-  // Методи для автодоповнення
-  List<String> getInstructorSuggestions(String query) {
-    return _instructors
-        .where((instructor) => instructor.toLowerCase().contains(query.toLowerCase()))
-        .take(5)
-        .toList();
-  }
-
   List<String> getLocationSuggestions(String query) {
     return _locations
         .where((location) => location.toLowerCase().contains(query.toLowerCase()))
@@ -264,14 +274,6 @@ class LessonTemplatesService {
         .where((tag) => tag.toLowerCase().contains(query.toLowerCase()))
         .take(10)
         .toList();
-  }
-
-  // Додавання нових значень до списків автодоповнення
-  Future<void> addInstructor(String instructor) async {
-    if (instructor.trim().isNotEmpty) {
-      _instructors.add(instructor.trim());
-      await _saveAutocompleteLists();
-    }
   }
 
   Future<void> addLocation(String location) async {
@@ -320,12 +322,7 @@ class LessonTemplatesService {
   }
 
   Future<void> _loadAutocompleteLists() async {
-    try {
-      final instructors = _autoCompleteBox?.get('instructors');
-      if (instructors != null) {
-        _instructors = Set<String>.from(instructors);
-      }
-      
+    try {      
       final locations = _autoCompleteBox?.get('locations');
       if (locations != null) {
         _locations = Set<String>.from(locations);
@@ -347,7 +344,6 @@ class LessonTemplatesService {
 
   Future<void> _saveAutocompleteLists() async {
     try {
-      await _autoCompleteBox?.put('instructors', _instructors.toList());
       await _autoCompleteBox?.put('locations', _locations.toList());
       await _autoCompleteBox?.put('units', _units.toList());
       await _autoCompleteBox?.put('tags', _allTags.toList());
@@ -364,7 +360,6 @@ class LessonTemplatesService {
     }
 
     // Додаємо дефолтні списки
-    _instructors.addAll(_defaultInstructors);
     _locations.addAll(_defaultLocations);
     _units.addAll(_defaultUnits);
     _allTags.addAll(_defaultTags);
@@ -386,7 +381,6 @@ class LessonTemplatesService {
   Future<void> clearAllData() async {
     try {
       _templates.clear();
-      _instructors.clear();
       _locations.clear();
       _units.clear();
       _allTags.clear();

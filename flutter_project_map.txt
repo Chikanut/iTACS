@@ -21,6 +21,7 @@ sdk: flutter
     static final ErrorNotificationManager errorNotificationManager
     static final FirestoreManager firestoreManager
     static final ProfileManager profileManager
+    static final ReportsService reportsService
     static late FileManager fileManager;
 
 ==== lib\main.dart ====
@@ -130,8 +131,10 @@ sdk: flutter
   import '../services/dashboard_service.dart';
   import '../pages/calendar_page/models/lesson_model.dart';
   import '../pages/calendar_page/calendar_utils.dart';
-  import '../services/reports_service.dart';
   import '../pages/calendar_page/widgets/lesson_details_dialog.dart';
+  import '../services/reports_service.dart';
+  import '../services/reports/base_report.dart';
+  import '../services/reports/quick_report_dialog.dart';
 
 🏗️ CLASSES:
   class HomePage extends StatefulWidget {
@@ -178,6 +181,8 @@ sdk: flutter
     return Card(
     const SizedBox(width: 8),
     const SizedBox(height: 12),
+  await showQuickReportDialog(
+  await showQuickReportDialog(
     Widget build(BuildContext context)
     Widget build(BuildContext context)
     return Padding(
@@ -214,12 +219,8 @@ sdk: flutter
     final IconData icon;
     final Color color;
     final ReportsService reportsService;
-  final now
   final data
-  final periodName
   final fileName
-  final now
-  final startOfMonth
   final data
   final fileName
     final String label;
@@ -967,6 +968,7 @@ sdk: flutter
   final isEditing
   return null;
   final endMinutes
+  return null;
   return null;
   return null;
   final number
@@ -2152,11 +2154,9 @@ sdk: flutter
     Future<void> initialize() async
   Future<void> saveTemplate(LessonTemplate template) async
   Future<void> deleteTemplate(String templateId) async
-  List<String> getInstructorSuggestions(String query)
   List<String> getLocationSuggestions(String query)
   List<String> getUnitSuggestions(String query)
   List<String> getTagSuggestions(String query)
-  Future<void> addInstructor(String instructor) async
   Future<void> addLocation(String location) async
   Future<void> addUnit(String unit) async
   Future<void> addTag(String tag) async
@@ -2175,7 +2175,6 @@ sdk: flutter
   final existingIndex
   final templatesJson
   final templatesJson
-  final instructors
   final locations
   final units
   final tags
@@ -2268,100 +2267,63 @@ sdk: flutter
 
 📦 IMPORTS:
   import 'dart:typed_data';
-  import 'package:excel/excel.dart';
   import 'package:flutter/foundation.dart';
-  import 'package:intl/intl.dart';
-  import '../pages/calendar_page/models/lesson_model.dart';
-  import '../pages/calendar_page/calendar_utils.dart';
   import '../globals.dart';
 
 🏗️ CLASSES:
   class ReportsService {
 
-🔢 ENUMS:
-  enum CalendarPeriod { week, month }
-  enum ReportFormat { excel, csv }
-
 ⚙️ METHODS:
-    Future<Uint8List> generateCalendarExcel(
-  Future<Uint8List> generateInstructorReport(
-  Future<Uint8List> generateLessonsReport(
-  return DateFormat('MMMM yyyy', 'uk').format(date);
+    Future<void> initialize() async
+  List<BaseReport> getAvailableReports()
+  List<BaseReport> getReportsByCategory(String category)
+  return getAvailableReports()
+  List<String> getAvailableCategories()
+  Future<Uint8List> generateReport(
+  throw Exception('Звіт з ID "$reportId" не знайдено');
+  throw Exception('Недостатньо прав для генерації звіту "$
+  throw Exception('Формат $
+  throw Exception('Помилка валідації дат: $dateValidationError');
+  throw Exception('Помилка валідації параметрів: $paramValidationError');
+  throw Exception('Помилка валідації: $specificValidationError');
+  Future<Map<String, dynamic>> getReportPreview(
+  throw Exception('Звіт з ID "$reportId" не знайдено');
+  throw Exception('Недостатньо прав для перегляду звіту "$
+  String getReportFileName(
+  throw Exception('Звіт з ID "$reportId" не знайдено');
+  throw Exception('ReportsService не ініціалізовано. Викличте initialize() спочатку.');
+  Future<void> reload() async
+  await initialize();
+  Map<String, dynamic> getUsageStatistics()
+  Map<String, dynamic> getReportMetadata(String reportId)
+  throw Exception('Звіт з ID "$reportId" не знайдено');
+  Map<String, dynamic> exportConfiguration()
 
 🏷️ PROPERTIES:
-    final excel
-    final sheet
-    final DateTime endDate;
-    final weekStart
-    final monthStart
-  final dashboardService
-  final lessons
-  final excel
-  final sheet
-  final dashboardService
-  final instructorStats
-  final excel
-  final sheet
-  final dashboardService
-  final lessons
-  final titleText
-  final titleCell
-  final dateRange
-  final subtitleCell
-  const startRow
-  const timeColumn
-  final day
-  final dayName
-  final dayDate
-  final lessonsGrouped
-  final minHour
-  final maxHour
-  int currentRow
-  final day
-  final dayLessons
-  final hourLessons
-  final lesson
-  final lessonHour
-  return lessonHour
-  String cellContent
-  final lesson
-  final timeRange
-  const startRow
-  const weekDays
-  final lessonsByDate
-  final date
-  int currentRow
-  int currentWeekDay
-  final firstDay
-  final startWeekDay
-  final daysInMonth
-  final date
-  final dayLessons
-  String cellContent
-  final time
-  const startRow
-  final headers
-  final cell
-  int currentRow
-  final instructor
-  final stats
-  const startRow
-  final headers
-  final cell
-  int currentRow
-  final totalLessons
-  final totalConducted
-  final avgCompletion
-  final startRow
-  final startRow
-  final now
-  final conducted
-  final withInstructor
-  final titleText
-  final dateRange
-  final start
-  final end
-  final daysInMonth
+  final currentUserRole
+  return true;
+  final categories
+  return categories;
+  return null;
+  final report
+  final dateValidationError
+  final paramValidationError
+  final specificValidationError
+  final startTime
+  final result
+  final duration
+  return result;
+  final report
+  final report
+  const roleHierarchy
+  final userLevel
+  final minRequiredLevel
+  final availableReports
+  final formatStats
+  final categoryStats
+  final count
+  final category
+  final report
 
 ==== lib\services\file_manager\file_cache_entry.dart ====
 
@@ -2688,6 +2650,308 @@ sdk: flutter
     final dir
     final filePath
     final file
+
+==== lib\services\reports\base_report.dart ====
+
+📦 IMPORTS:
+  import 'dart:typed_data';
+  import 'package:intl/intl.dart';
+  import 'package:flutter/material.dart';
+
+🏗️ CLASSES:
+  abstract class BaseReport {
+
+🔢 ENUMS:
+  enum ReportFormat { excel, docx, pdf, png }
+
+⚡ EXTENSIONS:
+  extension ReportFormatExtension on ReportFormat {
+
+⚙️ METHODS:
+  String get extension {
+  String get mimeType {
+  String get displayName {
+    String get id;
+    String get name;
+    String get description;
+    IconData get icon;
+    bool get requiresParameters
+    String get category
+    bool get isAvailable
+    required Function(Map<String, dynamic>) onParametersChanged,
+    Future<Uint8List> generate(
+  String getDefaultFileName(
+  Future<Map<String, dynamic>> getPreview(
+  Future<String?> validateReportSpecificConditions(
+
+🏷️ PROPERTIES:
+  final now
+  final maxRange
+  return null;
+  final dateRange
+  final sanitizedName
+  final formatter
+
+==== lib\services\reports\calendar_grid_report.dart ====
+
+📦 IMPORTS:
+  import 'dart:typed_data';
+  import 'package:flutter/material.dart';
+  import 'package:excel/excel.dart' as excel;
+  import 'package:intl/intl.dart';
+  import '../../pages/calendar_page/models/lesson_model.dart';
+  import '../../pages/calendar_page/calendar_utils.dart';
+  import '../../globals.dart';
+  import '../dashboard_service.dart';
+
+🏗️ CLASSES:
+  class CalendarGridReport extends BaseReport {
+
+⚙️ METHODS:
+    String get id
+    String get name
+    String get description
+    IconData get icon
+    String get category
+    bool get requiresParameters
+    Future<String?> validateReportSpecificConditions(
+  Future<Map<String, dynamic>> getPreview(
+  String getDefaultFileName(
+  Future<Uint8List> generate(
+  throw UnsupportedError('Формат $
+
+🏷️ PROPERTIES:
+    final days
+  final dashboardService
+  final lessons
+  return null;
+  final dashboardService
+  final lessons
+  final units
+  final days
+  final dateRange
+  final excelFile
+  final sheet
+  final dashboardService
+  final lessons
+  final daysInPeriod
+  final unitsList
+  final lessonsByUnitAndDate
+  final days
+  DateTime current
+  return days;
+  final units
+  return units;
+  final organized
+  final unit
+  final lessonDate
+  return organized;
+  final titleText
+  final titleCell
+  final dateRange
+  final periodCell
+  final groupName
+  final groupCell
+  const startRow
+  final day
+  final dayName
+  final dayNumber
+  final headerCell
+  final unitHeaderCell
+  int currentRow
+  final unitLessons
+  int maxLessonsPerDay
+  final unitCell
+  final day
+  final dayLessons
+  final lessonCell
+  final lesson
+  final cellContent
+  final backgroundColor
+  final title
+  final legendStartRow
+  final legendHeaderCell
+  final colorLegend
+  final colorCell
+  final labelCell
+  final generatedCell
+  final formatter
+  final start
+  final end
+  return start;
+
+==== lib\services\reports\lessons_list_report.dart ====
+
+📦 IMPORTS:
+  import 'dart:typed_data';
+  import 'package:flutter/material.dart';
+  import 'package:excel/excel.dart' as ex;
+  import 'package:intl/intl.dart';
+  import '../../pages/calendar_page/models/lesson_model.dart';
+  import '../../globals.dart';
+  import '../dashboard_service.dart';
+
+🏗️ CLASSES:
+  class LessonsListReport extends BaseReport {
+  class LessonsListParametersWidget extends StatefulWidget {
+  class _LessonsListParametersWidgetState extends State<LessonsListParametersWidget> {
+
+⚙️ METHODS:
+    String get id
+    String get name
+    String get description
+    IconData get icon
+    String get category
+    bool get requiresParameters
+    required Function(Map<String, dynamic>) onParametersChanged,
+    return LessonsListParametersWidget(
+  Future<String?> validateReportSpecificConditions(
+  Future<Map<String, dynamic>> getPreview(
+  String getDefaultFileName(
+  Future<Uint8List> generate(
+  throw UnsupportedError('Формат $
+    final Function(Map<String, dynamic>) onParametersChanged;
+    const LessonsListParametersWidget(
+    void initState()
+  Widget build(BuildContext context)
+  return Card(
+  const Icon(Icons.settings, size: 20),
+  const SizedBox(width: 8),
+  const Text(
+  const SizedBox(height: 16),
+  const Center(
+  const SizedBox(width: 8),
+  const Text(
+  const SizedBox(height: 8),
+  return DropdownMenuItem(
+  const SizedBox(height: 12),
+  const SizedBox(width: 8),
+  const Expanded(
+
+🏷️ PROPERTIES:
+  final instructorId
+  return null;
+  final dashboardService
+  final lessons
+  final filteredLessons
+  return null;
+  final dashboardService
+  final lessons
+  final filteredLessons
+  final instructorCount
+  String estimatedSize
+  final dateRange
+  String fileName
+  final instructorName
+  final excel
+  final sheet
+  final dashboardService
+  final lessons
+  final filteredLessons
+  final lessonsByInstructor
+  final isCompleted
+  final hasInstructor
+  final instructorId
+  return true;
+  final grouped
+  final key
+  return grouped;
+  final titleText
+  final titleCell
+  final dateRange
+  final periodCell
+  final groupName
+  final groupCell
+  int currentRow
+  final instructorName
+  final instructorCell
+  final generatedText
+  final generatedCell
+  int currentRow
+  final headers
+  final cell
+  final sortedInstructors
+  final lessons
+  final instructorHeaderCell
+  final dateCell
+  final unitCell
+  final periodCell
+  final titleCell
+  final summaryCell
+  final totalLessons
+  final totalInstructors
+  final totalHeaderCell
+  final instructorsCell
+  final totalCell
+  final parts
+  final start
+  final end
+  return period;
+  final formatter
+  final start
+  final end
+  return start;
+    String? selectedInstructorId;
+    String? selectedInstructorName;
+  final dashboardService
+  final now
+  final oneMonthAgo
+  final recentLessons
+  final instructors
+  final parameters
+
+==== lib\services\reports\quick_report_dialog.dart ====
+
+📦 IMPORTS:
+  import 'package:flutter/material.dart';
+  import 'package:intl/intl.dart';
+
+🏗️ CLASSES:
+  class QuickReportDialog extends StatefulWidget {
+  class _QuickReportDialogState extends State<QuickReportDialog> {
+
+⚙️ METHODS:
+    final Function(DateTime startDate, DateTime endDate) onGenerate;
+    const QuickReportDialog(
+    Widget build(BuildContext context)
+    return Dialog(
+    const SizedBox(width: 8),
+    const SizedBox(height: 20),
+    const Text(
+    const SizedBox(height: 12),
+    const SizedBox(height: 16),
+    const SizedBox(height: 24),
+    const SizedBox(width: 12),
+  return Container(
+  const Text(
+  const SizedBox(height: 4),
+  const SizedBox(width: 12),
+  const Text(
+  const SizedBox(height: 4),
+  const SizedBox(height: 12),
+  return OutlinedButton(
+  Future<void> showQuickReportDialog(
+  required Function(DateTime startDate, DateTime endDate) onGenerate,
+  return showDialog(
+
+🏷️ PROPERTIES:
+    final String reportTitle;
+    String selectedPeriod
+    DateTime? customStartDate;
+    DateTime? customEndDate;
+  final now
+  final now
+  final lastMonth
+  final now
+  final now
+  final formatter
+  final startDate
+  final startDate
+  final startDate
+  final date
+  final date
+  return true;
+  final now
 
 ==== lib\widgets\loading_indicator.dart ====
 

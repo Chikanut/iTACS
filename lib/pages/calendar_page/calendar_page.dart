@@ -99,8 +99,8 @@ class _CalendarPageState extends State<CalendarPage> {
     showDialog(
       context: context,
       builder: (context) => LessonFormDialog(
-        initialDate: _selectedDate,
-        initialStartTime: const TimeOfDay(hour: 9, minute: 0),
+        initialDate: _selectedDate.add(const Duration(days: 1)),
+        initialStartTime: const TimeOfDay(hour: 8, minute: 15),
         onSaved: () {
           setState(() {
             _refreshKey++;

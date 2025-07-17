@@ -125,7 +125,11 @@ class _AutocompleteFieldState extends State<AutocompleteField> {
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     child: Text(
                       suggestion,
-                      style: const TextStyle(fontSize: 14),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: Colors.black,
+                      ),
+                      selectionColor: const Color.fromARGB(255, 0, 0, 0),
                     ),
                   ),
                 );
