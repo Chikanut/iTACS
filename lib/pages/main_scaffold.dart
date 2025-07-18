@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'home_page.dart';
-import 'calendar_page/calendar_page.dart'; // додано
+import 'calendar_page/calendar_page.dart';
 import 'materials_page/materials_page.dart';
 import 'profile_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -21,13 +21,65 @@ class _MainScaffoldState extends State<MainScaffold> {
   Map<String, String> groupNames = {};
   bool _groupsLoaded = false;
 
-  final List<Widget> _pages = const [
-    AdminPanelPage(), // Адмін-панель
-    HomePage(),
-    CalendarPage(),   // 🗓️ нова сторінка — календар
-    ToolsPage(),
-    MaterialsPage(),
-  ];
+  // 🚀 Динамічний масив сторінок залежно від ролі
+  List<Widget> get _pages {
+    final pages = <Widget>[];
+    
+    if (Globals.profileManager.currentRole == 'admin') {
+      pages.add(const AdminPanelPage());
+    }
+    
+    pages.addAll([
+      const HomePage(),
+      const CalendarPage(),
+      const ToolsPage(),
+      const MaterialsPage(),
+    ]);
+    
+    return pages;
+  }
+
+  // 🎯 Динамічні елементи навігації для мобільних
+  List<BottomNavigationBarItem> get _navigationItems {
+    final items = <BottomNavigationBarItem>[];
+    
+    if (Globals.profileManager.currentRole == 'admin') {
+      items.add(const BottomNavigationBarItem(
+        icon: Icon(Icons.admin_panel_settings), 
+        label: 'Адмін-панель'
+      ));
+    }
+    
+    items.addAll([
+      const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Головна'),
+      const BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Календар'),
+      const BottomNavigationBarItem(icon: Icon(Icons.build), label: 'Інструменти'),
+      const BottomNavigationBarItem(icon: Icon(Icons.article), label: 'Матеріали'),
+    ]);
+    
+    return items;
+  }
+
+  // 🎯 Динамічні елементи меню для широких екранів
+  List<PopupMenuEntry<String>> get _menuItems {
+    final items = <PopupMenuEntry<String>>[];
+    
+    if (Globals.profileManager.currentRole == 'admin') {
+      items.add(const PopupMenuItem(
+        value: 'admin_panel', 
+        child: Text('Адмін-панель')
+      ));
+    }
+    
+    items.addAll([
+      const PopupMenuItem(value: 'home', child: Text('Головна')),
+      const PopupMenuItem(value: 'calendar', child: Text('Календар')),
+      const PopupMenuItem(value: 'tools', child: Text('Інструменти')),
+      const PopupMenuItem(value: 'materials', child: Text('Матеріали')),
+    ]);
+    
+    return items;
+  }
 
   bool isMobileLayout(BuildContext context) {
     final shortestSide = MediaQuery.of(context).size.shortestSide;
@@ -51,26 +103,44 @@ class _MainScaffoldState extends State<MainScaffold> {
     if (mounted) setState(() => _groupsLoaded = true);
   }
 
+  // 🔄 Оновлена логіка навігації з урахуванням динамічних індексів
   void _onMenuSelect(String value) {
+    final isAdmin = Globals.profileManager.currentRole == 'admin';
+    int newIndex = 0;
+    
     switch (value) {
       case 'admin_panel':
-        setState(() => _currentIndex = 0);
+        newIndex = 0; // Завжди перший, якщо є
         break;
       case 'home':
-        setState(() => _currentIndex = 1);
+        newIndex = isAdmin ? 1 : 0; // Залежно від наявності адмін панелі
         break;
       case 'calendar':
-        setState(() => _currentIndex = 2);
+        newIndex = isAdmin ? 2 : 1;
         break;
       case 'tools':
-        setState(() => _currentIndex = 3);
+        newIndex = isAdmin ? 3 : 2;
         break;
       case 'materials':
-        setState(() => _currentIndex = 4);
+        newIndex = isAdmin ? 4 : 3;
         break;
       case 'logout':
         FirebaseAuth.instance.signOut();
-        break;
+        return;
+    }
+    
+    setState(() => _currentIndex = newIndex);
+  }
+
+  // 🛡️ Безпечна валідація поточного індексу
+  void _validateCurrentIndex() {
+    final maxIndex = _pages.length - 1;
+    if (_currentIndex > maxIndex) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() {
+          _currentIndex = Globals.profileManager.currentRole == 'admin' ? 1 : 0; // HomePage
+        });
+      });
     }
   }
 
@@ -81,6 +151,9 @@ class _MainScaffoldState extends State<MainScaffold> {
     final initials = user?.displayName != null && user!.displayName!.contains(' ')
         ? user.displayName!.split(' ').map((e) => e[0]).take(2).join()
         : user?.email?.substring(0, 2).toUpperCase() ?? '?';
+
+    // Перевіряємо валідність поточного індексу
+    _validateCurrentIndex();
 
     return Scaffold(
       appBar: AppBar(
@@ -141,34 +214,22 @@ class _MainScaffoldState extends State<MainScaffold> {
           if (!isMobile)
             PopupMenuButton<String>(
               onSelected: _onMenuSelect,
-              itemBuilder: (_) => [
-                if (Globals.profileManager.currentRole == 'admin')
-                   PopupMenuItem(value: 'admin_panel', child: Text('Адмін-панель')),
-                PopupMenuItem(value: 'home', child: Text('Головна')),
-                PopupMenuItem(value: 'calendar', child: Text('Календар')),
-                PopupMenuItem(value: 'tools', child: Text('Інструменти')),
-                PopupMenuItem(value: 'materials', child: Text('Матеріали')),
-                
-              ],
+              itemBuilder: (_) => _menuItems, // 🎯 Використовуємо динамічне меню
             ),
         ],
       ),
-      body: _pages[_currentIndex],
+      body: _pages.isNotEmpty && _currentIndex < _pages.length 
+          ? _pages[_currentIndex] 
+          : const Center(child: CircularProgressIndicator()), // 🛡️ Захист від помилок
       bottomNavigationBar: isMobile
           ? BottomNavigationBar(
               backgroundColor: Colors.white,
               selectedItemColor: Colors.blue,
               unselectedItemColor: Colors.grey,
-              currentIndex: _currentIndex,
+              currentIndex: _currentIndex.clamp(0, _navigationItems.length - 1), // 🛡️ Безпечний індекс
               onTap: (index) => setState(() => _currentIndex = index),
-              items: [
-                if (Globals.profileManager.currentRole == 'admin')
-                  const BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings), label: 'Адмін-панель'),
-                const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Головна'),
-                const BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Календар'),
-                const BottomNavigationBarItem(icon: Icon(Icons.build), label: 'Інструменти'),
-                const BottomNavigationBarItem(icon: Icon(Icons.article), label: 'Матеріали'),
-              ],
+              items: _navigationItems, // 🎯 Використовуємо динамічні елементи
+              type: BottomNavigationBarType.fixed, // 📱 Для стабільного відображення всіх елементів
             )
           : null,
     );

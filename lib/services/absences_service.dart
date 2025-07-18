@@ -146,6 +146,32 @@ class AbsencesService {
     }
   }
 
+  Future<List<InstructorAbsence>> getAllAbsencesForGroup() async {
+    try {
+      final currentGroupId = Globals.profileManager.currentGroupId;
+      if (currentGroupId == null) return [];
+
+      final docs = await Globals.firestoreManager.getAbsencesForGroup(
+        groupId: currentGroupId,
+        // Не передаємо startDate та endDate щоб отримати всі записи
+      );
+      
+      final allAbsences = docs.map((doc) {
+        return InstructorAbsence.fromFirestore(doc.data() as Map<String, dynamic>, doc.id);
+      }).toList();
+
+      // Сортуємо за датою створення (найновіші спочатку)
+      allAbsences.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      
+      debugPrint('AbsencesService: Завантажено ${allAbsences.length} відсутностей для групи $currentGroupId');
+      
+      return allAbsences;
+    } catch (e) {
+      debugPrint('AbsencesService: Помилка отримання всіх відсутностей групи: $e');
+      return [];
+    }
+  }
+
   /// Отримати поточні відсутності користувача
   Future<List<InstructorAbsence>> getCurrentUserAbsences() async {
     final currentUser = Globals.firebaseAuth.currentUser;
