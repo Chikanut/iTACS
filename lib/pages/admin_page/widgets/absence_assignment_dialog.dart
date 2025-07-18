@@ -314,24 +314,10 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
       final currentGroupId = Globals.profileManager.currentGroupId;
       if (currentGroupId == null) throw Exception('Група не обрана');
 
-      final groupData = await Globals.firestoreManager.getDocumentsForGroup(
-        groupId: currentGroupId,
-        collection: 'allowed_users',
+      final instructorEmail = await Globals.firestoreManager.getUserEmailByUid(
+        currentGroupId, 
+        widget.instructorId,
       );
-
-      String? instructorEmail;
-      if (groupData.isNotEmpty) {
-        final data = groupData.first.data() as Map<String, dynamic>;
-        final members = Map<String, dynamic>.from(data['members'] ?? {});
-        
-        for (final entry in members.entries) {
-          final memberData = Map<String, dynamic>.from(entry.value);
-          if (memberData['uid'] == widget.instructorId) {
-            instructorEmail = entry.key;
-            break;
-          }
-        }
-      }
 
       if (instructorEmail == null) {
         throw Exception('Не вдалося знайти email інструктора');

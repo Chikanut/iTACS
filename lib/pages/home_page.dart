@@ -9,6 +9,9 @@ import '../pages/calendar_page/widgets/lesson_details_dialog.dart';
 import '../services/reports_service.dart';
 import '../services/reports/base_report.dart';
 import '../services/reports/quick_report_dialog.dart';
+import '../models/instructor_absence.dart';
+import '../widgets/absence_request_dialog.dart';
+import 'admin_page/admin_panel_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -23,6 +26,7 @@ class _HomePageState extends State<HomePage> {
   DashboardFeed _feed = DashboardFeed.empty;
   bool _isLoading = true;
   String? _error;
+  List<InstructorAbsence> _userAbsences = [];
 
   @override
   void initState() {
@@ -39,9 +43,19 @@ class _HomePageState extends State<HomePage> {
 
       final feed = await _dashboardService.getDashboardFeed();
       
+      // Додаємо завантаження відсутностей
+      List<InstructorAbsence> absences = [];
+      try {
+        absences = await Globals.absencesService.getCurrentUserAbsences();
+      } catch (e) {
+        // Ігноруємо помилки відсутностей, щоб не блокувати основний функціонал
+        print('Помилка завантаження відсутностей: $e');
+      }
+      
       if (mounted) {
         setState(() {
           _feed = feed;
+          _userAbsences = absences;
           _isLoading = false;
         });
       }
@@ -59,9 +73,17 @@ class _HomePageState extends State<HomePage> {
     try {
       final feed = await _dashboardService.getDashboardFeed(forceRefresh: true);
       
+      List<InstructorAbsence> absences = [];
+      try {
+        absences = await Globals.absencesService.getCurrentUserAbsences();
+      } catch (e) {
+        print('Помилка оновлення відсутностей: $e');
+      }
+      
       if (mounted) {
         setState(() {
           _feed = feed;
+          _userAbsences = absences;
         });
       }
     } catch (e) {
@@ -152,6 +174,28 @@ class _HomePageState extends State<HomePage> {
               ],
             ),
           ),
+          child: Padding(
+            padding: const EdgeInsets.only(top: 40, right: 16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                // Кнопка адмін-панелі (тільки для адмінів)
+                if (Globals.profileManager.currentRole == 'admin')
+                  IconButton(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AdminPanelPage()),
+                    ),
+                    icon: const Icon(
+                      Icons.admin_panel_settings,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                    tooltip: 'Адмін-панель',
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -178,7 +222,7 @@ class _HomePageState extends State<HomePage> {
     return SliverList(
       delegate: SliverChildListDelegate([
         const SizedBox(height: 16),
-        
+        _buildAbsencesCard(),
         // Поточні та завтрашні заняття
         if (upcomingLessons.isNotEmpty)
           _UpcomingLessonsCard(lessons: upcomingLessons, onLessonUpdated: _refreshFeed),
@@ -199,6 +243,177 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height: 100), // Відступ для навігації
       ]),
     );
+  }
+
+  Widget _buildAbsencesCard() {
+    final pendingRequests = _userAbsences.where((a) => a.status == AbsenceStatus.pending).toList();
+    final activeAbsences = _userAbsences.where((a) => a.status == AbsenceStatus.active).toList();
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.event_busy, color: Theme.of(context).primaryColor),
+                const SizedBox(width: 8),
+                const Text(
+                  'Мої відсутності',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const Spacer(),
+                ElevatedButton.icon(
+                  onPressed: _showAbsenceRequestDialog,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Запросити'),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Запити що очікують підтвердження
+            if (pendingRequests.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.schedule, color: Colors.orange.shade600, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          '🙋‍♂️ Мої запити:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.orange.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ...pendingRequests.map((absence) => _buildAbsenceItem(absence, isPending: true)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // Активні відсутності (включаючи призначення адміном)
+            if (activeAbsences.isNotEmpty) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.blue.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.info, color: Colors.blue.shade600, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          '👮‍♂️ Активні відсутності:',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ...activeAbsences.map((absence) => _buildAbsenceItem(absence)),
+                  ],
+                ),
+              ),
+            ] else if (pendingRequests.isEmpty) ...[
+              // Якщо немає жодних відсутностей
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green.shade600),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text(
+                        'Наразі відсутності не зареєстровано',
+                        style: TextStyle(fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAbsenceItem(InstructorAbsence absence, {bool isPending = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Text(absence.type.emoji),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${absence.type.displayName} ${DateFormat('dd.MM').format(absence.startDate)}-${DateFormat('dd.MM').format(absence.endDate)} - ${isPending ? '⏳ Очікує підтвердження' : '📋 Активно'}',
+              style: const TextStyle(fontSize: 14),
+            ),
+          ),
+          if (absence.isAdminAssignment)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade100,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                'Адмін',
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.blue.shade700,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _showAbsenceRequestDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => const AbsenceRequestDialog(),
+    ).then((_) {
+      // Оновлюємо дані після закриття діалогу
+      _refreshFeed();
+    });
   }
 
   /// Відображення помилки

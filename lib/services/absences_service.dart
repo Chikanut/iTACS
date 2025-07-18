@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/instructor_absence.dart';
+import '../models/lesson_model.dart';
 import '../globals.dart';
 
 class AbsencesService {
@@ -129,20 +130,14 @@ class AbsencesService {
       final currentGroupId = Globals.profileManager.currentGroupId;
       if (currentGroupId == null) return [];
 
-      Query query = _firestore
-          .collection('instructor_absences')
-          .doc(currentGroupId)
-          .collection('items')
-          .where('startDate', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
-          .where('endDate', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
-
-      if (instructorId != null) {
-        query = query.where('instructorId', isEqualTo: instructorId);
-      }
-
-      final snapshot = await query.orderBy('startDate').get();
+      final docs = await Globals.firestoreManager.getAbsencesForGroup(
+        groupId: currentGroupId,
+        startDate: startDate,
+        endDate: endDate,
+        instructorId: instructorId,
+      );
       
-      return snapshot.docs.map((doc) {
+      return docs.map((doc) {
         return InstructorAbsence.fromFirestore(doc.data() as Map<String, dynamic>, doc.id);
       }).toList();
     } catch (e) {
@@ -236,30 +231,20 @@ class AbsencesService {
       final currentGroupId = Globals.profileManager.currentGroupId;
       if (currentGroupId == null) return {};
 
-      // Отримуємо список учасників групи
-      final groupData = await _firestore
-          .collection('allowed_users')
-          .doc(currentGroupId)
-          .get();
-
-      if (!groupData.exists) return {};
-
-      final members = Map<String, dynamic>.from(groupData.data()?['members'] ?? {});
+      // Отримуємо список учасників групи з повною інформацією
+      final members = await Globals.firestoreManager.getGroupMembersWithDetails(currentGroupId);
       final instructors = <String, InstructorAbsence?>{};
 
       // Отримуємо відсутності на дату
       final absences = await getAbsencesForDate(date);
 
       // Заповнюємо статуси
-      for (final email in members.keys) {
-        final memberData = members[email] as Map<String, dynamic>;
-        final uid = memberData['uid'] as String?;
-        final name = memberData['fullName'] as String?;
+      for (final member in members) {
+        final uid = member['uid'] as String;
+        final name = member['fullName'] as String;
         
-        if (uid != null && name != null) {
-          final absence = absences.where((a) => a.instructorId == uid).firstOrNull;
-          instructors[name] = absence;
-        }
+        final absence = absences.where((a) => a.instructorId == uid).firstOrNull;
+        instructors[name] = absence;
       }
 
       return instructors;
@@ -275,13 +260,14 @@ class AbsencesService {
     final currentGroupId = Globals.profileManager.currentGroupId;
     if (currentGroupId == null) throw Exception('Група не обрана');
 
-    final docRef = _firestore
-        .collection('instructor_absences')
-        .doc(currentGroupId)
-        .collection('items')
-        .doc();
+    final absenceId = await Globals.firestoreManager.createAbsence(
+      groupId: currentGroupId,
+      absenceData: absence.toFirestore(),
+    );
 
-    await docRef.set(absence.copyWith(id: docRef.id).toFirestore());
+    if (absenceId == null) {
+      throw Exception('Не вдалося створити відсутність');
+    }
   }
 
   Future<bool> _checkAbsenceConflict(
@@ -324,14 +310,17 @@ class AbsencesService {
     final currentGroupId = Globals.profileManager.currentGroupId;
     if (currentGroupId == null) throw Exception('Група не обрана');
 
-    await _firestore
-        .collection('instructor_absences')
-        .doc(currentGroupId)
-        .collection('items')
-        .doc(absenceId)
-        .update({
-          'status': status.value,
-          'modifiedAt': FieldValue.serverTimestamp(),
-        });
+    final success = await Globals.firestoreManager.updateAbsence(
+      groupId: currentGroupId,
+      absenceId: absenceId,
+      updates: {
+        'status': status.value,
+        'modifiedAt': FieldValue.serverTimestamp(),
+      },
+    );
+
+    if (!success) {
+      throw Exception('Не вдалося оновити статус відсутності');
+    }
   }
 }

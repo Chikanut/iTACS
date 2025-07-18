@@ -7,6 +7,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'email_check_page.dart';
 import '../globals.dart';
 import 'tools_page/tools_page.dart';
+import 'admin_page/admin_panel_page.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -21,6 +22,7 @@ class _MainScaffoldState extends State<MainScaffold> {
   bool _groupsLoaded = false;
 
   final List<Widget> _pages = const [
+    AdminPanelPage(), // Адмін-панель
     HomePage(),
     CalendarPage(),   // 🗓️ нова сторінка — календар
     ToolsPage(),
@@ -51,17 +53,20 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   void _onMenuSelect(String value) {
     switch (value) {
-      case 'home':
+      case 'admin_panel':
         setState(() => _currentIndex = 0);
         break;
-      case 'calendar':
+      case 'home':
         setState(() => _currentIndex = 1);
         break;
-      case 'tools':
+      case 'calendar':
         setState(() => _currentIndex = 2);
         break;
-      case 'materials':
+      case 'tools':
         setState(() => _currentIndex = 3);
+        break;
+      case 'materials':
+        setState(() => _currentIndex = 4);
         break;
       case 'logout':
         FirebaseAuth.instance.signOut();
@@ -136,11 +141,14 @@ class _MainScaffoldState extends State<MainScaffold> {
           if (!isMobile)
             PopupMenuButton<String>(
               onSelected: _onMenuSelect,
-              itemBuilder: (_) => const [
+              itemBuilder: (_) => [
+                if (Globals.profileManager.currentRole == 'admin')
+                   PopupMenuItem(value: 'admin_panel', child: Text('Адмін-панель')),
                 PopupMenuItem(value: 'home', child: Text('Головна')),
                 PopupMenuItem(value: 'calendar', child: Text('Календар')),
                 PopupMenuItem(value: 'tools', child: Text('Інструменти')),
                 PopupMenuItem(value: 'materials', child: Text('Матеріали')),
+                
               ],
             ),
         ],
@@ -153,11 +161,13 @@ class _MainScaffoldState extends State<MainScaffold> {
               unselectedItemColor: Colors.grey,
               currentIndex: _currentIndex,
               onTap: (index) => setState(() => _currentIndex = index),
-              items: const [
-                BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Головна'),
-                BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Календар'),
-                BottomNavigationBarItem(icon: Icon(Icons.build), label: 'Інструменти'),
-                BottomNavigationBarItem(icon: Icon(Icons.article), label: 'Матеріали'),
+              items: [
+                if (Globals.profileManager.currentRole == 'admin')
+                  const BottomNavigationBarItem(icon: Icon(Icons.admin_panel_settings), label: 'Адмін-панель'),
+                const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Головна'),
+                const BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Календар'),
+                const BottomNavigationBarItem(icon: Icon(Icons.build), label: 'Інструменти'),
+                const BottomNavigationBarItem(icon: Icon(Icons.article), label: 'Матеріали'),
               ],
             )
           : null,

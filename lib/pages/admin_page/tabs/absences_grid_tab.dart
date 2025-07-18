@@ -3,7 +3,6 @@ import 'package:intl/intl.dart';
 import '../../../models/instructor_absence.dart';
 import '../../../globals.dart';
 import '../widgets/absence_assignment_dialog.dart';
-import '../widgets/absence_grid_cell.dart';
 
 class AbsencesGridTab extends StatefulWidget {
   const AbsencesGridTab({super.key});
@@ -17,6 +16,9 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
   List<Map<String, dynamic>> _instructors = [];
   Map<String, Map<DateTime, InstructorAbsence?>> _absencesGrid = {};
   Map<String, Map<DateTime, List<String>>> _lessonsGrid = {};
+  List<InstructorAbsence> _pendingRequests = [];
+  List<InstructorAbsence> _upcomingAbsences = [];
+  List<InstructorAbsence> _currentAbsences = [];
   bool _isLoading = true;
 
   @override
@@ -33,7 +35,19 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
         Expanded(
           child: _isLoading
               ? const Center(child: CircularProgressIndicator())
-              : _buildGrid(),
+              : SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      // Адаптивна календарна сітка
+                      _buildAdaptiveGrid(),
+                      
+                      const SizedBox(height: 24),
+                      
+                      // Панель з запитами та наближаючимися відсутностями
+                      _buildAbsencesInfoPanel(),
+                    ],
+                  ),
+                ),
         ),
       ],
     );
@@ -104,8 +118,9 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                     SizedBox(height: 8),
                     Text('Кольори:', style: TextStyle(fontWeight: FontWeight.bold)),
                     SizedBox(height: 4),
+                    Text('• Помаранчевий - очікує підтвердження'),
                     Text('• Синій - призначено адміном'),
-                    Text('• Інші - запити користувачів'),
+                    Text('• Інші - підтверджені запити'),
                   ],
                 ),
               ),
@@ -116,108 +131,438 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
     );
   }
 
-  Widget _buildGrid() {
+  Widget _buildAdaptiveGrid() {
     final daysInMonth = _getDaysInMonth();
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isNarrowScreen = screenWidth < 1200;
     
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: SingleChildScrollView(
-        child: DataTable(
-          columnSpacing: 24,
-          headingRowHeight: 56,
-          dataRowHeight: 48,
-          columns: [
-            const DataColumn(
-              label: Text(
-                'Інструктор',
-                style: TextStyle(fontWeight: FontWeight.bold),
+    if (isNarrowScreen) {
+      // Мобільна/планшетна версія - картки замість таблиці
+      return _buildMobileGrid(daysInMonth);
+    } else {
+      // Десктопна версія - таблиця з горизонтальним скролом
+      return _buildDesktopGrid(daysInMonth);
+    }
+  }
+
+  Widget _buildMobileGrid(List<DateTime> daysInMonth) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        children: _instructors.map((instructor) {
+          final instructorName = instructor['fullName'] as String;
+          final instructorId = instructor['uid'] as String;
+          
+          return Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ExpansionTile(
+              title: Text(
+                instructorName,
+                style: const TextStyle(fontWeight: FontWeight.w600),
               ),
-            ),
-            ...daysInMonth.map((day) => DataColumn(
-              label: SizedBox(
-                width: 40,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      '${day.day}',
-                      style: const TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      DateFormat('E', 'uk_UA').format(day),
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: _isWeekend(day) ? Colors.red : Colors.grey.shade600,
-                      ),
-                    ),
-                  ],
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _buildInstructorDaysGrid(instructorId, instructorName, daysInMonth),
                 ),
-              ),
-            )),
-          ],
-          rows: _instructors.map((instructor) {
-            final instructorName = instructor['fullName'] as String;
-            final instructorId = instructor['uid'] as String;
-            
-            return DataRow(
-              cells: [
-                DataCell(
-                  SizedBox(
-                    width: 150,
-                    child: Text(
-                      instructorName,
-                      style: const TextStyle(fontWeight: FontWeight.w500),
-                      overflow: TextOverflow.ellipsis,
-                    ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildInstructorDaysGrid(String instructorId, String instructorName, List<DateTime> daysInMonth) {
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 7, // 7 днів на тиждень
+        childAspectRatio: 1,
+        crossAxisSpacing: 4,
+        mainAxisSpacing: 4,
+      ),
+      itemCount: daysInMonth.length,
+      itemBuilder: (context, index) {
+        final day = daysInMonth[index];
+        final absence = _absencesGrid[instructorId]?[day];
+        final lessons = _lessonsGrid[instructorId]?[day] ?? [];
+        
+        return GestureDetector(
+          onTap: () => _showCellMenu(context, day, instructorId, instructorName),
+          child: Container(
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(4),
+              color: _getCellBackgroundColor(absence, lessons.isNotEmpty, day),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '${day.day}',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                    color: _isWeekend(day) ? Colors.red : Colors.black87,
                   ),
                 ),
-                ...daysInMonth.map((day) {
-                  final absence = _absencesGrid[instructorId]?[day];
-                  final lessons = _lessonsGrid[instructorId]?[day] ?? [];
-                  
-                  return DataCell(
-                    AbsenceGridCell(
-                      date: day,
-                      instructorId: instructorId,
-                      instructorName: instructorName,
-                      absence: absence,
-                      hasLessons: lessons.isNotEmpty,
-                      onTap: () => _showCellMenu(context, day, instructorId, instructorName),
+                if (absence != null || lessons.isNotEmpty)
+                  Text(
+                    _getCellDisplayText(absence, lessons.isNotEmpty),
+                    style: TextStyle(
+                      fontSize: 8,
+                      fontWeight: absence?.isAdminAssignment == true 
+                          ? FontWeight.bold 
+                          : FontWeight.normal,
+                      color: _getCellTextColor(absence, lessons.isNotEmpty, day),
                     ),
-                  );
-                }),
+                  ),
               ],
-            );
-          }).toList(),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDesktopGrid(List<DateTime> daysInMonth) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minWidth: MediaQuery.of(context).size.width - 32,
+          ),
+          child: DataTable(
+            columnSpacing: 16,
+            headingRowHeight: 56,
+            dataRowHeight: 48,
+            columns: [
+              const DataColumn(
+                label: SizedBox(
+                  width: 120,
+                  child: Text(
+                    'Інструктор',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+              ...daysInMonth.map((day) => DataColumn(
+                label: SizedBox(
+                  width: 32,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '${day.day}',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      Text(
+                        DateFormat('E', 'uk_UA').format(day),
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: _isWeekend(day) ? Colors.red : Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )),
+            ],
+            rows: _instructors.map((instructor) {
+              final instructorName = instructor['fullName'] as String;
+              final instructorId = instructor['uid'] as String;
+              
+              return DataRow(
+                cells: [
+                  DataCell(
+                    SizedBox(
+                      width: 120,
+                      child: Text(
+                        instructorName,
+                        style: const TextStyle(fontWeight: FontWeight.w500),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                  ...daysInMonth.map((day) {
+                    final absence = _absencesGrid[instructorId]?[day];
+                    final lessons = _lessonsGrid[instructorId]?[day] ?? [];
+                    
+                    return DataCell(
+                      SizedBox(
+                        width: 32,
+                        child: GestureDetector(
+                          onTap: () => _showCellMenu(context, day, instructorId, instructorName),
+                          child: Container(
+                            height: 32,
+                            decoration: BoxDecoration(
+                              color: _getCellBackgroundColor(absence, lessons.isNotEmpty, day),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: Colors.grey.shade300,
+                                width: 1,
+                              ),
+                            ),
+                            child: Center(
+                              child: Text(
+                                _getCellDisplayText(absence, lessons.isNotEmpty),
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: absence?.isAdminAssignment == true 
+                                      ? FontWeight.bold 
+                                      : FontWeight.normal,
+                                  color: _getCellTextColor(absence, lessons.isNotEmpty, day),
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }),
+                ],
+              );
+            }).toList(),
+          ),
         ),
       ),
     );
   }
 
-  List<DateTime> _getDaysInMonth() {
-    final firstDay = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
-    final lastDay = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
-    
-    return List.generate(
-      lastDay.day,
-      (index) => DateTime(_selectedMonth.year, _selectedMonth.month, index + 1),
+  Widget _buildAbsencesInfoPanel() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Управління відсутностями',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          
+          // Запити що очікують підтвердження
+          if (_pendingRequests.isNotEmpty) ...[
+            _buildPendingRequestsCard(),
+            const SizedBox(height: 16),
+          ],
+          
+          // Поточні відсутності
+          if (_currentAbsences.isNotEmpty) ...[
+            _buildCurrentAbsencesCard(),
+            const SizedBox(height: 16),
+          ],
+          
+          // Наближаючі відсутності
+          if (_upcomingAbsences.isNotEmpty) ...[
+            _buildUpcomingAbsencesCard(),
+            const SizedBox(height: 16),
+          ],
+          
+          // Якщо немає жодних відсутностей
+          if (_pendingRequests.isEmpty && _currentAbsences.isEmpty && _upcomingAbsences.isEmpty)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green.shade600),
+                    const SizedBox(width: 12),
+                    const Text('Немає активних відсутностей або запитів'),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
-  bool _isWeekend(DateTime date) {
-    return date.weekday == DateTime.saturday || date.weekday == DateTime.sunday;
+  Widget _buildPendingRequestsCard() {
+    return Card(
+      color: Colors.orange.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.pending_actions, color: Colors.orange.shade700),
+                const SizedBox(width: 8),
+                Text(
+                  'Запити що очікують підтвердження (${_pendingRequests.length})',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.orange.shade700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ..._pendingRequests.map((absence) => _buildAbsenceListItem(absence, showActions: true)),
+          ],
+        ),
+      ),
+    );
   }
 
-  void _changeMonth(int direction) {
-    setState(() {
-      _selectedMonth = DateTime(
-        _selectedMonth.year,
-        _selectedMonth.month + direction,
-        1,
-      );
-    });
-    _loadData();
+  Widget _buildCurrentAbsencesCard() {
+    return Card(
+      color: Colors.blue.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.event_busy, color: Colors.blue.shade700),
+                const SizedBox(width: 8),
+                Text(
+                  'Поточні відсутності (${_currentAbsences.length})',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue.shade700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ..._currentAbsences.map((absence) => _buildAbsenceListItem(absence)),
+          ],
+        ),
+      ),
+    );
   }
+
+  Widget _buildUpcomingAbsencesCard() {
+    return Card(
+      color: Colors.purple.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.schedule, color: Colors.purple.shade700),
+                const SizedBox(width: 8),
+                Text(
+                  'Наближаючі відсутності (${_upcomingAbsences.length})',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.purple.shade700,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ..._upcomingAbsences.map((absence) => _buildAbsenceListItem(absence)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAbsenceListItem(InstructorAbsence absence, {bool showActions = false}) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(absence.type.emoji),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '${absence.instructorName} - ${absence.type.displayName}',
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              if (absence.isAdminAssignment)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade100,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'Адмін',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blue.shade700,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Період: ${DateFormat('dd.MM.yyyy').format(absence.startDate)} - ${DateFormat('dd.MM.yyyy').format(absence.endDate)}',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          Text(
+            'Причина: ${absence.reason}',
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade600,
+            ),
+          ),
+          if (showActions) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                ElevatedButton(
+                  onPressed: () => _approveAbsence(absence.id),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
+                  child: const Text('Підтвердити', style: TextStyle(fontSize: 12)),
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton(
+                  onPressed: () => _rejectAbsence(absence.id),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
+                  child: const Text('Відхилити', style: TextStyle(fontSize: 12)),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // === МЕТОДИ ЗАВАНТАЖЕННЯ ДАНИХ ===
+
+// === МЕТОДИ ЗАВАНТАЖЕННЯ ДАНИХ ===
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
@@ -227,6 +572,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
         _loadInstructors(),
         _loadAbsences(),
         _loadLessons(),
+        _loadAbsencesInfo(),
       ]);
     } catch (e) {
       if (mounted) {
@@ -248,22 +594,8 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
     final currentGroupId = Globals.profileManager.currentGroupId;
     if (currentGroupId == null) return;
 
-    final groupData = await Globals.firestoreManager.getDocumentsForGroup(
-      groupId: currentGroupId,
-      collection: 'allowed_users',
-    );
-
-    if (groupData.isNotEmpty) {
-      final data = groupData.first.data() as Map<String, dynamic>;
-      final members = Map<String, dynamic>.from(data['members'] ?? {});
-      
-      _instructors = members.entries
-          .map((entry) => Map<String, dynamic>.from(entry.value))
-          .where((member) => member['uid'] != null && member['fullName'] != null)
-          .toList();
-      
-      _instructors.sort((a, b) => (a['fullName'] as String).compareTo(b['fullName'] as String));
-    }
+    final members = await Globals.firestoreManager.getGroupMembersWithDetails(currentGroupId);
+    _instructors = members;
   }
 
   Future<void> _loadAbsences() async {
@@ -275,22 +607,31 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
       endDate: lastDay,
     );
 
+    debugPrint('AbsencesGridTab: Завантажено ${absences.length} відсутностей');
+    for (final absence in absences) {
+      debugPrint('  - ${absence.instructorName}: ${absence.type.displayName} (${absence.status.displayName}) ${DateFormat('dd.MM').format(absence.startDate)}-${DateFormat('dd.MM').format(absence.endDate)}');
+    }
+
     _absencesGrid.clear();
     
     for (final absence in absences) {
       _absencesGrid.putIfAbsent(absence.instructorId, () => {});
       
-      // Заповнюємо всі дні періоду відсутності
-      DateTime current = DateTime(absence.startDate.year, absence.startDate.month, absence.startDate.day);
-      final end = DateTime(absence.endDate.year, absence.endDate.month, absence.endDate.day);
-      
-      while (current.isBefore(end) || current.isAtSameMomentAs(end)) {
-        if (current.month == _selectedMonth.month && current.year == _selectedMonth.year) {
-          _absencesGrid[absence.instructorId]![current] = absence;
+      // Заповнюємо всі дні періоду відсутності тільки для активних та pending статусів
+      if (absence.status == AbsenceStatus.active || absence.status == AbsenceStatus.pending) {
+        DateTime current = DateTime(absence.startDate.year, absence.startDate.month, absence.startDate.day);
+        final end = DateTime(absence.endDate.year, absence.endDate.month, absence.endDate.day);
+        
+        while (current.isBefore(end) || current.isAtSameMomentAs(end)) {
+          if (current.month == _selectedMonth.month && current.year == _selectedMonth.year) {
+            _absencesGrid[absence.instructorId]![current] = absence;
+          }
+          current = current.add(const Duration(days: 1));
         }
-        current = current.add(const Duration(days: 1));
       }
     }
+    
+    debugPrint('AbsencesGridTab: Заповнено сітку для ${_absencesGrid.length} інструкторів');
   }
 
   Future<void> _loadLessons() async {
@@ -319,6 +660,40 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
     }
   }
 
+  Future<void> _loadAbsencesInfo() async {
+    try {
+      final now = DateTime.now();
+      final threeWeeksLater = now.add(const Duration(days: 21));
+      
+      // Отримуємо всі відсутності на найближчі 3 тижні
+      final allAbsences = await Globals.absencesService.getAbsencesForPeriod(
+        startDate: now.subtract(const Duration(days: 1)), // включаємо сьогодні
+        endDate: threeWeeksLater,
+      );
+
+      _pendingRequests = allAbsences
+          .where((a) => a.status == AbsenceStatus.pending)
+          .toList();
+
+      _currentAbsences = allAbsences
+          .where((a) => a.status == AbsenceStatus.active && a.isActiveOnDate(now))
+          .toList();
+
+      _upcomingAbsences = allAbsences
+          .where((a) => 
+              a.status == AbsenceStatus.active && 
+              a.startDate.isAfter(now) && 
+              a.startDate.isBefore(threeWeeksLater))
+          .toList();
+
+      debugPrint('AbsencesInfo: Pending: ${_pendingRequests.length}, Current: ${_currentAbsences.length}, Upcoming: ${_upcomingAbsences.length}');
+    } catch (e) {
+      debugPrint('Помилка завантаження інфо про відсутності: $e');
+    }
+  }
+
+  // === МЕТОДИ ДІЙ ===
+
   void _showCellMenu(BuildContext context, DateTime date, String instructorId, String instructorName) {
     final absence = _absencesGrid[instructorId]?[date];
     
@@ -331,7 +706,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (absence != null) ...[
-              Text('Поточна відсутність:'),
+              const Text('Поточна відсутність:'),
               const SizedBox(height: 8),
               Container(
                 padding: const EdgeInsets.all(8),
@@ -368,22 +743,35 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
               },
               child: const Text('Призначити'),
             ),
-          ] else if (absence.status == AbsenceStatus.pending) ...[
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _approveAbsence(absence.id);
-              },
-              child: const Text('Підтвердити'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _rejectAbsence(absence.id);
-              },
-              style: TextButton.styleFrom(foregroundColor: Colors.red),
-              child: const Text('Відхилити'),
-            ),
+          ] else ...[
+            if (absence.status == AbsenceStatus.pending) ...[
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _approveAbsence(absence.id);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                child: const Text('Підтвердити'),
+              ),
+              const SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _rejectAbsence(absence.id);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                child: const Text('Відхилити'),
+              ),
+            ] else if (absence.status == AbsenceStatus.active) ...[
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _cancelAbsence(absence.id);
+                },
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                child: const Text('Скасувати'),
+              ),
+            ],
           ],
         ],
       ),
@@ -449,6 +837,108 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
       }
     }
   }
+
+  Future<void> _cancelAbsence(String absenceId) async {
+    try {
+      await Globals.absencesService.cancelAbsence(absenceId);
+      _loadData();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Відсутність скасовано'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Помилка: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  // === ДОПОМІЖНІ МЕТОДИ ===
+
+  List<DateTime> _getDaysInMonth() {
+    final firstDay = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
+    final lastDay = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
+    
+    return List.generate(
+      lastDay.day,
+      (index) => DateTime(_selectedMonth.year, _selectedMonth.month, index + 1),
+    );
+  }
+
+  bool _isWeekend(DateTime date) {
+    return date.weekday == DateTime.saturday || date.weekday == DateTime.sunday;
+  }
+
+  void _changeMonth(int direction) {
+    setState(() {
+      _selectedMonth = DateTime(
+        _selectedMonth.year,
+        _selectedMonth.month + direction,
+        1,
+      );
+    });
+    _loadData();
+  }
+
+  // Допоміжні методи для клітинок
+  String _getCellDisplayText(InstructorAbsence? absence, bool hasLessons) {
+    if (absence != null) {
+      return absence.shortSymbol;
+    }
+    if (hasLessons) {
+      return 'З';
+    }
+    return '';
+  }
+
+  Color _getCellBackgroundColor(InstructorAbsence? absence, bool hasLessons, DateTime date) {
+    if (absence != null) {
+      if (absence.status == AbsenceStatus.pending) {
+        return Colors.orange.withOpacity(0.3);
+      } else {
+        return absence.displayColor.withOpacity(0.2);
+      }
+    }
+    
+    if (hasLessons) {
+      return Colors.blue.shade50;
+    }
+    
+    if (_isWeekend(date)) {
+      return Colors.grey.shade100;
+    }
+    
+    return Colors.white;
+  }
+
+  Color _getCellTextColor(InstructorAbsence? absence, bool hasLessons, DateTime date) {
+    if (absence != null) {
+      if (absence.status == AbsenceStatus.pending) {
+        return Colors.orange.shade700;
+      } else {
+        return absence.displayColor;
+      }
+    }
+    
+    if (hasLessons) {
+      return Colors.blue.shade700;
+    }
+    
+    if (_isWeekend(date)) {
+      return Colors.grey.shade600;
+    }
+    
+    return Colors.black87;
+  }
 }
 
 class _LegendItem extends StatelessWidget {
@@ -487,3 +977,5 @@ class _LegendItem extends StatelessWidget {
     );
   }
 }
+
+
