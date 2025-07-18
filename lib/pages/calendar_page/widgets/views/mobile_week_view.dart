@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../models/lesson_model.dart';
+import '../../../../models/lesson_model.dart';
 import '../../calendar_utils.dart';
 import '../mobile_lesson_card.dart';
 

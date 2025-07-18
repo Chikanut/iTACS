@@ -1,7 +1,6 @@
 // file_cache_service.dart (Hive для всіх платформ)
 
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'file_cache_entry.dart';

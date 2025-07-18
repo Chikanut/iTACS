@@ -9,6 +9,8 @@ import 'services/firestore_manager.dart';
 import 'services/profile_manager.dart';
 import 'services/reports_service.dart';
 import 'services/templates_service.dart';
+import 'services/calendar_service.dart';
+import 'services/absences_service.dart';
 
 class Globals {
   static final FirebaseAuth firebaseAuth = FirebaseAuth.instance;
@@ -18,6 +20,8 @@ class Globals {
   static final ProfileManager profileManager = ProfileManager(); 
   static final ReportsService reportsService = ReportsService(); // 👈 ДОДАЄМО
   static final GroupTemplatesService groupTemplatesService = GroupTemplatesService();
+  static final CalendarService calendarService = CalendarService(); // 👈 ДОДАЄМО
+  static final AbsencesService absencesService = AbsencesService(); // 👈 ДОДАЄМО
   static late FileManager fileManager;
 
 static Future<void> init() async {

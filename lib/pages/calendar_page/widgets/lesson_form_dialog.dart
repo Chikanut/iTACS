@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import '../models/lesson_model.dart';
+import '../../../models/lesson_model.dart';
 import '../../../services/calendar_service.dart';
 import '../calendar_utils.dart';
 import '../../../globals.dart';
@@ -481,7 +481,7 @@ Row(
             return null;
           }
 
-          if (value != null && !LessonStatusUtils.isValidTrainingPeriod(value.trim())) {
+          if (!LessonStatusUtils.isValidTrainingPeriod(value.trim())) {
             return 'Некоректний формат. Використовуйте: дд.мм.рррр - дд.мм.рррр';
           }
           return null;

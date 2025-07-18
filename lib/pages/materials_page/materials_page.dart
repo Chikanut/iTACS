@@ -254,11 +254,11 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
               if (selectedTags.isNotEmpty)
                 TextButton(
                   onPressed: () => setState(() => selectedTags.clear()),
-                  child: const Text('Очистити'),
                   style: TextButton.styleFrom(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     minimumSize: const Size(0, 32),
                   ),
+                  child: const Text('Очистити'),
                 ),
             ],
           ),
@@ -365,8 +365,8 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
       floatingActionButton: canEdit
           ? FloatingActionButton(
               onPressed: () => showAddMaterialDialog(context, fetchMaterials),
-              child: const Icon(Icons.add),
               tooltip: 'Додати матеріал',
+              child: const Icon(Icons.add),
             )
           : null,
     );

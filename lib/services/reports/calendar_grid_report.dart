@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:excel/excel.dart' as excel;
 import 'package:intl/intl.dart';
 import 'base_report.dart';
-import '../../pages/calendar_page/models/lesson_model.dart';
+import '../../models/lesson_model.dart';
 import '../../pages/calendar_page/calendar_utils.dart';
 import '../../globals.dart';
 import '../dashboard_service.dart';
@@ -471,6 +471,6 @@ class CalendarGridReport extends BaseReport {
       return start;
     }
     
-    return '${start}-${end}';
+    return '$start-$end';
   }
 }

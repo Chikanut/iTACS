@@ -3,7 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:math' as math;
-import '../../models/lesson_model.dart';
+import '../../../../models/lesson_model.dart';
 import '../../calendar_utils.dart';
 
 class MonthView extends StatelessWidget {

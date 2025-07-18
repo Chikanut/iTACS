@@ -1,7 +1,7 @@
 // lib/pages/calendar_page/widgets/views/mobile_day_view.dart
 
 import 'package:flutter/material.dart';
-import '../../models/lesson_model.dart';
+import '../../../../models/lesson_model.dart';
 import '../../calendar_utils.dart';
 import '../mobile_lesson_card.dart';
 

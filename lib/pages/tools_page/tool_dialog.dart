@@ -378,8 +378,8 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
           Icon(isEditing ? Icons.edit : Icons.add),
           const SizedBox(width: 8),
           Text(isEditing 
-              ? '${isFolder ? 'Редагувати папку' : 'Редагувати інструмент'}'
-              : '${isFolder ? 'Нова папка' : 'Новий інструмент'}'),
+              ? isFolder ? 'Редагувати папку' : 'Редагувати інструмент'
+              : isFolder ? 'Нова папка' : 'Новий інструмент'),
         ],
       ),
       content: SizedBox(

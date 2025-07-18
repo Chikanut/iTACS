@@ -1,7 +1,7 @@
 // lib/pages/calendar_page/widgets/views/year_view.dart
 
 import 'package:flutter/material.dart';
-import '../../models/lesson_model.dart';
+import '../../../../models/lesson_model.dart';
 import '../../calendar_utils.dart';
 
 class YearView extends StatelessWidget {
@@ -97,7 +97,7 @@ class YearView extends StatelessWidget {
         final rows = (12 / crossAxisCount).ceil();
         final gridHeight = rows * maxCellHeight + (rows - 1) * 16; // +16 для mainAxisSpacing
         
-        return Container(
+        return SizedBox(
           height: gridHeight, // Динамічна висота замість maxHeight
           child: GridView.builder(
             shrinkWrap: true,

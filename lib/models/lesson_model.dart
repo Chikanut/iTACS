@@ -251,7 +251,7 @@ class LessonModel {
 
   /// Рядок з інформацією про дату та час
   String get dateTimeString {
-    return '${dateString} ${timeString}';
+    return '$dateString $timeString';
   }
 
   @override
@@ -411,13 +411,13 @@ class Recurrence {
     
     switch (type) {
       case 'daily':
-        typeText = interval == 1 ? 'щодня' : '${intervalText}дні';
+        typeText = interval == 1 ? 'щодня' : '$intervalTextдні';
         break;
       case 'weekly':
-        typeText = interval == 1 ? 'щотижня' : '${intervalText}тижні';
+        typeText = interval == 1 ? 'щотижня' : '$intervalTextтижні';
         break;
       case 'monthly':
-        typeText = interval == 1 ? 'щомісяця' : '${intervalText}місяці';
+        typeText = interval == 1 ? 'щомісяця' : '$intervalTextмісяці';
         break;
       default:
         typeText = 'невідомо';

@@ -1,7 +1,7 @@
 // lib/pages/calendar_page/widgets/views/desktop_week_view.dart
 
 import 'package:flutter/material.dart';
-import '../../models/lesson_model.dart';
+import '../../../../models/lesson_model.dart';
 import '../../calendar_utils.dart';
 import '../../../../services/calendar_service.dart';
 
@@ -52,7 +52,7 @@ class DesktopWeekView extends StatelessWidget {
     final days = CalendarUtils.getWeekDays(selectedDate);
     final displayDays = showSingleDay ? [selectedDate] : days;
     
-    return Container(
+    return SizedBox(
       height: 60,
       child: Row(
         children: [
@@ -114,7 +114,7 @@ class DesktopWeekView extends StatelessWidget {
                 ),
               ),
             );
-          }).toList(),
+          }),
         ],
       ),
     );
@@ -122,7 +122,7 @@ class DesktopWeekView extends StatelessWidget {
 
   Widget _buildTimeView(BuildContext context) {
     return SingleChildScrollView(
-      child: Container(
+      child: SizedBox(
         height: (maxHour - minHour) * hourHeight,
         child: Row(
           children: [

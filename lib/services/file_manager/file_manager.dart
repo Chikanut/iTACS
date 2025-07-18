@@ -107,20 +107,18 @@ static FileManager? _instance;
         debugPrint('FileManager: Завантажуємо файл з сервера: $fileId');
         fileBytes = await _downloaderService.downloadFile(fileId);
         
-        if (fileBytes != null) {
-          // Зберігаємо в кеш з додатковими метаданими
-          await _cacheService.cacheFile(
-            fileId: fileId,
-            name: metadata.filename,
-            extension: metadata.extension,
-            modifiedDate: metadata.modifiedDate ?? DateTime.now().toIso8601String(),
-            data: fileBytes,
-            mimeType: _getMimeType(metadata.extension), // Додаємо MIME тип
-          );
-          
-          debugPrint('FileManager: Файл збережено в кеш: ${metadata.filename} (${fileBytes.length} байт)');
-        }
-      }
+        // Зберігаємо в кеш з додатковими метаданими
+        await _cacheService.cacheFile(
+          fileId: fileId,
+          name: metadata.filename,
+          extension: metadata.extension,
+          modifiedDate: metadata.modifiedDate ?? DateTime.now().toIso8601String(),
+          data: fileBytes,
+          mimeType: _getMimeType(metadata.extension), // Додаємо MIME тип
+        );
+        
+        debugPrint('FileManager: Файл збережено в кеш: ${metadata.filename} (${fileBytes.length} байт)');
+            }
 
       if (fileBytes == null) {
         throw FileAccessException('Файл не знайдено після завантаження або кешування', fileId);
@@ -163,7 +161,6 @@ static FileManager? _instance;
             throw FileMetadataException('Не вдалося отримати метадані для файлу', fileId);
           }
         }
-      if (metadata == null) return false;
 
       final shouldUpdate = _cacheService.shouldUpdateFile(
         fileId, 
@@ -174,16 +171,14 @@ static FileManager? _instance;
         debugPrint('FileManager: Оновлюємо файл $fileId');
         final fileBytes = await _downloaderService.downloadFile(fileId);
         
-        if (fileBytes != null) {
-          await _cacheService.updateCachedFile(
-            fileId: fileId,
-            modifiedDate: metadata.modifiedDate ?? DateTime.now().toIso8601String(),
-            data: fileBytes,
-            mimeType: _getMimeType(metadata.extension),
-          );
-          return true;
-        }
-      }
+        await _cacheService.updateCachedFile(
+          fileId: fileId,
+          modifiedDate: metadata.modifiedDate ?? DateTime.now().toIso8601String(),
+          data: fileBytes,
+          mimeType: _getMimeType(metadata.extension),
+        );
+        return true;
+            }
 
       return false;
     } catch (e) {
@@ -226,7 +221,6 @@ static FileManager? _instance;
             throw FileMetadataException('Не вдалося отримати метадані для файлу', fileId);
           }
         }
-        if (metadata == null) continue;
         
         final shouldUpdate = _cacheService.shouldUpdateFile(
           fileId, 

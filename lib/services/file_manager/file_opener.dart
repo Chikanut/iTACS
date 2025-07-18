@@ -1,7 +1,6 @@
 // file_opener.dart
 
 import 'package:flutter/foundation.dart';
-import 'file_metadata.dart';
 
 // Умовний імпорт - тільки для веб
 import '../html_stub.dart'

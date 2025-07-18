@@ -2,7 +2,7 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import '../pages/calendar_page/models/lesson_model.dart';
+import '../models/lesson_model.dart';
 import '../../../globals.dart';
 import '../pages/calendar_page/calendar_utils.dart';
 
@@ -35,6 +35,43 @@ class CalendarService {
           .collection('items')
           .where('startTime', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
           .where('startTime', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
+          .orderBy('startTime')
+          .get();
+
+      final lessons = querySnapshot.docs
+          .map((doc) => LessonModel.fromFirestore(doc.data(), doc.id))
+          .toList();
+
+      debugPrint('CalendarService: Знайдено ${lessons.length} занять');
+      return lessons;
+    } catch (e) {
+      debugPrint('CalendarService: Помилка завантаження занять: $e');
+      return [];
+    }
+  }
+
+  Future<List<LessonModel>> getLessonsForPeriodByInstructor({
+    required DateTime startDate,
+    required DateTime endDate,
+    String? instructorId,
+  }) async {
+    try {
+      final currentGroupId = Globals.profileManager.currentGroupId;
+      if (currentGroupId == null) {
+        debugPrint('CalendarService: Немає активної групи');
+        return [];
+      }
+
+      debugPrint('CalendarService: Завантаження занять для групи $currentGroupId від $startDate до $endDate');
+
+      // Запит до Firestore
+      final querySnapshot = await _firestore
+          .collection('lessons')
+          .doc(currentGroupId)
+          .collection('items')
+          .where('startTime', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where('startTime', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
+          .where('instructorId', isEqualTo: instructorId)
           .orderBy('startTime')
           .get();
 

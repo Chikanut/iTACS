@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../models/calendar_view_type.dart';
-import '../models/lesson_model.dart';
+import '../../../models/lesson_model.dart';
 import '../../../services/calendar_service.dart';
 import '../calendar_utils.dart';
 import 'views/mobile_day_view.dart';

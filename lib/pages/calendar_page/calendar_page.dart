@@ -3,7 +3,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'models/calendar_view_type.dart';
-import 'models/lesson_model.dart';
+import '../../models/lesson_model.dart';
 import 'widgets/calendar_header.dart';
 import 'widgets/calendar_grid.dart';
 import 'widgets/lesson_details_dialog.dart';

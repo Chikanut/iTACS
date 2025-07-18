@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'lesson_model.dart';
+import '../../../models/lesson_model.dart';
 
 class CalendarEvent {
   final LessonModel lesson;

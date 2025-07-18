@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
-import '../pages/calendar_page/models/lesson_model.dart';
+import '../models/lesson_model.dart';
 import '../pages/calendar_page/calendar_utils.dart';
 import '../globals.dart';
 

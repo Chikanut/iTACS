@@ -3,7 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import '../globals.dart';
 import '../services/dashboard_service.dart';
-import '../pages/calendar_page/models/lesson_model.dart';
+import '../models/lesson_model.dart';
 import '../pages/calendar_page/calendar_utils.dart';
 import '../pages/calendar_page/widgets/lesson_details_dialog.dart';
 import '../services/reports_service.dart';

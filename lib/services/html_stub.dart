@@ -1,7 +1,6 @@
 // html_stub.dart
 // Заглушка для dart:html для мобільних платформ
 
-import 'dart:typed_data';
 
 class Blob {
   Blob(List<dynamic> blobParts, [String? type]);
