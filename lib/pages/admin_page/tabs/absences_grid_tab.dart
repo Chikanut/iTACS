@@ -111,16 +111,16 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
           _buildMonthNavigation(),
           
           const SizedBox(height: 16),
-          
-          // Інформаційна панель
-          _buildAbsencesInfoPanel(),
-          
-          const SizedBox(height: 24),
-          
+
           // Адаптивна сітка
           useMobileLayout 
               ? _buildMobileGrid(daysInMonth)
               : _buildResponsiveDesktopGrid(daysInMonth),
+
+          const SizedBox(height: 24),
+          
+          // Інформаційна панель
+          _buildAbsencesInfoPanel(),
           
           const SizedBox(height: 32),
         ],
@@ -458,6 +458,22 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
             ),
             const SizedBox(height: 16),
             
+            // 🎯 ЗАНЯТТЯ - ПОКАЗУЄМО СПОЧАТКУ
+            if (lessons.isNotEmpty) ...[
+              ListTile(
+                leading: Icon(Icons.school, color: Colors.blue.shade700),
+                title: Text('Заняття (${lessons.length})'),
+                subtitle: Text(lessons.map((l) => l.title).join(', ')),
+                trailing: const Icon(Icons.arrow_forward_ios),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showLessonDetails(context, lessons, instructorName, day);
+                },
+              ),
+              const Divider(),
+            ],
+            
+            // ВІДСУТНОСТІ
             if (absence != null) ...[
               ListTile(
                 leading: Text(absence.type.emoji, style: const TextStyle(fontSize: 24)),
@@ -504,16 +520,6 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                 },
               ),
             ],
-            
-            if (lessons.isNotEmpty) ...[
-              const Divider(),
-              Text('Заняття на цей день: ${lessons.length}'),
-              ...lessons.take(3).map((lesson) => ListTile(
-                dense: true,
-                title: Text(lesson.title),
-                subtitle: Text('${lesson.startTime} - ${lesson.endTime}'),
-              )),
-            ],
           ],
         ),
       ),
@@ -558,9 +564,91 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
   }
 
   Future<void> _loadLessons() async {
-    // Завантаження занять для показу в клітинках
+    final firstDay = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
+    final lastDay = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
+
+    final lessons = await Globals.calendarService.getLessonsForPeriod(
+      startDate: firstDay,
+      endDate: lastDay,
+    );
+
     _lessonsGrid.clear();
-    // TODO: Реалізувати завантаження занять з календарю
+    
+    for (final lesson in lessons) {
+      if (lesson.instructorId.isEmpty) continue;
+      
+      final lessonDate = DateTime(
+        lesson.startTime.year,
+        lesson.startTime.month,
+        lesson.startTime.day,
+      );
+      
+      _lessonsGrid.putIfAbsent(lesson.instructorId, () => {});
+      _lessonsGrid[lesson.instructorId]!.putIfAbsent(lessonDate, () => []);
+      _lessonsGrid[lesson.instructorId]![lessonDate]!.add(lesson); // 🎯 Додаємо весь об'єкт заняття
+    }
+  }
+
+  void _showLessonDetails(BuildContext context, List<LessonModel> lessons, String instructorName, DateTime date) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        padding: const EdgeInsets.all(16),
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.7,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Заняття ${DateFormat('dd MMMM yyyy', 'uk_UA').format(date)}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+            ),
+            Text(
+              'Інструктор: $instructorName',
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+            const SizedBox(height: 16),
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: lessons.length,
+                itemBuilder: (context, index) {
+                  final lesson = lessons[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    child: ListTile(
+                      leading: Icon(
+                        lesson.isPast ? Icons.check_circle : Icons.schedule,
+                        color: lesson.isPast ? Colors.green : Colors.orange,
+                      ),
+                      title: Text(lesson.title),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('${DateFormat('HH:mm').format(lesson.startTime)} - ${DateFormat('HH:mm').format(lesson.endTime)}'),
+                          if (lesson.groupName.isNotEmpty) Text('Група: ${lesson.groupName}'),
+                          if (lesson.location.isNotEmpty) Text('Локація: ${lesson.location}'),
+                        ],
+                      ),
+                      trailing: lesson.isPast
+                          ? const Icon(Icons.done, color: Colors.green)
+                          : null,
+                      onTap: () {
+                        Navigator.pop(context);
+                        // Тут можна додати навігацію до деталей заняття
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   Future<void> _loadAbsencesSummary() async {
