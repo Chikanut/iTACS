@@ -180,7 +180,8 @@ class _MainScaffoldState extends State<MainScaffold> {
                     PopupMenuButton<String>(
                       onSelected: (selectedGroupId) async {
                         final groupName = groupNames[selectedGroupId]!;
-                        await Globals.profileManager.setCurrentGroup(selectedGroupId, groupName);
+                        final role = Globals.profileManager.getRoleInGroup(selectedGroupId);
+                        await Globals.profileManager.setCurrentGroup(selectedGroupId, groupName, role);
                         if (!mounted) return;
                         Navigator.of(context).pushReplacement(
                           MaterialPageRoute(builder: (_) => const EmailCheckPage()),

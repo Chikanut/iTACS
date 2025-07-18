@@ -505,8 +505,8 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
     final email = user.email!.toLowerCase();
     final uid = user.uid;
 
-    final roles = await getUserRolesPerGroup(email);
-    await Globals.profileManager.loadSavedGroupWithFallback(roles);
+    final groupNames = await getGroupNamesForUser(email);
+    await Globals.profileManager.loadSavedGroupWithFallback(groupNames);
 
     final groups = await getUserGroups(email);
     final isAllowed = groups.isNotEmpty;

@@ -163,40 +163,6 @@ class _HomePageState extends State<HomePage> {
           ],
         ),
         titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
-        background: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Theme.of(context).primaryColor,
-                Theme.of(context).primaryColor.withOpacity(0.8),
-              ],
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.only(top: 40, right: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                // Кнопка адмін-панелі (тільки для адмінів)
-                if (Globals.profileManager.currentRole == 'admin')
-                  IconButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const AdminPanelPage()),
-                    ),
-                    icon: const Icon(
-                      Icons.admin_panel_settings,
-                      color: Colors.white,
-                      size: 28,
-                    ),
-                    tooltip: 'Адмін-панель',
-                  ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }
