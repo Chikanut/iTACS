@@ -87,6 +87,36 @@ class AssignmentDetails {
       instructions: map['instructions'],
     );
   }
+
+  DateTime? get orderDate {
+    // Якщо orderNumber містить дату у певному форматі, тут можна її розпарсити.
+    // Наприклад, якщо orderNumber = "2024-07-18/123", то:
+    if (orderNumber == null) return null;
+    final match = RegExp(r'^(\d{4}-\d{2}-\d{2})').firstMatch(orderNumber!);
+    if (match != null) {
+      try {
+        return DateTime.parse(match.group(1)!);
+      } catch (_) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  String? get orderBase {
+    if (orderNumber == null) return null;
+    // Якщо orderNumber у форматі "2024-07-18/123", повертає "123"
+    final match = RegExp(r'^\d{4}-\d{2}-\d{2}/(.+)$').firstMatch(orderNumber!);
+    if (match != null) {
+      return match.group(1);
+    }
+    // Якщо формат інший, повертає все після першого "/"
+    final parts = orderNumber!.split('/');
+    if (parts.length > 1) {
+      return parts.sublist(1).join('/');
+    }
+    return null;
+  }
 }
 
 class InstructorAbsence {

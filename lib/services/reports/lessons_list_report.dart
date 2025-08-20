@@ -6,6 +6,8 @@ import 'base_report.dart';
 import '../../models/lesson_model.dart';
 import '../../globals.dart';
 import '../dashboard_service.dart';
+import '../absences_service.dart';
+import '../../models/instructor_absence.dart';
 
 class LessonsListReport extends BaseReport {
   @override
@@ -198,7 +200,10 @@ class LessonsListReport extends BaseReport {
 
     // Генеруємо звіт
     _createHeader(sheet, startDate, endDate, parameters);
-    _createContent(sheet, lessonsByInstructor);
+    
+    // ВАЖЛИВО: тепер _createContent асинхронний
+    await _createContent(sheet, lessonsByInstructor, startDate, endDate);
+    
     _formatSheet(sheet);
 
     return Uint8List.fromList(excel.encode()!);
@@ -312,7 +317,7 @@ class LessonsListReport extends BaseReport {
     );
   }
 
-  void _createContent(ex.Sheet sheet, Map<String, List<LessonModel>> lessonsByInstructor) {
+  Future<void> _createContent(ex.Sheet sheet, Map<String, List<LessonModel>> lessonsByInstructor, DateTime startDate, DateTime endDate) async {
     int currentRow = 5; // Почати після заголовків
 
     // Заголовки таблиці
@@ -330,17 +335,33 @@ class LessonsListReport extends BaseReport {
     }
     currentRow++;
 
+    // Отримуємо всі відсутності за період
+    final absencesService = AbsencesService();
+    final allAbsences = await absencesService.getAbsencesForPeriod(
+      startDate: startDate,
+      endDate: endDate,
+    );
+
     // Сортуємо інструкторів по алфавіту
     final sortedInstructors = lessonsByInstructor.keys.toList()..sort();
 
     for (final instructorName in sortedInstructors) {
       final lessons = lessonsByInstructor[instructorName]!;
+      
+      // Знаходимо ID інструктора для перевірки відсутностей
+      final instructorId = lessons.isNotEmpty ? lessons.first.instructorId : '';
+      
+      // Фільтруємо відсутності цього інструктора
+      final instructorAbsences = allAbsences.where((absence) => 
+        absence.instructorId == instructorId && 
+        absence.status == AbsenceStatus.active
+      ).toList();
 
       // Заголовок інструктора
       final instructorHeaderCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
       instructorHeaderCell.value = ex.TextCellValue('ІНСТРУКТОР: $instructorName');
       sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
-                 ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
+                ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
 
       instructorHeaderCell.cellStyle = ex.CellStyle(
         fontSize: 11,
@@ -349,6 +370,14 @@ class LessonsListReport extends BaseReport {
         horizontalAlign: ex.HorizontalAlign.Left,
       );
       currentRow++;
+
+      // Додаємо інформацію про відсутності ПЕРЕД заняттями
+      if (instructorAbsences.isNotEmpty) {
+        for (final absence in instructorAbsences) {
+          currentRow = _addAbsenceInfo(sheet, absence, currentRow);
+        }
+        currentRow++; // Додаємо відступ після відсутностей
+      }
 
       // Заняття інструктора
       for (final lesson in lessons) {
@@ -391,7 +420,7 @@ class LessonsListReport extends BaseReport {
       final summaryCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
       summaryCell.value = ex.TextCellValue('Всього занять: ${lessons.length}');
       sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
-                 ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
+                ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
       
       summaryCell.cellStyle = ex.CellStyle(
         fontSize: 11,
@@ -403,42 +432,157 @@ class LessonsListReport extends BaseReport {
     }
 
     // Загальна статистика в кінці
-    if (lessonsByInstructor.isNotEmpty) {
-      final totalLessons = lessonsByInstructor.values
-          .fold(0, (sum, lessons) => sum + lessons.length);
-      final totalInstructors = lessonsByInstructor.length;
+    _createFinalStatistics(sheet, lessonsByInstructor, currentRow);
+  }
 
-      final totalHeaderCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
-      totalHeaderCell.value = ex.TextCellValue('ЗАГАЛЬНА СТАТИСТИКА');
+  void _createFinalStatistics(ex.Sheet sheet, Map<String, List<LessonModel>> lessonsByInstructor, int startRow) {
+    if (lessonsByInstructor.isEmpty) return;
+    
+    int currentRow = startRow;
+    final totalLessons = lessonsByInstructor.values
+        .fold(0, (sum, lessons) => sum + lessons.length);
+    final totalInstructors = lessonsByInstructor.length;
+
+    final totalHeaderCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+    totalHeaderCell.value = ex.TextCellValue('ЗАГАЛЬНА СТАТИСТИКА');
+    sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
+              ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
+
+    totalHeaderCell.cellStyle = ex.CellStyle(
+      fontSize: 12,
+      bold: true,
+      backgroundColorHex: ex.ExcelColor.fromHexString('#4472C4'),
+      fontColorHex: ex.ExcelColor.fromHexString('#FFFFFF'),
+      horizontalAlign: ex.HorizontalAlign.Center,
+    );
+    currentRow++;
+
+    // Кількість інструкторів
+    final instructorsCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+    instructorsCell.value = ex.TextCellValue('Інструкторів: $totalInstructors');
+    sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
+              ex.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow));
+
+    // Загальна кількість занять
+    final totalCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow));
+    totalCell.value = ex.TextCellValue('Всього занять: $totalLessons');
+    sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow), 
+              ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
+  }
+
+  // Новий метод для додавання інформації про відсутність
+  int _addAbsenceInfo(ex.Sheet sheet, InstructorAbsence absence, int startRow) {
+    int currentRow = startRow;
+    
+    // Основна інформація про відсутність
+    final absenceTypeText = _getAbsenceDisplayText(absence.type);
+    final absenceMainCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+    absenceMainCell.value = ex.TextCellValue('**$absenceTypeText**');
+    sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
+              ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
+    
+    absenceMainCell.cellStyle = ex.CellStyle(
+      fontSize: 11,
+      bold: true,
+      backgroundColorHex: ex.ExcelColor.fromHexString('#FFE6E6'),
+      fontColorHex: ex.ExcelColor.fromHexString('#CC0000'),
+      horizontalAlign: ex.HorizontalAlign.Left,
+    );
+    currentRow++;
+
+    // Період відсутності
+    final startDateText = DateFormat('dd.MM.yyyy').format(absence.startDate);
+    final endDateText = DateFormat('dd.MM.yyyy').format(absence.endDate);
+    final periodCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+    periodCell.value = ex.TextCellValue('**з $startDateText по $endDateText**');
+    sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
+              ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
+    
+    periodCell.cellStyle = ex.CellStyle(
+      fontSize: 11,
+      bold: true,
+      backgroundColorHex: ex.ExcelColor.fromHexString('#FFE6E6'),
+      fontColorHex: ex.ExcelColor.fromHexString('#CC0000'),
+      horizontalAlign: ex.HorizontalAlign.Left,
+    );
+    currentRow++;
+
+    // Інформація про наказ (якщо є)
+    if (absence.assignmentDetails != null) {
+      final details = absence.assignmentDetails!;
+      
+      // Підстава наказу
+      if (details.orderBase != null && details.orderBase!.isNotEmpty) {
+        final orderBaseCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+        orderBaseCell.value = ex.TextCellValue('**${details.orderBase}**');
+        sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
+                  ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
+        
+        orderBaseCell.cellStyle = ex.CellStyle(
+          fontSize: 11,
+          bold: true,
+          backgroundColorHex: ex.ExcelColor.fromHexString('#FFE6E6'),
+          fontColorHex: ex.ExcelColor.fromHexString('#CC0000'),
+          horizontalAlign: ex.HorizontalAlign.Left,
+        );
+        currentRow++;
+      }
+
+      // Номер та дата наказу
+      if (details.orderNumber != null && details.orderNumber!.isNotEmpty) {
+        final orderDateText = details.orderDate != null 
+            ? DateFormat('dd.MM.yyyy').format(details.orderDate!)
+            : '';
+        
+        final orderNumberText = orderDateText.isNotEmpty 
+            ? '**№${details.orderNumber} від $orderDateText**'
+            : '**№${details.orderNumber}**';
+        
+        final orderNumberCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+        orderNumberCell.value = ex.TextCellValue(orderNumberText);
+        sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
+                  ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
+        
+        orderNumberCell.cellStyle = ex.CellStyle(
+          fontSize: 11,
+          bold: true,
+          backgroundColorHex: ex.ExcelColor.fromHexString('#FFE6E6'),
+          fontColorHex: ex.ExcelColor.fromHexString('#CC0000'),
+          horizontalAlign: ex.HorizontalAlign.Left,
+        );
+        currentRow++;
+      }
+    } else if (absence.documentNumber != null && absence.documentNumber!.isNotEmpty) {
+      // Якщо є documentNumber, але немає assignmentDetails
+      final docCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+      docCell.value = ex.TextCellValue('**документ №${absence.documentNumber}**');
       sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
-                 ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
-
-      totalHeaderCell.cellStyle = ex.CellStyle(
-        fontSize: 12,
-        bold: true,
-        backgroundColorHex: ex.ExcelColor.fromHexString('#4472C4'),
-        fontColorHex: ex.ExcelColor.fromHexString('#FFFFFF'),
-        horizontalAlign: ex.HorizontalAlign.Center,
-      );
-      currentRow++;
-
-      // Кількість інструкторів
-      final instructorsCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
-      instructorsCell.value = ex.TextCellValue('Інструкторів: $totalInstructors');
-      sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
-                 ex.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow));
-
-      // Загальна кількість занять
-      final totalCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow));
-      totalCell.value = ex.TextCellValue('Всього занять: $totalLessons');
-      sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow), 
-                 ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
-
-      instructorsCell.cellStyle = totalCell.cellStyle = ex.CellStyle(
+                ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
+      
+      docCell.cellStyle = ex.CellStyle(
         fontSize: 11,
         bold: true,
-        horizontalAlign: ex.HorizontalAlign.Center,
+        backgroundColorHex: ex.ExcelColor.fromHexString('#FFE6E6'),
+        fontColorHex: ex.ExcelColor.fromHexString('#CC0000'),
+        horizontalAlign: ex.HorizontalAlign.Left,
       );
+      currentRow++;
+    }
+
+    return currentRow;
+  }
+
+  // Допоміжний метод для отримання читабельного тексту типу відсутності
+  String _getAbsenceDisplayText(AbsenceType type) {
+    switch (type) {
+      case AbsenceType.vacation:
+        return 'ВІДПУСТКА';
+      case AbsenceType.businessTrip:
+        return 'ВІДРЯДЖЕННЯ';
+      case AbsenceType.sickLeave:
+        return 'ЛІКАРНЯНИЙ';
+      case AbsenceType.duty:
+        return 'ДОБОВЕ ЧЕРГУВАННЯ';
     }
   }
 
