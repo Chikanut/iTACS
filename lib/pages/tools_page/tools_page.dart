@@ -617,22 +617,26 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
                               final isFolder = item['type'] == 'folder';
                               final icon = iconFromData(item, isFolder);
 
-                              return ToolTile(
-                                title: item['title'] ?? '',
-                                description: item['description'],
-                                icon: icon,
-                                isFolder: isFolder,
-                                isAdmin: isAdmin,
-                                onTap: () async {
-                                  if (isFolder) {
-                                    await navigateToFolder(item['id']);
-                                  } else {
-                                    await openTool(item);
-                                  }
-                                },
-                                onEdit: () => editItem(item),
-                                onDelete: () => deleteItem(item),
-                              );
+                          return ToolTile(
+                            title: item['title'] ?? '',
+                            description: item['description'],
+                            icon: icon,
+                            isFolder: isFolder,
+                            isAdmin: isAdmin,
+                            fileId: isFolder ? null : item['fileId'],
+                            isFileLoading: isLoading('open_${item['id']}'), // 👈 Передаємо стан
+                            onTap: () async {
+                              if (isFolder) {
+                                await navigateToFolder(item['id']);
+                              } else {
+                                await openTool(item);
+                                await fetchItems(); 
+                              }
+                            },
+                            onEdit: () => editItem(item),
+                            onDelete: () => deleteItem(item),
+                            onStatusChanged: () => setState(() {}),
+                          );
                             },
                           ),
                   ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../mixins/loading_state_mixin.dart';
 import '../../../widgets/loading_indicator.dart';
+import '../../../globals.dart';
 
 class ToolTile extends StatefulWidget {
   final String title;
@@ -11,6 +12,9 @@ class ToolTile extends StatefulWidget {
   final VoidCallback? onDelete;
   final bool isFolder;
   final String? description;
+  final String? fileId; // Додано для операцій з файлами
+  final VoidCallback? onStatusChanged; // Callback для оновлення статусу
+  final bool isFileLoading;
 
   const ToolTile({
     super.key,
@@ -22,6 +26,9 @@ class ToolTile extends StatefulWidget {
     this.onDelete,
     this.isFolder = false,
     this.description,
+    this.fileId,
+    this.onStatusChanged,
+    this.isFileLoading = false,
   });
 
   @override
@@ -30,6 +37,43 @@ class ToolTile extends StatefulWidget {
 
 class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
   bool _isHovered = false;
+  
+  // Статуси файлу
+  bool _isCached = false;
+  bool _needsUpdate = false;
+  String? _fileSize;
+  bool _statusChecked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.isFolder && widget.fileId != null) {
+      _checkFileStatus();
+    }
+  }
+
+  Future<void> _checkFileStatus() async {
+    if (widget.fileId == null) return;
+    
+    try {
+      final status = await Globals.fileManager.getFileStatus(widget.fileId!);
+      if (mounted) {
+        setState(() {
+          _isCached = status['isCached'] ?? false;
+          _needsUpdate = status['shouldRefresh'] ?? false;
+          _fileSize = status['humanReadableSize'];
+          _statusChecked = true;
+        });
+      }
+    } catch (e) {
+      debugPrint('ToolTile: Помилка перевірки статусу файлу: $e');
+      if (mounted) {
+        setState(() {
+          _statusChecked = true;
+        });
+      }
+    }
+  }
 
   Future<void> _handleTap() async {
     if (isLoading('tap')) return;
@@ -90,6 +134,48 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
             backgroundColor: Colors.red,
           ),
         );
+      }
+    }
+  }
+
+  Future<void> _handleRefreshFile() async {
+    if (widget.fileId == null || isLoading('refresh')) return;
+    
+    try {
+      await withLoading('refresh', () async {
+        final wasUpdated = await Globals.fileManager.refreshFileIfNeeded(widget.fileId!);
+        await _checkFileStatus();
+        widget.onStatusChanged?.call();
+        
+        if (mounted) {
+          Globals.errorNotificationManager.showSuccess(
+            wasUpdated ? 'Файл оновлено' : 'Файл вже актуальний'
+          );
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        Globals.errorNotificationManager.showError('Помилка оновлення: $e');
+      }
+    }
+  }
+
+  Future<void> _handleClearCache() async {
+    if (widget.fileId == null || isLoading('clear_cache')) return;
+    
+    try {
+      await withLoading('clear_cache', () async {
+        await Globals.fileManager.removeFromCache(widget.fileId!);
+        await _checkFileStatus();
+        widget.onStatusChanged?.call();
+        
+        if (mounted) {
+          Globals.errorNotificationManager.showSuccess('Кеш очищено');
+        }
+      });
+    } catch (e) {
+      if (mounted) {
+        Globals.errorNotificationManager.showError('Помилка очищення кешу: $e');
       }
     }
   }
@@ -195,8 +281,89 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
     }
   }
 
+  Widget _buildStatusIndicator() {
+    if (widget.isFolder || !_statusChecked || widget.fileId == null) {
+      return const SizedBox.shrink();
+    }
+
+    Widget indicator;
+    Color color;
+    String tooltip;
+
+    if (!_isCached) {
+      indicator = const Icon(Icons.cloud_download, size: 12);
+      color = Colors.blue;
+      tooltip = 'Потребує завантаження';
+    } else if (_needsUpdate) {
+      indicator = const Icon(Icons.sync, size: 12);
+      color = Colors.orange;
+      tooltip = 'Доступне оновлення';
+    } else {
+      indicator = const Icon(Icons.check_circle, size: 12);
+      color = Colors.green;
+      tooltip = 'Актуальний';
+    }
+
+    return Positioned(
+      top: 8,
+      left: 8,
+      child: Tooltip(
+        message: tooltip,
+        child: Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.3)),
+          ),
+          child: indicator,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFileSize() {
+    if (widget.isFolder || _fileSize == null) {
+      return const SizedBox.shrink();
+    }
+
+    return Positioned(
+      bottom: 8,
+      right: 8,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.6),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(
+          _fileSize!,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildLoadingOverlay() {
-    if (!isLoading('tap')) return const SizedBox.shrink();
+    final isFileOpening = widget.isFileLoading;
+    final hasLocalLoading = isLoading('refresh') || isLoading('clear_cache') || 
+                         isLoading('edit') || isLoading('delete');
+    
+    if (!isFileOpening && !hasLocalLoading) {
+      return const SizedBox.shrink();
+    }
+    
+    String message = isFileOpening ? 'Завантаження файлу...' : 'Обробка...';
+    if (isLoading('tap')) message = 'Завантаження...';
+    else if (isLoading('refresh')) message = 'Оновлення...';
+    else if (isLoading('clear_cache')) message = 'Очищення кешу...';
+    else if (isLoading('edit')) message = 'Редагування...';
+    else if (isLoading('delete')) message = 'Видалення...';
+    
     
     return Positioned.fill(
       child: Container(
@@ -204,9 +371,9 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
           color: Colors.white.withOpacity(0.8),
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const Center(
+        child: Center(
           child: LoadingIndicator(
-            message: 'Завантаження...',
+            message: message,
             size: 32,
           ),
         ),
@@ -214,12 +381,17 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
     );
   }
 
-  Widget _buildAdminMenu() {
-    if (!widget.isAdmin || (widget.onEdit == null && widget.onDelete == null)) {
+  Widget _buildPopupMenu() {
+    // Показуємо меню для всіх користувачів (не тільки адмінів)
+    final hasAdminActions = widget.isAdmin && (widget.onEdit != null || widget.onDelete != null);
+    final hasFileActions = !widget.isFolder && widget.fileId != null;
+    
+    if (!hasAdminActions && !hasFileActions) {
       return const SizedBox.shrink();
     }
     
-    final isAnyLoading = isLoading('edit') || isLoading('delete');
+    final isAnyLoading = isLoading('edit') || isLoading('delete') || 
+                        isLoading('refresh') || isLoading('clear_cache');
     
     return Positioned(
       top: 4,
@@ -260,10 +432,17 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
                     case 'delete':
                       await _handleDelete();
                       break;
+                    case 'refresh':
+                      await _handleRefreshFile();
+                      break;
+                    case 'clear_cache':
+                      await _handleClearCache();
+                      break;
                   }
                 },
                 itemBuilder: (context) => [
-                  if (widget.onEdit != null)
+                  // Адміністративні дії
+                  if (widget.isAdmin && widget.onEdit != null)
                     const PopupMenuItem(
                       value: 'edit',
                       child: ListTile(
@@ -273,7 +452,35 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
                         dense: true,
                       ),
                     ),
-                  if (widget.onDelete != null)
+                  
+                  // Файлові операції (для всіх)
+                  if (hasFileActions) ...[
+                    const PopupMenuItem(
+                      value: 'refresh',
+                      child: ListTile(
+                        leading: Icon(Icons.refresh, size: 16),
+                        title: Text('Оновити файл'),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
+                    ),
+                    const PopupMenuItem(
+                      value: 'clear_cache',
+                      child: ListTile(
+                        leading: Icon(Icons.clear_all, size: 16),
+                        title: Text('Очистити кеш'),
+                        contentPadding: EdgeInsets.zero,
+                        dense: true,
+                      ),
+                    ),
+                  ],
+                  
+                  // Розділювач перед видаленням
+                  if (widget.isAdmin && widget.onDelete != null && hasFileActions)
+                    const PopupMenuDivider(),
+                  
+                  // Видалення (тільки для адмінів)
+                  if (widget.isAdmin && widget.onDelete != null)
                     const PopupMenuItem(
                       value: 'delete',
                       child: ListTile(
@@ -294,7 +501,8 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isAnyLoading = isLoading('tap') || isLoading('edit') || isLoading('delete');
+    final isAnyLoading = isLoading('tap') || isLoading('edit') || isLoading('delete') ||
+                        isLoading('refresh') || isLoading('clear_cache');
     
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -420,11 +628,17 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
                 ),
               ),
               
+              // Статус файлу
+              _buildStatusIndicator(),
+              
+              // Розмір файлу
+              _buildFileSize(),
+              
               // Оверлей завантаження
               _buildLoadingOverlay(),
               
-              // Меню адміністратора
-              _buildAdminMenu(),
+              // Меню
+              _buildPopupMenu(),
             ],
           ),
         ),

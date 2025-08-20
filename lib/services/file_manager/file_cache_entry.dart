@@ -70,4 +70,15 @@ class FileCacheEntry extends HiveObject {
   String toString() {
     return 'FileCacheEntry(fileId: $fileId, name: $name, extension: $extension, modifiedDate: $modifiedDate, size: $size, mimeType: $mimeType)';
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'fileId': fileId,
+      'name': name,
+      'extension': extension,
+      'modifiedDate': modifiedDate,
+      'size': size,
+      'mimeType': mimeType,
+    };
+  }
 }
