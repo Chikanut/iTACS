@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../../models/lesson_model.dart';
 import '../../calendar_utils.dart';
 import '../mobile_lesson_card.dart';
+import '../../../../theme/theme_utils.dart';
 
 class MobileDayView extends StatelessWidget {
   final DateTime selectedDate;
@@ -79,7 +80,7 @@ class MobileDayView extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
                       color: isSelected 
-                        ? Colors.white 
+                        ? Theme.of(context).colorScheme.onSurface 
                         : Colors.white, // 👈 Завжди білий текст для неактивних днів
                     ),
                   ),
@@ -90,7 +91,7 @@ class MobileDayView extends StatelessWidget {
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
                       color: isSelected 
-                        ? Colors.white 
+                        ? Theme.of(context).colorScheme.onSurface 
                         : Colors.white, // 👈 Завжди білий текст для неактивних днів
                     ),
                   ),
@@ -102,7 +103,7 @@ class MobileDayView extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: hasLessons 
                         ? (isSelected 
-                          ? Colors.white 
+                          ? Theme.of(context).colorScheme.onSurface 
                           : Colors.orange) // 👈 Помаранчева крапка для неактивних днів з заняттями
                         : Colors.transparent,
                       shape: BoxShape.circle,

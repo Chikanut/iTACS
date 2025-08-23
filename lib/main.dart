@@ -9,6 +9,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'services/firebase_options.dart';
 import 'pages/auth_gate.dart';
 import 'globals.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -41,8 +42,8 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'My App',
-      theme: ThemeData.dark(),
+      title: 'iTACS',
+      theme: AppTheme.darkTheme,
       home: const AuthGate(),
       debugShowCheckedModeBanner: false,
 
