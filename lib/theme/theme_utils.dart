@@ -10,8 +10,8 @@ class ThemeUtils {
   static const Color success = AppTheme.secondaryGreen;
   static const Color warning = AppTheme.warningOrange;
   static const Color danger = AppTheme.dangerRed;
-  static const Color folder = AppTheme.folderColor;
-  static const Color file = AppTheme.fileColor;
+  static final Color folder = AppTheme.folderColor;
+  static final Color file = AppTheme.fileColor;
   
   // 📝 Текстові стилі
   static const TextStyle headlineStyle = TextStyle(
@@ -50,7 +50,7 @@ class ThemeUtils {
     borderRadius: BorderRadius.circular(12),
     boxShadow: [
       BoxShadow(
-        color: Colors.black.withOpacity(0.1),
+        color: AppTheme.backgroundDark.withOpacity(0.1),
         blurRadius: 4,
         offset: const Offset(0, 2),
       ),
