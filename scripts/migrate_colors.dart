@@ -231,13 +231,15 @@ Future<void> copyDirectory(Directory source, Directory destination) async {
   await destination.create(recursive: true);
   
   await for (final entity in source.list()) {
+    final name = entity.path.split(Platform.pathSeparator).last;
+    
     if (entity is Directory) {
       await copyDirectory(
         entity,
-        Directory('${destination.path}/${entity.path.split('/').last}')
+        Directory('${destination.path}${Platform.pathSeparator}$name')
       );
     } else if (entity is File) {
-      await entity.copy('${destination.path}/${entity.path.split('/').last}');
+      await entity.copy('${destination.path}${Platform.pathSeparator}$name');
     }
   }
 }
