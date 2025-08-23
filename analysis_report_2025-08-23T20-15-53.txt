@@ -1,0 +1,552 @@
+🎨📝 ЗВІТ АНАЛІЗУ HARDCODED ЗНАЧЕНЬ
+==================================================
+
+🎨 HARDCODED КОЛЬОРИ:
+------------------------------
+📊 Статистика по типах кольорів:
+   • Color(0x...): 31
+   • Colors.*: 471
+   • Color.fromARGB(...): 4
+   • Hex colors (#...): 37
+
+📁 По файлах:
+
+🔸 lib\models\instructor_absence.dart (5 кольорів):
+   Рядок 190: Color(0xFF1976D2)
+   Контекст: return const Color(0xFF1976D2); // Синій для призначень адміном
+   Рядок 195: Color(0xFFE53935)
+   Контекст: return const Color(0xFFE53935); // Червоний
+   Рядок 197: Color(0xFF43A047)
+   Контекст: return const Color(0xFF43A047); // Зелений
+   Рядок 199: Color(0xFFFF9800)
+   Контекст: return const Color(0xFFFF9800); // Помаранчевий
+   Рядок 201: Color(0xFF9C27B0)
+   Контекст: return const Color(0xFF9C27B0); // Фіолетовий
+
+🔸 lib\pages\access_denied_page.dart (1 кольорів):
+   Рядок 16: Colors.redAccent
+   Контекст: const Icon(Icons.block, size: 100, color: Colors.redAccent),
+
+🔸 lib\pages\admin_page\admin_panel_page.dart (3 кольорів):
+   Рядок 46: Colors.grey
+   Контекст: color: Colors.grey,
+   Рядок 54: Colors.grey
+   Контекст: color: Colors.grey,
+   Рядок 62: Colors.grey
+   Контекст: color: Colors.grey,
+
+🔸 lib\pages\admin_page\tabs\absences_grid_tab.dart (52 кольорів):
+   Рядок 50: Colors.red
+   Контекст: backgroundColor: Colors.red,
+   Рядок 174: Colors.grey
+   Контекст: border: Border.all(color: Colors.grey.shade300),
+   Рядок 216: Colors.red
+   Контекст: color: _isWeekend(day) ? Colors.red : Colors.grey.shade600,
+   Рядок 216: Colors.grey
+   Контекст: color: _isWeekend(day) ? Colors.red : Colors.grey.shade600,
+   Рядок 254: Colors.grey
+   Контекст: ? Border.all(color: Colors.grey.shade400, width: 1)
+   ... і ще 47 кольорів
+
+🔸 lib\pages\admin_page\tabs\group_members_tab.dart (3 кольорів):
+   Рядок 20: Colors.grey
+   Контекст: color: Colors.grey,
+   Рядок 28: Colors.grey
+   Контекст: color: Colors.grey,
+   Рядок 36: Colors.grey
+   Контекст: color: Colors.grey,
+
+🔸 lib\pages\admin_page\tabs\templates_tab.dart (3 кольорів):
+   Рядок 20: Colors.grey
+   Контекст: color: Colors.grey,
+   Рядок 28: Colors.grey
+   Контекст: color: Colors.grey,
+   Рядок 36: Colors.grey
+   Контекст: color: Colors.grey,
+
+🔸 lib\pages\admin_page\widgets\absence_assignment_dialog.dart (11 кольорів):
+   Рядок 175: Colors.grey
+   Контекст: border: Border.all(color: Colors.grey.shade300),
+   Рядок 258: Colors.orange
+   Контекст: color: Colors.orange.shade50,
+   Рядок 260: Colors.orange
+   Контекст: border: Border.all(color: Colors.orange.shade200),
+   Рядок 264: Colors.orange
+   Контекст: Icon(Icons.warning, color: Colors.orange.shade600, size: 20),
+   Рядок 272: Colors.orange
+   Контекст: color: Colors.orange.shade700,
+   ... і ще 6 кольорів
+
+🔸 lib\pages\admin_page\widgets\absence_grid_cell.dart (8 кольорів):
+   Рядок 32: Colors.grey
+   Контекст: color: Colors.grey.shade300,
+   Рядок 64: Colors.orange
+   Контекст: color: Colors.orange,
+   Рядок 98: Colors.blue
+   Контекст: return Colors.blue.shade50;
+   Рядок 103: Colors.grey
+   Контекст: return Colors.grey.shade100;
+   Рядок 107: Colors.white
+   Контекст: return Colors.white;
+   ... і ще 3 кольорів
+
+🔸 lib\pages\calendar_page\calendar_page.dart (2 кольорів):
+   Рядок 205: Colors.grey
+   Контекст: color: Colors.grey.shade600,
+   Рядок 233: Colors.orange
+   Контекст: backgroundColor: Colors.orange,
+
+🔸 lib\pages\calendar_page\calendar_utils.dart (21 кольорів):
+   Рядок 56: Colors.red
+   Контекст: return Colors.red;              // 🔴 Критичні поля не заповнені
+   Рядок 58: Colors.orange
+   Контекст: return Colors.orange;           // 🟠 Потрібен інструктор
+   Рядок 60: Colors.green
+   Контекст: return Colors.green;            // 🟢 Готове до проведення
+   Рядок 62: Colors.blue
+   Контекст: return Colors.blue;             // 🔵 В процесі (все ОК)
+   Рядок 64: Colors.red
+   Контекст: return Colors.red;              // 🔴 В процесі але є проблеми
+   ... і ще 16 кольорів
+
+🔸 lib\pages\calendar_page\widgets\autocomplete_field.dart (4 кольорів):
+   Рядок 112: Colors.white
+   Контекст: color: Colors.white,
+   Рядок 114: Colors.grey
+   Контекст: border: Border.all(color: Colors.grey.shade300),
+   Рядок 130: Colors.black
+   Контекст: color: Colors.black,
+   Рядок 132: Color.fromARGB(255, 0, 0, 0)
+   Контекст: selectionColor: const Color.fromARGB(255, 0, 0, 0),
+
+🔸 lib\pages\calendar_page\widgets\lesson_card.dart (30 кольорів):
+   Рядок 53: Colors.grey
+   Контекст: color: backgroundColor?.withOpacity(0.3) ?? Colors.grey.shade300,
+   Рядок 57: Colors.black.withOpacity(0.1)
+   Контекст: color: Colors.black.withOpacity(0.1),
+   Рядок 81: Colors.grey
+   Контекст: color: Colors.grey.shade700,
+   Рядок 91: Colors.grey
+   Контекст: color: Colors.grey.shade600,
+   Рядок 113: Colors.grey
+   Контекст: color: backgroundColor?.withOpacity(0.3) ?? Colors.grey.shade300,
+   ... і ще 25 кольорів
+
+🔸 lib\pages\calendar_page\widgets\lesson_details_dialog.dart (34 кольорів):
+   Рядок 64: Colors.grey
+   Контекст: color: Colors.grey.shade700,
+   Рядок 84: Colors.grey
+   Контекст: color: Colors.grey.shade700,
+   Рядок 185: Colors.blue
+   Контекст: backgroundColor: Colors.blue.shade100,
+   Рядок 188: Colors.blue
+   Контекст: color: Colors.blue.shade800,
+   Рядок 207: Colors.grey
+   Контекст: top: BorderSide(color: Colors.grey.shade200),
+   ... і ще 29 кольорів
+
+🔸 lib\pages\calendar_page\widgets\lesson_form_dialog.dart (4 кольорів):
+   Рядок 778: Colors.grey
+   Контекст: backgroundColor: Colors.grey.shade100,
+   Рядок 788: Colors.grey
+   Контекст: top: BorderSide(color: Colors.grey.shade200),
+   Рядок 1016: Colors.green
+   Контекст: backgroundColor: Colors.green,
+   Рядок 1025: Colors.red
+   Контекст: backgroundColor: Colors.red,
+
+🔸 lib\pages\calendar_page\widgets\mobile_lesson_card.dart (41 кольорів):
+   Рядок 49: Colors.black.withOpacity(0.1)
+   Контекст: color: Colors.black.withOpacity(0.1),
+   Рядок 69: Colors.grey
+   Контекст: color: Colors.grey.shade700,
+   Рядок 97: Colors.grey
+   Контекст: color: Colors.grey.shade600,
+   Рядок 118: Colors.grey
+   Контекст: backgroundColor: Colors.grey.shade300,
+   Рядок 121: Colors.green
+   Контекст: ? Colors.green
+   ... і ще 36 кольорів
+
+🔸 lib\pages\calendar_page\widgets\views\desktop_week_view.dart (13 кольорів):
+   Рядок 74: Colors.grey
+   Контекст: right: BorderSide(color: Colors.grey.shade300),
+   Рядок 85: Colors.grey
+   Контекст: color: Colors.grey.shade600,
+   Рядок 97: Colors.black
+   Контекст: color: isToday ? Theme.of(context).primaryColor : Colors.black,
+   Рядок 160: Colors.grey
+   Контекст: right: BorderSide(color: Colors.grey.shade300),
+   Рядок 174: Colors.grey
+   Контекст: color: Colors.grey.shade600,
+   ... і ще 8 кольорів
+
+🔸 lib\pages\calendar_page\widgets\views\mobile_day_view.dart (8 кольорів):
+   Рядок 63: Colors.transparent
+   Контекст: color: isSelected ? Theme.of(context).primaryColor : Colors.transparent,
+   Рядок 70: Colors.grey
+   Контекст: : Colors.grey.shade300,
+   Рядок 84: Colors.white
+   Контекст: : Colors.white, // 👈 Завжди білий текст для неактивних днів
+   Рядок 95: Colors.white
+   Контекст: : Colors.white, // 👈 Завжди білий текст для неактивних днів
+   Рядок 107: Colors.orange
+   Контекст: : Colors.orange) // 👈 Помаранчева крапка для неактивних днів з заняттями
+   ... і ще 3 кольорів
+
+🔸 lib\pages\calendar_page\widgets\views\mobile_week_view.dart (3 кольорів):
+   Рядок 99: Colors.white
+   Контекст: color: Colors.white,
+   Рядок 119: Colors.grey
+   Контекст: color: Colors.grey.shade400,
+   Рядок 126: Colors.grey
+   Контекст: color: Colors.grey.shade600,
+
+🔸 lib\pages\calendar_page\widgets\views\month_view.dart (21 кольорів):
+   Рядок 78: Colors.grey
+   Контекст: color: Colors.grey.shade600,
+   Рядок 117: Colors.grey
+   Контекст: border: Border.all(color: Colors.grey.shade300),
+   Рядок 157: Colors.grey
+   Контекст: color: Colors.grey.shade100,
+   Рядок 159: Colors.grey
+   Контекст: bottom: BorderSide(color: Colors.grey.shade300),
+   Рядок 160: Colors.grey
+   Контекст: right: index < 6 ? BorderSide(color: Colors.grey.shade300) : BorderSide.none,
+   ... і ще 16 кольорів
+
+🔸 lib\pages\calendar_page\widgets\views\year_view.dart (18 кольорів):
+   Рядок 69: Colors.grey
+   Контекст: color: Colors.grey.shade600,
+   Рядок 138: Colors.white
+   Контекст: color: Colors.white,
+   Рядок 143: Colors.grey
+   Контекст: : Colors.grey.shade300,
+   Рядок 148: Colors.black.withOpacity(0.05)
+   Контекст: color: Colors.black.withOpacity(0.05),
+   Рядок 167: Colors.black
+   Контекст: : Colors.black,
+   ... і ще 13 кольорів
+
+🔸 lib\pages\home_page.dart (31 кольорів):
+   Рядок 254: Colors.orange
+   Контекст: color: Colors.orange.shade50,
+   Рядок 256: Colors.orange
+   Контекст: border: Border.all(color: Colors.orange.shade200),
+   Рядок 263: Colors.orange
+   Контекст: Icon(Icons.schedule, color: Colors.orange.shade600, size: 16),
+   Рядок 269: Colors.orange
+   Контекст: color: Colors.orange.shade700,
+   Рядок 287: Colors.blue
+   Контекст: color: Colors.blue.shade50,
+   ... і ще 26 кольорів
+
+🔸 lib\pages\main_scaffold.dart (6 кольорів):
+   Рядок 200: Colors.white
+   Контекст: style: const TextStyle(color: Colors.white),
+   Рядок 202: Colors.white
+   Контекст: const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+   Рядок 209: Colors.white
+   Контекст: style: const TextStyle(color: Colors.white),
+   Рядок 227: Colors.white
+   Контекст: backgroundColor: Colors.white,
+   Рядок 228: Colors.blue
+   Контекст: selectedItemColor: Colors.blue,
+   ... і ще 1 кольорів
+
+🔸 lib\pages\materials_page\materials_page.dart (8 кольорів):
+   Рядок 243: Colors.grey[600]
+   Контекст: color: Colors.grey[600],
+   Рядок 250: Colors.grey[600]
+   Контекст: color: Colors.grey[600],
+   Рядок 307: Colors.grey[600]
+   Контекст: color: Colors.grey[600],
+   Рядок 313: Colors.grey[600]
+   Контекст: color: Colors.grey[600],
+   Рядок 385: Colors.grey.withOpacity(0.5)
+   Контекст: color: Colors.grey.withOpacity(0.5),
+   ... і ще 3 кольорів
+
+🔸 lib\pages\materials_page\material_dialogs.dart (6 кольорів):
+   Рядок 278: Colors.green
+   Контекст: const Icon(Icons.check_circle, color: Colors.green)
+   Рядок 280: Colors.red
+   Контекст: const Icon(Icons.error, color: Colors.red),
+   Рядок 314: Colors.blue.withOpacity(0.1)
+   Контекст: color: Colors.blue.withOpacity(0.1),
+   Рядок 316: Colors.blue.withOpacity(0.2)
+   Контекст: border: Border.all(color: Colors.blue.withOpacity(0.2)),
+   Рядок 322: Colors.blue
+   Контекст: color: Colors.blue.shade700),
+   ... і ще 1 кольорів
+
+🔸 lib\pages\materials_page\material_tile.dart (20 кольорів):
+   Рядок 204: Colors.red
+   Контекст: backgroundColor: Colors.red,
+   Рядок 205: Colors.white
+   Контекст: foregroundColor: Colors.white,
+   Рядок 235: Colors.green
+   Контекст: if (isSaved) return Colors.green;
+   Рядок 236: Colors.blue
+   Контекст: if (widget.isWeb) return Colors.blue;
+   Рядок 237: Colors.grey
+   Контекст: return Colors.grey;
+   ... і ще 15 кольорів
+
+🔸 lib\pages\profile_page.dart (8 кольорів):
+   Рядок 117: Colors.red
+   Контекст: style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+   Рядок 211: Colors.white
+   Контекст: color: Colors.white,
+   Рядок 235: Colors.grey[600]
+   Контекст: color: Colors.grey[600],
+   Рядок 355: Colors.grey.withOpacity(0.1)
+   Контекст: : Colors.grey.withOpacity(0.1),
+   Рядок 384: Colors.grey[600]
+   Контекст: color: Colors.grey[600],
+   ... і ще 3 кольорів
+
+🔸 lib\pages\tools_page\tools_page.dart (22 кольорів):
+   Рядок 97: Colors.transparent
+   Контекст: color: Colors.transparent,
+   Рядок 103: Colors.grey.withOpacity(0.3)
+   Контекст: border: Border.all(color: Colors.grey.withOpacity(0.3)),
+   Рядок 338: Colors.transparent
+   Контекст: color: Colors.transparent,
+   Рядок 351: Colors.blue[700]
+   Контекст: Icon(Icons.home, size: 16, color: Colors.blue[700]),
+   Рядок 356: Colors.blue[700]
+   Контекст: color: Colors.blue[700],
+   ... і ще 17 кольорів
+
+🔸 lib\pages\tools_page\tool_dialog.dart (23 кольорів):
+   Рядок 216: Colors.grey.withOpacity(0.1)
+   Контекст: color: Colors.grey.withOpacity(0.1),
+   Рядок 218: Colors.grey.withOpacity(0.3)
+   Контекст: border: Border.all(color: Colors.grey.withOpacity(0.3)),
+   Рядок 224: Colors.amber[700]
+   Контекст: color: isFolder ? Colors.amber[700] : Colors.blue[700],
+   Рядок 224: Colors.blue[700]
+   Контекст: color: isFolder ? Colors.amber[700] : Colors.blue[700],
+   Рядок 238: Colors.blue.withOpacity(0.1)
+   Контекст: color: Colors.blue.withOpacity(0.1),
+   ... і ще 18 кольорів
+
+🔸 lib\pages\tools_page\tool_tile.dart (33 кольорів):
+   Рядок 92: Colors.red
+   Контекст: backgroundColor: Colors.red,
+   Рядок 111: Colors.red
+   Контекст: backgroundColor: Colors.red,
+   Рядок 134: Colors.red
+   Контекст: backgroundColor: Colors.red,
+   Рядок 191: Colors.orange
+   Контекст: color: Colors.orange,
+   Рядок 206: Colors.grey.withOpacity(0.1)
+   Контекст: color: Colors.grey.withOpacity(0.1),
+   ... і ще 28 кольорів
+
+🔸 lib\services\error_notification_manager.dart (17 кольорів):
+   Рядок 28: Colors.white
+   Контекст: const Icon(Icons.error_outline, color: Colors.white),
+   Рядок 33: Colors.white
+   Контекст: style: const TextStyle(color: Colors.white),
+   Рядок 38: Colors.red
+   Контекст: backgroundColor: Colors.red.shade700,
+   Рядок 43: Colors.white
+   Контекст: textColor: Colors.white,
+   Рядок 63: Colors.white
+   Контекст: const Icon(Icons.check_circle_outline, color: Colors.white),
+   ... і ще 12 кольорів
+
+🔸 lib\services\reports\calendar_grid_report.dart (21 кольорів):
+   Рядок 266: #4472C4
+   Контекст: backgroundColorHex: excel.ExcelColor.fromHexString('#4472C4'),
+   Рядок 267: #FFFFFF
+   Контекст: fontColorHex: excel.ExcelColor.fromHexString('#FFFFFF'),
+   Рядок 282: #4472C4
+   Контекст: backgroundColorHex: excel.ExcelColor.fromHexString('#4472C4'),
+   Рядок 283: #FFFFFF
+   Контекст: fontColorHex: excel.ExcelColor.fromHexString('#FFFFFF'),
+   Рядок 317: #E6E6FA
+   Контекст: backgroundColorHex: excel.ExcelColor.fromHexString('#E6E6FA'),
+   ... і ще 16 кольорів
+
+🔸 lib\services\reports\lessons_list_report.dart (24 кольорів):
+   Рядок 760: Colors.red
+   Контекст: color: Colors.red.shade50,
+   Рядок 761: Colors.red
+   Контекст: border: Border.all(color: Colors.red.shade200),
+   Рядок 766: Colors.red
+   Контекст: Icon(Icons.error, color: Colors.red.shade600, size: 20),
+   Рядок 771: Colors.red
+   Контекст: style: TextStyle(color: Colors.red.shade700),
+   Рядок 790: Colors.grey
+   Контекст: border: Border.all(color: Colors.grey.shade300),
+   ... і ще 19 кольорів
+
+🔸 lib\services\reports\quick_report_dialog.dart (4 кольорів):
+   Рядок 109: Colors.white
+   Контекст: foregroundColor: Colors.white,
+   Рядок 142: Colors.grey
+   Контекст: color: Colors.grey.shade600,
+   Рядок 154: Colors.grey
+   Контекст: color: Colors.grey.shade50,
+   Рядок 155: Colors.grey
+   Контекст: border: Border.all(color: Colors.grey.shade300),
+
+🔸 lib\theme\app_theme.dart (23 кольорів):
+   Рядок 66: Colors.black.withOpacity(0.1)
+   Контекст: shadowColor: Colors.black.withOpacity(0.1),
+   Рядок 78: Colors.black.withOpacity(0.2)
+   Контекст: shadowColor: Colors.black.withOpacity(0.2),
+   Рядок 152: Colors.grey[50]
+   Контекст: scaffoldBackgroundColor: Colors.grey[50],
+   Рядок 5: Color(0xFF1E3A8A)
+   Контекст: static const Color primaryBlue = Color(0xFF1E3A8A);      // Темно-синій
+   Рядок 6: Color(0xFF3B82F6)
+   Контекст: static const Color accentBlue = Color(0xFF3B82F6);       // Яскравий синій
+   ... і ще 18 кольорів
+
+🔸 lib\theme\theme_utils.dart (1 кольорів):
+   Рядок 53: Colors.black.withOpacity(0.1)
+   Контекст: color: Colors.black.withOpacity(0.1),
+
+🔸 lib\widgets\absence_request_dialog.dart (10 кольорів):
+   Рядок 167: Colors.blue
+   Контекст: color: Colors.blue.shade50,
+   Рядок 169: Colors.blue
+   Контекст: border: Border.all(color: Colors.blue.shade200),
+   Рядок 173: Colors.blue
+   Контекст: Icon(Icons.info, color: Colors.blue.shade600, size: 20),
+   Рядок 181: Colors.blue
+   Контекст: color: Colors.blue.shade700,
+   Рядок 250: Colors.red
+   Контекст: backgroundColor: Colors.red,
+   ... і ще 5 кольорів
+
+🔸 lib\widgets\loading_indicator.dart (1 кольорів):
+   Рядок 83: Colors.black26
+   Контекст: color: Colors.black26,
+
+📝 HARDCODED ТЕКСТИ:
+------------------------------
+📊 Статистика по типах текстів:
+   • Англійські рядки (>3 символи): 408
+   • Українські рядки: 833
+   • Text() з hardcoded рядком: 232
+   • label: з рядком: 24
+   • hintText: з рядком: 15
+   • Українські рядки в подвійних лапках: 6
+   • title: з рядком: 6
+
+🌍 Унікальні тексти для перекладу (933):
+   • "$filled учнів"
+   • "$filled/$total"
+   • "$folders ${folders == 1 ? "
+   • "$instructorName - ${DateFormat("
+   • "${(criticalFieldsProgress * 100).toInt()}%"
+   • "${CalendarUtils.formatTime(start)} - ${CalendarUtils.formatTime(end)}"
+   • "${DateFormat("
+   • "${absence.instructorName} - ${absence.type.displayName}"
+   • "${absence.type.displayName} ${DateFormat("
+   • "${day.day}"
+   • "${entry.key} (${entry.value})"
+   • "${hour.toString().padLeft(2, "
+   • "${materials.length} матеріалів"
+   • "${monthLessons.length} занять"
+   • "+${lessonsForDay.length - (isSmallCell ? 2 : 3)} ще"
+   • "1-й батальйон"
+   • "1ABC...xyz"
+   • "AbsencesService: Завантажено ${allAbsences.length} відсутностей для групи $currentGroupId"
+   • "AbsencesService: Помилка відхилення запиту: $e"
+   • "AbsencesService: Помилка отримання всіх відсутностей групи: $e"
+   ... і ще 913 текстів
+
+📁 По файлах з найбільшою кількістю hardcoded текстів:
+
+🔸 lib\services\templates_service.dart (97 текстів):
+   Рядок 12: "Заняття"
+   Рядок 13: "Подія"
+   Рядок 14: "Нарада"
+   ... і ще 94 текстів
+
+🔸 lib\pages\calendar_page\widgets\lesson_form_dialog.dart (82 текстів):
+   Рядок 234: "Редагувати заняття"
+   Рядок 234: "Створити заняття"
+   Рядок 255: "Основна інформація"
+   ... і ще 79 текстів
+
+🔸 lib\pages\calendar_page\calendar_utils.dart (77 текстів):
+   Рядок 32: "Заплановано"
+   Рядок 34: "Проводиться"
+   Рядок 36: "Завершено"
+   ... і ще 74 текстів
+
+🔸 lib\pages\calendar_page\widgets\lesson_details_dialog.dart (71 текстів):
+   Рядок 108: "Час проведення"
+   Рядок 117: "Інструктор"
+   Рядок 120: "Не призначено"
+   ... і ще 68 текстів
+
+🔸 lib\pages\home_page.dart (67 текстів):
+   Рядок 52: "Помилка завантаження відсутностей: $e"
+   Рядок 80: "Помилка оновлення відсутностей: $e"
+   Рядок 92: "Помилка оновлення: ${e.toString()}"
+   ... і ще 64 текстів
+
+🔸 lib\pages\admin_page\tabs\absences_grid_tab.dart (59 текстів):
+   Рядок 49: "Помилка завантаження даних: ${e.toString()}"
+   Рядок 193: "Інструктор"
+   Рядок 465: "Заняття (${lessons.length})"
+   ... і ще 56 текстів
+
+🔸 lib\services\file_manager\file_manager.dart (58 текстів):
+   Рядок 61: "Не вдалося отримати метадані для файлу"
+   Рядок 67: "Файл не знайдено після завантаження або кешування"
+   Рядок 92: "Не вдалося отримати метадані для файлу"
+   ... і ще 55 текстів
+
+🔸 lib\pages\materials_page\material_tile.dart (57 текстів):
+   Рядок 59: "сьогодні"
+   Рядок 61: "вчора"
+   Рядок 66: "тиждень"
+   ... і ще 54 текстів
+
+🔸 lib\services\reports\lessons_list_report.dart (52 текстів):
+   Рядок 17: "Список занять"
+   Рядок 21: "Список проведених занять по інструкторах у форматі:\n"
+   Рядок 22: "Дата | Підрозділ | Період навчання | Назва заняття"
+   ... і ще 49 текстів
+
+🔸 lib\pages\tools_page\tool_dialog.dart (47 текстів):
+   Рядок 91: "Невірний формат fileId"
+   Рядок 122: "Помилка вибору іконки: $e"
+   Рядок 136: "Невірний формат fileId"
+   ... і ще 44 текстів
+
+📊 ПІДСУМОК:
+------------------------------
+• Знайдено кольорів: 543
+• Знайдено текстів: 1524
+• Унікальних текстів: 933
+• Файлів з кольорами: 37
+• Файлів з текстами: 67
+
+💡 РЕКОМЕНДАЦІЇ:
+------------------------------
+
+🎨 Для кольорів:
+   1. Запустіть скрипт міграції кольорів
+   2. Замініть Colors.* на Theme.of(context).colorScheme.*
+   3. Створіть власну тему в theme/app_theme.dart
+
+📝 Для інтернаціоналізації:
+   1. Додайте flutter_localizations до pubspec.yaml
+   2. Створіть файли l10n/app_en.arb та l10n/app_uk.arb
+   3. Замініть hardcoded тексти на AppLocalizations.of(context).key
+   4. Налаштуйте l10n.yaml для генерації
+
+🚀 Наступні кроки:
+   • dart scripts/migrate_colors.dart --dry-run
+   • flutter pub add flutter_localizations
+   • flutter gen-l10n
