@@ -28,7 +28,7 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
   final fileIdController = TextEditingController();
   final descriptionController = TextEditingController();
   final formKey = GlobalKey<FormState>();
-  
+
   String selectedType = 'tool';
   IconData? selectedIcon;
   bool _fileIdValidated = false;
@@ -46,14 +46,14 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
       fileIdController.text = item['fileId'] ?? '';
       descriptionController.text = item['description'] ?? '';
       selectedType = item['type'] ?? 'tool';
-      
+
       // Відновлюємо іконку
       selectedIcon = iconFromData(item, selectedType == 'folder');
     } else {
       // Дефолтні іконки для нових елементів
       selectedIcon = selectedType == 'folder' ? Icons.folder : Icons.web;
     }
-    
+
     // Валідація fileId в реальному часі
     fileIdController.addListener(_validateFileId);
   }
@@ -97,7 +97,7 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
       final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
       if (clipboardData?.text != null) {
         final text = clipboardData!.text!;
-        
+
         // Якщо це повний URL до Google Drive, витягуємо fileId
         final fileId = Globals.fileManager.extractFileId(text) ?? text;
         fileIdController.text = fileId;
@@ -184,9 +184,9 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
         if (mounted) {
           Navigator.of(context).pop();
           widget.onSave();
-          
+
           Globals.errorNotificationManager.showSuccess(
-            isEditing 
+            isEditing
                 ? '${isFolder ? 'Папку' : 'Інструмент'} оновлено'
                 : '${isFolder ? 'Папку' : 'Інструмент'} створено',
           );
@@ -233,7 +233,10 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.blue.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -269,14 +272,16 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
               child: RadioListTile<String>(
                 value: 'folder',
                 groupValue: selectedType,
-                onChanged: isLoading('save') ? null : (value) {
-                  setState(() {
-                    selectedType = value ?? 'tool';
-                    selectedIcon = selectedType == 'folder' 
-                        ? Icons.folder 
-                        : Icons.web;
-                  });
-                },
+                onChanged: isLoading('save')
+                    ? null
+                    : (value) {
+                        setState(() {
+                          selectedType = value ?? 'tool';
+                          selectedIcon = selectedType == 'folder'
+                              ? Icons.folder
+                              : Icons.web;
+                        });
+                      },
                 title: const Row(
                   children: [
                     Icon(Icons.folder, color: Colors.amber),
@@ -291,14 +296,16 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
               child: RadioListTile<String>(
                 value: 'tool',
                 groupValue: selectedType,
-                onChanged: isLoading('save') ? null : (value) {
-                  setState(() {
-                    selectedType = value ?? 'tool';
-                    selectedIcon = selectedType == 'folder' 
-                        ? Icons.folder 
-                        : Icons.web;
-                  });
-                },
+                onChanged: isLoading('save')
+                    ? null
+                    : (value) {
+                        setState(() {
+                          selectedType = value ?? 'tool';
+                          selectedIcon = selectedType == 'folder'
+                              ? Icons.folder
+                              : Icons.web;
+                        });
+                      },
                 title: const Row(
                   children: [
                     Icon(Icons.build, color: Colors.blue),
@@ -317,14 +324,11 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
 
   Widget _buildIconSelector() {
     final isSelectingIcon = isLoading('select_icon');
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Іконка:',
-          style: TextStyle(fontWeight: FontWeight.w500),
-        ),
+        const Text('Іконка:', style: TextStyle(fontWeight: FontWeight.w500)),
         const SizedBox(height: 8),
         Row(
           children: [
@@ -332,14 +336,18 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
               width: 56,
               height: 56,
               decoration: BoxDecoration(
-                color: (selectedIcon != null 
-                    ? (isFolder ? Colors.amber : Colors.blue) 
-                    : Colors.grey).withOpacity(0.1),
+                color:
+                    (selectedIcon != null
+                            ? (isFolder ? Colors.amber : Colors.blue)
+                            : Colors.grey)
+                        .withOpacity(0.1),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: (selectedIcon != null 
-                      ? (isFolder ? Colors.amber : Colors.blue) 
-                      : Colors.grey).withOpacity(0.3),
+                  color:
+                      (selectedIcon != null
+                              ? (isFolder ? Colors.amber : Colors.blue)
+                              : Colors.grey)
+                          .withOpacity(0.3),
                 ),
               ),
               child: isSelectingIcon
@@ -347,19 +355,23 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
                   : Icon(
                       selectedIcon ?? Icons.help_outline,
                       size: 28,
-                      color: selectedIcon != null 
-                          ? (isFolder ? Colors.amber[700] : Colors.blue[700]) 
+                      color: selectedIcon != null
+                          ? (isFolder ? Colors.amber[700] : Colors.blue[700])
                           : Colors.grey,
                     ),
             ),
             const SizedBox(width: 16),
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: isLoading('save') || isSelectingIcon ? null : _selectIcon,
-                icon: isSelectingIcon 
+                onPressed: isLoading('save') || isSelectingIcon
+                    ? null
+                    : _selectIcon,
+                icon: isSelectingIcon
                     ? const LoadingIndicator(size: 16)
                     : const Icon(Icons.palette),
-                label: Text(isSelectingIcon ? 'Завантаження...' : 'Вибрати іконку'),
+                label: Text(
+                  isSelectingIcon ? 'Завантаження...' : 'Вибрати іконку',
+                ),
               ),
             ),
           ],
@@ -371,15 +383,21 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
   @override
   Widget build(BuildContext context) {
     final isSaving = isLoading('save');
-    
+
     return AlertDialog(
       title: Row(
         children: [
           Icon(isEditing ? Icons.edit : Icons.add),
           const SizedBox(width: 8),
-          Text(isEditing 
-              ? isFolder ? 'Редагувати папку' : 'Редагувати інструмент'
-              : isFolder ? 'Нова папка' : 'Новий інструмент'),
+          Text(
+            isEditing
+                ? isFolder
+                      ? 'Редагувати папку'
+                      : 'Редагувати інструмент'
+                : isFolder
+                ? 'Нова папка'
+                : 'Новий інструмент',
+          ),
         ],
       ),
       content: SizedBox(
@@ -393,9 +411,9 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
               children: [
                 // Тип елемента
                 _buildTypeSelector(),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Назва
                 TextFormField(
                   controller: titleController,
@@ -413,9 +431,9 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
                   textInputAction: TextInputAction.next,
                   enabled: !isSaving,
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Опис
                 TextFormField(
                   controller: descriptionController,
@@ -425,10 +443,12 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
                     prefixIcon: Icon(Icons.description),
                   ),
                   maxLines: 2,
-                  textInputAction: isFolder ? TextInputAction.done : TextInputAction.next,
+                  textInputAction: isFolder
+                      ? TextInputAction.done
+                      : TextInputAction.next,
                   enabled: !isSaving,
                 ),
-                
+
                 // FileId для інструментів
                 if (!isFolder) ...[
                   const SizedBox(height: 16),
@@ -467,9 +487,9 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
                     textInputAction: TextInputAction.done,
                     enabled: !isSaving,
                   ),
-                  
+
                   const SizedBox(height: 8),
-                  
+
                   // Підказка
                   Container(
                     padding: const EdgeInsets.all(8),
@@ -480,9 +500,11 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
                     ),
                     child: Row(
                       children: [
-                        Icon(Icons.info_outline, 
-                             size: 16, 
-                             color: Colors.blue.shade700),
+                        Icon(
+                          Icons.info_outline,
+                          size: 16,
+                          color: Colors.blue.shade700,
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
@@ -497,9 +519,9 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
                     ),
                   ),
                 ],
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Вибір іконки
                 _buildIconSelector(),
               ],

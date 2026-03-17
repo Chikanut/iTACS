@@ -467,11 +467,11 @@ class CalendarService {
       // Отримуємо ім'я користувача з ProfileManager
       final instructorName = Globals.profileManager.currentUserName;
 
-      final success = await updateLesson(lessonId, {
-        'instructorId': currentUser.uid,
-        'instructorName': instructorName.isEmpty ? 'Викладач' : instructorName,
-        // НЕ змінюємо participants - це для учасників заняття, не інструктора
-      });
+      final success = await assignLessonInstructor(
+        lessonId,
+        instructorId: currentUser.uid,
+        instructorName: instructorName.isEmpty ? 'Викладач' : instructorName,
+      );
 
       return success;
     } catch (e) {
@@ -480,17 +480,44 @@ class CalendarService {
     }
   }
 
+  Future<bool> assignLessonInstructor(
+    String lessonId, {
+    required String instructorId,
+    required String instructorName,
+  }) async {
+    try {
+      return await updateLesson(lessonId, {
+        'instructorId': instructorId,
+        'instructorName': instructorName.trim().isEmpty
+            ? 'Не призначено'
+            : instructorName.trim(),
+      });
+    } catch (e) {
+      debugPrint('CalendarService: Помилка призначення викладача: $e');
+      return false;
+    }
+  }
+
   /// Відмовитися від заняття (як інструктор)
   Future<bool> releaseLesson(String lessonId) async {
     try {
-      final success = await updateLesson(lessonId, {
-        'instructorId': '',
-        'instructorName': '',
-      });
+      final success = await unassignLessonInstructor(lessonId);
 
       return success;
     } catch (e) {
       debugPrint('CalendarService: Помилка відпуску заняття: $e');
+      return false;
+    }
+  }
+
+  Future<bool> unassignLessonInstructor(String lessonId) async {
+    try {
+      return await updateLesson(lessonId, {
+        'instructorId': '',
+        'instructorName': '',
+      });
+    } catch (e) {
+      debugPrint('CalendarService: Помилка зняття викладача: $e');
       return false;
     }
   }

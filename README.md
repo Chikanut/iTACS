@@ -52,7 +52,15 @@ flutter analyze
 flutter test
 flutter run -d chrome
 flutter run -d windows
+firebase deploy --only hosting
+firebase deploy --only firestore:rules
 ```
+
+## Firebase deploy
+
+- Firestore rules зберігаються у `cloudstore_rules` і підключені через `firebase.json`.
+- VS Code task `DeployFirebase` збирає web-версію та деплоїть `hosting` і `firestore:rules`.
+- VS Code task `DeployFunctionsBlaze` лишено окремо, бо деплой `functions` потребує Blaze plan.
 
 ## Структура
 

@@ -30,16 +30,14 @@ class MobileDayView extends StatelessWidget {
       children: [
         _buildDateNavigation(context),
         const Divider(height: 1),
-        Expanded(
-          child: _buildDayContent(context),
-        ),
+        Expanded(child: _buildDayContent(context)),
       ],
     );
   }
 
   Widget _buildDateNavigation(BuildContext context) {
     final weekDays = CalendarUtils.getWeekDays(selectedDate);
-    
+
     return Container(
       height: 80,
       padding: const EdgeInsets.symmetric(vertical: 8),
@@ -48,25 +46,28 @@ class MobileDayView extends StatelessWidget {
         itemCount: weekDays.length,
         itemBuilder: (context, index) {
           final day = weekDays[index];
-          final isSelected = day.year == selectedDate.year &&
-                            day.month == selectedDate.month &&
-                            day.day == selectedDate.day;
+          final isSelected =
+              day.year == selectedDate.year &&
+              day.month == selectedDate.month &&
+              day.day == selectedDate.day;
           final isToday = CalendarUtils.isToday(day);
           final hasLessons = getLessonsForSpecificDate(day).isNotEmpty;
-          
+
           return GestureDetector(
             onTap: () => onDateSelected?.call(day),
             child: Container(
               width: 60,
               margin: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
-                color: isSelected ? Theme.of(context).primaryColor : Colors.transparent,
+                color: isSelected
+                    ? Theme.of(context).primaryColor
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: isToday && !isSelected
-                    ? Theme.of(context).primaryColor
-                    : isSelected 
-                      ? Theme.of(context).primaryColor 
+                      ? Theme.of(context).primaryColor
+                      : isSelected
+                      ? Theme.of(context).primaryColor
                       : Colors.grey.shade300,
                   width: isToday && !isSelected ? 2 : 1,
                 ),
@@ -79,9 +80,10 @@ class MobileDayView extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: isSelected 
-                        ? Theme.of(context).colorScheme.onSurface 
-                        : Colors.white, // 👈 Завжди білий текст для неактивних днів
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.onSurface
+                          : Colors
+                                .white, // 👈 Завжди білий текст для неактивних днів
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -90,9 +92,10 @@ class MobileDayView extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: isSelected 
-                        ? Theme.of(context).colorScheme.onSurface 
-                        : Colors.white, // 👈 Завжди білий текст для неактивних днів
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.onSurface
+                          : Colors
+                                .white, // 👈 Завжди білий текст для неактивних днів
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -101,11 +104,12 @@ class MobileDayView extends StatelessWidget {
                     width: 6,
                     height: 6,
                     decoration: BoxDecoration(
-                      color: hasLessons 
-                        ? (isSelected 
-                          ? Theme.of(context).colorScheme.onSurface 
-                          : Colors.orange) // 👈 Помаранчева крапка для неактивних днів з заняттями
-                        : Colors.transparent,
+                      color: hasLessons
+                          ? (isSelected
+                                ? Theme.of(context).colorScheme.onSurface
+                                : Colors
+                                      .orange) // 👈 Помаранчева крапка для неактивних днів з заняттями
+                          : Colors.transparent,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -120,7 +124,7 @@ class MobileDayView extends StatelessWidget {
 
   Widget _buildDayContent(BuildContext context) {
     final dayLessons = getLessonsForSpecificDate(selectedDate);
-    
+
     if (dayLessons.isEmpty) {
       return _buildEmptyState(context);
     }
@@ -149,18 +153,11 @@ class MobileDayView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.event_busy,
-            size: 64,
-            color: Colors.grey.shade400,
-          ),
+          Icon(Icons.event_busy, size: 64, color: Colors.grey.shade400),
           const SizedBox(height: 16),
           Text(
             'Немає занять на цей день',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),
           ElevatedButton.icon(
@@ -173,4 +170,3 @@ class MobileDayView extends StatelessWidget {
     );
   }
 }
-

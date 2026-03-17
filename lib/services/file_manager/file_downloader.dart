@@ -25,12 +25,18 @@ class FileDownloader {
   }
 
   /// Завантаження файлу з retry логікою
-  Future<Uint8List> _downloadFileWithRetry(String fileId, {int maxRetries = 2}) async {
+  Future<Uint8List> _downloadFileWithRetry(
+    String fileId, {
+    int maxRetries = 2,
+  }) async {
     for (int attempt = 0; attempt < maxRetries; attempt++) {
       try {
         final metadata = await metadataService.getFileMetadata(fileId);
         if (metadata == null) {
-          throw WebDownloadException('Не вдалося отримати метадані для файлу', fileId);
+          throw WebDownloadException(
+            'Не вдалося отримати метадані для файлу',
+            fileId,
+          );
         }
 
         final titleEncoded = Uri.encodeComponent(metadata.filename);
@@ -39,7 +45,9 @@ class FileDownloader {
         final proxyUrl =
             'https://itacs-webservice.onrender.com/proxy?fileId=$fileId&title=$titleEncoded&ext=$ext';
 
-        debugPrint('FileDownloader: Завантаження через проксі (спроба ${attempt + 1}): $proxyUrl');
+        debugPrint(
+          'FileDownloader: Завантаження через проксі (спроба ${attempt + 1}): $proxyUrl',
+        );
         final response = await http.get(Uri.parse(proxyUrl));
 
         if (response.statusCode == 200) {
@@ -47,14 +55,16 @@ class FileDownloader {
           return response.bodyBytes;
         } else if (response.statusCode == 401 || response.statusCode == 403) {
           // Токен можливо застарів
-          debugPrint('FileDownloader: Токен застарів (${response.statusCode}), оновлюємо...');
-          
+          debugPrint(
+            'FileDownloader: Токен застарів (${response.statusCode}), оновлюємо...',
+          );
+
           if (attempt < maxRetries - 1) {
             // Примусово оновлюємо токен
             await authService.forceRefreshToken();
             continue; // Спробуємо знову
           }
-          
+
           throw WebDownloadException(
             'Проблема з авторизацією: ${response.statusCode}',
             fileId,
@@ -69,17 +79,17 @@ class FileDownloader {
         }
       } catch (e) {
         debugPrint('FileDownloader: Спроба ${attempt + 1} не вдалася: $e');
-        
+
         if (attempt == maxRetries - 1) {
           // Остання спроба
           rethrow;
         }
-        
+
         // Чекаємо трохи перед наступною спробою
         await Future.delayed(Duration(seconds: 1));
       }
     }
-    
+
     throw WebDownloadException(
       'Не вдалося завантажити файл після $maxRetries спроб',
       fileId,

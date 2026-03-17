@@ -6,7 +6,7 @@ class LoadingIndicator extends StatelessWidget {
   final double size;
   final Color? color;
   final bool showBackground;
-  
+
   const LoadingIndicator({
     super.key,
     this.message,
@@ -14,11 +14,11 @@ class LoadingIndicator extends StatelessWidget {
     this.color,
     this.showBackground = false,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     Widget indicator = SizedBox(
       width: size,
       height: size,
@@ -27,7 +27,7 @@ class LoadingIndicator extends StatelessWidget {
         color: color ?? theme.colorScheme.primary,
       ),
     );
-    
+
     if (message != null) {
       indicator = Column(
         mainAxisSize: MainAxisSize.min,
@@ -44,7 +44,7 @@ class LoadingIndicator extends StatelessWidget {
         ],
       );
     }
-    
+
     if (showBackground) {
       return Container(
         padding: const EdgeInsets.all(16),
@@ -55,7 +55,7 @@ class LoadingIndicator extends StatelessWidget {
         child: indicator,
       );
     }
-    
+
     return indicator;
   }
 }
@@ -64,14 +64,14 @@ class OverlayLoadingIndicator extends StatelessWidget {
   final Widget child;
   final bool isLoading;
   final String? message;
-  
+
   const OverlayLoadingIndicator({
     super.key,
     required this.child,
     required this.isLoading,
     this.message,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -82,10 +82,7 @@ class OverlayLoadingIndicator extends StatelessWidget {
             child: Container(
               color: Colors.black26,
               child: Center(
-                child: LoadingIndicator(
-                  message: message,
-                  showBackground: true,
-                ),
+                child: LoadingIndicator(message: message, showBackground: true),
               ),
             ),
           ),

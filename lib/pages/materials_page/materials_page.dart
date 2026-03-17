@@ -63,7 +63,9 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
           return d;
         }).toList();
 
-        final roles = await Globals.firestoreManager.getUserRolesPerGroup(email);
+        final roles = await Globals.firestoreManager.getUserRolesPerGroup(
+          email,
+        );
         final currentUserRole = roles[groupId] ?? 'viewer';
 
         // Збираємо всі теги і сортуємо за популярністю
@@ -75,9 +77,8 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
           }
         }
 
-        final sortedTags = tagCounts.entries
-            .toList()
-            ..sort((a, b) => b.value.compareTo(a.value));
+        final sortedTags = tagCounts.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
 
         if (mounted) {
           setState(() {
@@ -125,7 +126,7 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
         searchController.clear();
       }
     });
-    
+
     if (isSearching) {
       // Фокус на поле пошуку з невеликою затримкою
       Future.delayed(const Duration(milliseconds: 300), () {
@@ -148,7 +149,8 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
       final tags = List<String>.from(m['tags'] ?? []);
       final title = (m['title'] ?? '').toString().toLowerCase();
       final matchTags = matchesTags(tags);
-      final matchSearch = searchQuery.isEmpty || title.contains(searchQuery.toLowerCase());
+      final matchSearch =
+          searchQuery.isEmpty || title.contains(searchQuery.toLowerCase());
       return matchTags && matchSearch;
     }).toList();
   }
@@ -195,7 +197,8 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
                   border: const OutlineInputBorder(),
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16),
                 ),
-                onChanged: (value) => setState(() => searchQuery = value.toLowerCase()),
+                onChanged: (value) =>
+                    setState(() => searchQuery = value.toLowerCase()),
                 textInputAction: TextInputAction.search,
               )
             : Row(
@@ -229,7 +232,7 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
 
   Widget _buildTagsFilter() {
     if (allTags.isEmpty) return const SizedBox.shrink();
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
@@ -271,7 +274,7 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
               itemBuilder: (context, index) {
                 final tag = allTags.elementAt(index);
                 final isSelected = selectedTags.contains(tag);
-                
+
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: FilterChip(
@@ -279,7 +282,9 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
                     selected: isSelected,
                     onSelected: (_) => toggleTag(tag),
                     showCheckmark: false,
-                    selectedColor: Theme.of(context).colorScheme.primaryContainer,
+                    selectedColor: Theme.of(
+                      context,
+                    ).colorScheme.primaryContainer,
                     backgroundColor: const Color.fromARGB(255, 37, 36, 36),
                   ),
                 );
@@ -294,24 +299,20 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
   Widget _buildResultsInfo() {
     final filteredCount = filteredMaterials.length;
     final totalCount = materials.length;
-    
+
     if (!hasActiveFilters) return const SizedBox.shrink();
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          Icon(
-            Icons.filter_list,
-            size: 16,
-            color: Colors.grey[600],
-          ),
+          Icon(Icons.filter_list, size: 16, color: Colors.grey[600]),
           const SizedBox(width: 8),
           Text(
             'Показано $filteredCount з $totalCount матеріалів',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Colors.grey[600],
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
           ),
         ],
       ),
@@ -321,15 +322,13 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Методичні матеріали'),
-      ),
+      appBar: AppBar(title: const Text('Методичні матеріали')),
       body: Column(
         children: [
           _buildSearchBar(),
           _buildTagsFilter(),
           _buildResultsInfo(),
-          
+
           // Список матеріалів
           Expanded(
             child: isLoading('fetch_materials')
@@ -389,22 +388,22 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
               materials.isEmpty
                   ? 'Матеріали відсутні'
                   : hasActiveFilters
-                      ? 'Нічого не знайдено'
-                      : 'Матеріали не завантажилися',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Colors.grey[600],
-              ),
+                  ? 'Нічого не знайдено'
+                  : 'Матеріали не завантажилися',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
             ),
             const SizedBox(height: 8),
             Text(
               materials.isEmpty
                   ? 'Додайте перший методичний матеріал'
                   : hasActiveFilters
-                      ? 'Спробуйте змінити критерії пошуку'
-                      : 'Потягніть вниз для оновлення',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[500],
-              ),
+                  ? 'Спробуйте змінити критерії пошуку'
+                  : 'Потягніть вниз для оновлення',
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
               textAlign: TextAlign.center,
             ),
             if (hasActiveFilters) ...[

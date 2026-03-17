@@ -32,13 +32,16 @@ class UserProfile {
   String get fullName {
     final first = firstName ?? '';
     final last = lastName ?? '';
-    if (first.isEmpty && last.isEmpty) return email?.split('@').first ?? 'Користувач';
+    if (first.isEmpty && last.isEmpty)
+      return email?.split('@').first ?? 'Користувач';
     return '$first $last'.trim();
   }
 
   /// Ініціали користувача
   String get initials {
-    final first = firstName?.isNotEmpty == true ? firstName![0].toUpperCase() : '';
+    final first = firstName?.isNotEmpty == true
+        ? firstName![0].toUpperCase()
+        : '';
     final last = lastName?.isNotEmpty == true ? lastName![0].toUpperCase() : '';
     if (first.isEmpty && last.isEmpty) {
       final emailName = email?.split('@').first ?? 'У';
@@ -102,8 +105,8 @@ class UserProfile {
       uid: map['uid'],
       groups: List<String>.from(map['groups'] ?? []),
       rolesPerGroup: Map<String, String>.from(map['rolesPerGroup'] ?? {}),
-      lastUpdated: map['lastUpdated'] != null 
-          ? DateTime.parse(map['lastUpdated']) 
+      lastUpdated: map['lastUpdated'] != null
+          ? DateTime.parse(map['lastUpdated'])
           : null,
     );
   }
@@ -117,18 +120,10 @@ class CurrentGroup {
   final String name;
   final String? role;
 
-  const CurrentGroup({
-    required this.id,
-    required this.name,
-    this.role,
-  });
+  const CurrentGroup({required this.id, required this.name, this.role});
 
   Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'name': name,
-      'role': role,
-    };
+    return {'id': id, 'name': name, 'role': role};
   }
 
   factory CurrentGroup.fromMap(Map<String, dynamic> map) {
@@ -143,7 +138,7 @@ class CurrentGroup {
 class ProfileManager {
   static const String _profileBoxName = 'user_profile';
   static const String _currentGroupBoxName = 'current_group';
-  
+
   static const String _profileKey = 'profile_data';
   static const String _currentGroupKey = 'current_group_data';
 
@@ -158,7 +153,7 @@ class ProfileManager {
     try {
       _profileBox = await Hive.openBox(_profileBoxName);
       _currentGroupBox = await Hive.openBox(_currentGroupBoxName);
-      
+
       // Завантажуємо збережені дані
       await _loadProfileFromBox();
       await _loadCurrentGroupFromBox();
@@ -186,12 +181,15 @@ class ProfileManager {
       if (user == null) return false;
 
       // Отримуємо дані з Firestore
-      final firestoreData = await Globals.firestoreManager.getOrCreateUserData();
+      final firestoreData = await Globals.firestoreManager
+          .getOrCreateUserData();
       if (firestoreData == null) return false;
 
       // Отримуємо групи та ролі
       final groups = await Globals.firestoreManager.getUserGroups(user.email!);
-      final roles = await Globals.firestoreManager.getUserRolesPerGroup(user.email!);
+      final roles = await Globals.firestoreManager.getUserRolesPerGroup(
+        user.email!,
+      );
 
       // Створюємо профіль
       final updatedProfile = UserProfile(
@@ -252,7 +250,7 @@ class ProfileManager {
       );
 
       await _saveProfile(updatedProfile);
-      
+
       return true;
     } catch (e) {
       if (kDebugMode) {
@@ -263,21 +261,23 @@ class ProfileManager {
   }
 
   /// Встановити поточну групу
-  Future<void> setCurrentGroup(String groupId, String groupName, [String? role]) async {
+  Future<void> setCurrentGroup(
+    String groupId,
+    String groupName, [
+    String? role,
+  ]) async {
     try {
-      final newGroup = CurrentGroup(
-        id: groupId,
-        name: groupName,
-        role: role,
-      );
+      final newGroup = CurrentGroup(id: groupId, name: groupName, role: role);
 
       _currentGroup = newGroup;
-      
+
       // Зберігаємо в Hive
       await _currentGroupBox?.put(_currentGroupKey, newGroup.toMap());
       await Globals.groupTemplatesService.ensureInitializedForCurrentGroup();
       if (kDebugMode) {
-        print('Встановлено поточну групу: $groupName ($groupId) з роллю: $role');
+        print(
+          'Встановлено поточну групу: $groupName ($groupId) з роллю: $role',
+        );
       }
     } catch (e) {
       if (kDebugMode) {
@@ -291,15 +291,19 @@ class ProfileManager {
     try {
       // Спробуємо завантажити збережену групу
       await _loadCurrentGroupFromBox();
-      
+
       // Перевіряємо чи збережена група ще доступна
       if (_currentGroup != null && allGroups.containsKey(_currentGroup!.id)) {
         // Оновлюємо роль з актуальних даних
         final roles = _profile.rolesPerGroup;
         final updatedRole = roles[_currentGroup!.id];
-        
+
         if (updatedRole != _currentGroup!.role) {
-          await setCurrentGroup(_currentGroup!.id, _currentGroup!.name, updatedRole);
+          await setCurrentGroup(
+            _currentGroup!.id,
+            _currentGroup!.name,
+            updatedRole,
+          );
         }
         return;
       }
@@ -309,7 +313,7 @@ class ProfileManager {
         final firstGroupId = allGroups.keys.first;
         final firstGroupName = allGroups.values.first;
         final role = _profile.rolesPerGroup[firstGroupId];
-        
+
         await setCurrentGroup(firstGroupId, firstGroupName, role);
       }
     } catch (e) {
@@ -336,7 +340,7 @@ class ProfileManager {
     try {
       _profile = UserProfile.empty;
       _currentGroup = null;
-      
+
       await _profileBox?.clear();
       await _currentGroupBox?.clear();
     } catch (e) {

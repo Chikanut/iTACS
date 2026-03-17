@@ -51,10 +51,10 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
 
   String get _formattedDate {
     if (_lastModified == null) return '';
-    
+
     final now = DateTime.now();
     final difference = now.difference(_lastModified!);
-    
+
     if (difference.inDays == 0) {
       return 'сьогодні';
     } else if (difference.inDays == 1) {
@@ -86,16 +86,20 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
 
   Future<void> _downloadFile() async {
     if (fileId == null) {
-      Globals.errorNotificationManager.showError('Неможливо знайти файл для завантаження.');
+      Globals.errorNotificationManager.showError(
+        'Неможливо знайти файл для завантаження.',
+      );
       return;
     }
-    
+
     try {
       await withLoading('download_$fileId', () async {
         await Globals.fileManager.cacheFile(fileId!);
-        
+
         if (mounted) {
-          Globals.errorNotificationManager.showSuccess('Файл збережено локально');
+          Globals.errorNotificationManager.showSuccess(
+            'Файл збережено локально',
+          );
           await _checkDownloaded();
           widget.onRefresh();
         }
@@ -109,38 +113,44 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
 
   Future<void> _openFile() async {
     if (fileId == null) return;
-    
+
     try {
       await withLoading('open_$fileId', () async {
         await Globals.fileManager.openFile(fileId!);
-        
+
         if (mounted) {
           await _checkDownloaded();
         }
       });
     } catch (e) {
       if (mounted) {
-        Globals.errorNotificationManager.showError('Помилка відкриття файлу: $e');
+        Globals.errorNotificationManager.showError(
+          'Помилка відкриття файлу: $e',
+        );
       }
     }
   }
 
   Future<void> _deleteFile() async {
     if (fileId == null) return;
-    
+
     try {
       await withLoading('delete_$fileId', () async {
         await Globals.fileManager.removeFromCache(fileId!);
-        
+
         if (mounted) {
           await _checkDownloaded();
           widget.onRefresh();
-          Globals.errorNotificationManager.showSuccess('Локальний файл видалено');
+          Globals.errorNotificationManager.showSuccess(
+            'Локальний файл видалено',
+          );
         }
       });
     } catch (e) {
       if (mounted) {
-        Globals.errorNotificationManager.showError('Помилка видалення файлу: $e');
+        Globals.errorNotificationManager.showError(
+          'Помилка видалення файлу: $e',
+        );
       }
     }
   }
@@ -152,12 +162,13 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
     try {
       await withLoading('delete_global_$fileId', () async {
         final docId = widget.material['id'];
-        final result = await Globals.firestoreManager.deleteDocumentWhereAllowed(
-          docId: docId,
-          groupId: Globals.profileManager.currentGroupId!,
-          userRole: widget.userRole,
-          collection: 'materials',
-        );
+        final result = await Globals.firestoreManager
+            .deleteDocumentWhereAllowed(
+              docId: docId,
+              groupId: Globals.profileManager.currentGroupId!,
+              userRole: widget.userRole,
+              collection: 'materials',
+            );
 
         final deleted = (result['deleted'] as List);
         final skipped = (result['skipped'] as List);
@@ -174,7 +185,7 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
               'Залишився в ${skipped.length} ${skipped.length == 1 ? 'групі' : 'групах'} (немає прав)',
             );
           }
-          
+
           widget.onRefresh();
         }
       });
@@ -187,34 +198,35 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
 
   Future<bool> _showDeleteConfirmation() async {
     return await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Підтвердження'),
-        content: const Text(
-          'Видалити цей матеріал з усіх груп де у вас є права адміністратора?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Скасувати'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Підтвердження'),
+            content: const Text(
+              'Видалити цей матеріал з усіх груп де у вас є права адміністратора?',
             ),
-            child: const Text('Видалити'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Скасувати'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.red,
+                  foregroundColor: Colors.white,
+                ),
+                child: const Text('Видалити'),
+              ),
+            ],
           ),
-        ],
-      ),
-    ) ?? false;
+        ) ??
+        false;
   }
 
   IconData _getFileIcon() {
     final title = widget.material['title']?.toString().toLowerCase() ?? '';
     final url = widget.material['url']?.toString().toLowerCase() ?? '';
-    
+
     // Визначаємо тип файлу за назвою або URL
     if (title.contains('презентац') || url.contains('presentation')) {
       return Icons.slideshow;
@@ -301,7 +313,8 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
     final isOpening = isLoading('open_$fileId');
     final isDeleting = isLoading('delete_$fileId');
     final isDeletingGlobal = isLoading('delete_global_$fileId');
-    final isAnyLoading = isDownloading || isOpening || isDeleting || isDeletingGlobal;
+    final isAnyLoading =
+        isDownloading || isOpening || isDeleting || isDeletingGlobal;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -324,10 +337,7 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
                       color: _getStatusColor().withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(
-                      _getFileIcon(),
-                      color: _getStatusColor(),
-                    ),
+                    child: Icon(_getFileIcon(), color: _getStatusColor()),
                   ),
                   if (isOpening)
                     Container(
@@ -341,9 +351,9 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
                     ),
                 ],
               ),
-              
+
               const SizedBox(width: 16),
-              
+
               // Контент
               Expanded(
                 child: Column(
@@ -359,9 +369,9 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    
+
                     const SizedBox(height: 4),
-                    
+
                     // Теги та статус
                     Row(
                       children: [
@@ -370,20 +380,30 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
                             child: Wrap(
                               spacing: 6,
                               runSpacing: 4,
-                              children: tags.take(3).map((tag) => Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: Colors.grey.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(8),
-                                ),
-                                child: Text(
-                                  tag,
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: isAnyLoading ? Colors.grey : Colors.grey[700],
-                                  ),
-                                ),
-                              )).toList(),
+                              children: tags
+                                  .take(3)
+                                  .map(
+                                    (tag) => Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 2,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        tag,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isAnyLoading
+                                              ? Colors.grey
+                                              : Colors.grey[700],
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                  .toList(),
                             ),
                           ),
                           const SizedBox(width: 8),
@@ -391,7 +411,7 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
                         _buildStatusChip(),
                       ],
                     ),
-                    
+
                     // Дата модифікації
                     if (_formattedDate.isNotEmpty) ...[
                       const SizedBox(height: 4),
@@ -405,7 +425,7 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
                   ],
                 ),
               ),
-              
+
               // Дії
               Row(
                 mainAxisSize: MainAxisSize.min,
@@ -422,7 +442,7 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
                             onPressed: isAnyLoading ? null : _downloadFile,
                             tooltip: 'Завантажити локально',
                           ),
-                  
+
                   // Меню дій
                   if (isSaved || canEdit)
                     isDeletingGlobal || isDeleting
@@ -464,7 +484,10 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
                                 const PopupMenuItem(
                                   value: 'delete_global',
                                   child: ListTile(
-                                    leading: Icon(Icons.delete_forever, color: Colors.red),
+                                    leading: Icon(
+                                      Icons.delete_forever,
+                                      color: Colors.red,
+                                    ),
                                     title: Text('Видалити з усіх груп'),
                                     contentPadding: EdgeInsets.zero,
                                     dense: true,

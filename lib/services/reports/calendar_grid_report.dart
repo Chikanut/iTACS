@@ -16,7 +16,7 @@ class CalendarGridReport extends BaseReport {
   String get name => 'Календарна сітка';
 
   @override
-  String get description => 
+  String get description =>
       'Візуальна календарна сітка з заняттями по підрозділах у форматі:\n'
       'Підрозділи × Дні місяця з кольоровою диференціацією';
 
@@ -77,7 +77,10 @@ class CalendarGridReport extends BaseReport {
         endDate: endDate,
       );
 
-      final units = lessons.map((l) => l.unit).where((u) => u.isNotEmpty).toSet();
+      final units = lessons
+          .map((l) => l.unit)
+          .where((u) => u.isNotEmpty)
+          .toSet();
       final days = endDate.difference(startDate).inDays + 1;
 
       return {
@@ -121,7 +124,9 @@ class CalendarGridReport extends BaseReport {
     Map<String, dynamic>? parameters,
   }) async {
     if (format != ReportFormat.excel) {
-      throw UnsupportedError('Формат ${format.displayName} поки не підтримується для звіту "$name"');
+      throw UnsupportedError(
+        'Формат ${format.displayName} поки не підтримується для звіту "$name"',
+      );
     }
 
     return await _generateExcelReport(
@@ -152,7 +157,10 @@ class CalendarGridReport extends BaseReport {
     // Організуємо дані
     final daysInPeriod = _generateDaysList(startDate, endDate);
     final unitsList = _getUniqueUnits(lessons);
-    final lessonsByUnitAndDate = _organizeLessonsByUnitAndDate(lessons, daysInPeriod);
+    final lessonsByUnitAndDate = _organizeLessonsByUnitAndDate(
+      lessons,
+      daysInPeriod,
+    );
 
     // Генеруємо звіт
     _createHeader(sheet, startDate, endDate);
@@ -166,12 +174,12 @@ class CalendarGridReport extends BaseReport {
   List<DateTime> _generateDaysList(DateTime startDate, DateTime endDate) {
     final days = <DateTime>[];
     DateTime current = startDate;
-    
+
     while (current.isBefore(endDate) || current.isAtSameMomentAs(endDate)) {
       days.add(DateTime(current.year, current.month, current.day));
       current = current.add(const Duration(days: 1));
     }
-    
+
     return days;
   }
 
@@ -181,7 +189,7 @@ class CalendarGridReport extends BaseReport {
         .where((u) => u.isNotEmpty)
         .toSet()
         .toList();
-    
+
     units.sort();
     return units;
   }
@@ -191,7 +199,7 @@ class CalendarGridReport extends BaseReport {
     List<DateTime> days,
   ) {
     final organized = <String, Map<DateTime, List<LessonModel>>>{};
-    
+
     for (final lesson in lessons) {
       final unit = lesson.unit.isEmpty ? 'Без підрозділу' : lesson.unit;
       final lessonDate = DateTime(
@@ -199,21 +207,23 @@ class CalendarGridReport extends BaseReport {
         lesson.startTime.month,
         lesson.startTime.day,
       );
-      
+
       organized.putIfAbsent(unit, () => {});
       organized[unit]!.putIfAbsent(lessonDate, () => []);
       organized[unit]![lessonDate]!.add(lesson);
     }
-    
+
     return organized;
   }
 
   void _createHeader(excel.Sheet sheet, DateTime startDate, DateTime endDate) {
     // Основний заголовок
     final titleText = 'КАЛЕНДАРНА СІТКА';
-    final titleCell = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0));
+    final titleCell = sheet.cell(
+      excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
+    );
     titleCell.value = excel.TextCellValue(titleText);
-    
+
     titleCell.cellStyle = excel.CellStyle(
       fontSize: 16,
       bold: true,
@@ -221,10 +231,13 @@ class CalendarGridReport extends BaseReport {
     );
 
     // Період
-    final dateRange = 'Період: ${DateFormat('dd.MM.yyyy').format(startDate)} - ${DateFormat('dd.MM.yyyy').format(endDate)}';
-    final periodCell = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1));
+    final dateRange =
+        'Період: ${DateFormat('dd.MM.yyyy').format(startDate)} - ${DateFormat('dd.MM.yyyy').format(endDate)}';
+    final periodCell = sheet.cell(
+      excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1),
+    );
     periodCell.value = excel.TextCellValue(dateRange);
-    
+
     periodCell.cellStyle = excel.CellStyle(
       fontSize: 12,
       horizontalAlign: excel.HorizontalAlign.Center,
@@ -232,9 +245,11 @@ class CalendarGridReport extends BaseReport {
 
     // Група
     final groupName = Globals.profileManager.currentGroupName ?? 'Не вибрано';
-    final groupCell = sheet.cell(excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 2));
+    final groupCell = sheet.cell(
+      excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 2),
+    );
     groupCell.value = excel.TextCellValue('Група: $groupName');
-    
+
     groupCell.cellStyle = excel.CellStyle(
       fontSize: 11,
       horizontalAlign: excel.HorizontalAlign.Center,
@@ -248,17 +263,19 @@ class CalendarGridReport extends BaseReport {
     Map<String, Map<DateTime, List<LessonModel>>> lessonsByUnitAndDate,
   ) {
     const startRow = 4; // Почати після заголовків
-    
+
     // Заголовки днів
     for (int dayIndex = 0; dayIndex < days.length; dayIndex++) {
       final day = days[dayIndex];
       final dayName = CalendarUtils.getDayName(day.weekday, short: true);
       final dayNumber = day.day.toString();
-      
-      final headerCell = sheet.cell(excel.CellIndex.indexByColumnRow(
-        columnIndex: dayIndex + 1, 
-        rowIndex: startRow,
-      ));
+
+      final headerCell = sheet.cell(
+        excel.CellIndex.indexByColumnRow(
+          columnIndex: dayIndex + 1,
+          rowIndex: startRow,
+        ),
+      );
       headerCell.value = excel.TextCellValue('$dayName $dayNumber');
       headerCell.cellStyle = excel.CellStyle(
         fontSize: 10,
@@ -271,10 +288,9 @@ class CalendarGridReport extends BaseReport {
     }
 
     // Заголовок колонки підрозділів
-    final unitHeaderCell = sheet.cell(excel.CellIndex.indexByColumnRow(
-      columnIndex: 0, 
-      rowIndex: startRow,
-    ));
+    final unitHeaderCell = sheet.cell(
+      excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: startRow),
+    );
     unitHeaderCell.value = excel.TextCellValue('Підрозділ');
     unitHeaderCell.cellStyle = excel.CellStyle(
       fontSize: 11,
@@ -287,10 +303,10 @@ class CalendarGridReport extends BaseReport {
 
     // Генеруємо рядки для кожного підрозділу
     int currentRow = startRow + 1;
-    
+
     for (final unit in units) {
       final unitLessons = lessonsByUnitAndDate[unit] ?? {};
-      
+
       // Знаходимо максимальну кількість занять в один день для цього підрозділу
       int maxLessonsPerDay = 0;
       for (final dayLessons in unitLessons.values) {
@@ -298,18 +314,20 @@ class CalendarGridReport extends BaseReport {
           maxLessonsPerDay = dayLessons.length;
         }
       }
-      
+
       // Якщо немає занять - один рядок
       if (maxLessonsPerDay == 0) maxLessonsPerDay = 1;
-      
+
       // Створюємо рядки для підрозділу
       for (int lessonRow = 0; lessonRow < maxLessonsPerDay; lessonRow++) {
         // Назва підрозділу (тільки в першому рядку)
         if (lessonRow == 0) {
-          final unitCell = sheet.cell(excel.CellIndex.indexByColumnRow(
-            columnIndex: 0, 
-            rowIndex: currentRow,
-          ));
+          final unitCell = sheet.cell(
+            excel.CellIndex.indexByColumnRow(
+              columnIndex: 0,
+              rowIndex: currentRow,
+            ),
+          );
           unitCell.value = excel.TextCellValue(unit);
           unitCell.cellStyle = excel.CellStyle(
             fontSize: 10,
@@ -318,36 +336,47 @@ class CalendarGridReport extends BaseReport {
             horizontalAlign: excel.HorizontalAlign.Left,
             verticalAlign: excel.VerticalAlign.Center,
           );
-          
+
           // Об'єднуємо клітинки по вертикалі якщо кілька рядків
           if (maxLessonsPerDay > 1) {
             sheet.merge(
-              excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
-              excel.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow + maxLessonsPerDay - 1),
+              excel.CellIndex.indexByColumnRow(
+                columnIndex: 0,
+                rowIndex: currentRow,
+              ),
+              excel.CellIndex.indexByColumnRow(
+                columnIndex: 0,
+                rowIndex: currentRow + maxLessonsPerDay - 1,
+              ),
             );
           }
         }
-        
+
         // Заняття для кожного дня
         for (int dayIndex = 0; dayIndex < days.length; dayIndex++) {
           final day = days[dayIndex];
           final dayLessons = unitLessons[day] ?? [];
-          
-          final lessonCell = sheet.cell(excel.CellIndex.indexByColumnRow(
-            columnIndex: dayIndex + 1, 
-            rowIndex: currentRow,
-          ));
-          
+
+          final lessonCell = sheet.cell(
+            excel.CellIndex.indexByColumnRow(
+              columnIndex: dayIndex + 1,
+              rowIndex: currentRow,
+            ),
+          );
+
           if (lessonRow < dayLessons.length) {
             final lesson = dayLessons[lessonRow];
-            final cellContent = '${lesson.title}\n${lesson.maxParticipants} осіб';
+            final cellContent =
+                '${lesson.title}\n${lesson.maxParticipants} осіб';
             lessonCell.value = excel.TextCellValue(cellContent);
-            
+
             // Кольорова диференціація по типу заняття
             final backgroundColor = _getLessonColor(lesson.title);
             lessonCell.cellStyle = excel.CellStyle(
               fontSize: 9,
-              backgroundColorHex: excel.ExcelColor.fromHexString(backgroundColor),
+              backgroundColorHex: excel.ExcelColor.fromHexString(
+                backgroundColor,
+              ),
               horizontalAlign: excel.HorizontalAlign.Center,
               verticalAlign: excel.VerticalAlign.Center,
               textWrapping: excel.TextWrapping.WrapText,
@@ -360,7 +389,7 @@ class CalendarGridReport extends BaseReport {
             );
           }
         }
-        
+
         currentRow++;
       }
     }
@@ -369,7 +398,7 @@ class CalendarGridReport extends BaseReport {
   String _getLessonColor(String lessonTitle) {
     // Кольорова диференціація по ключових словах в назві заняття
     final title = lessonTitle.toLowerCase();
-    
+
     if (title.contains('теор') || title.contains('лекц')) {
       return '#E6F3FF'; // Світло-блакитний для теорії
     } else if (title.contains('практ') || title.contains('навч')) {
@@ -389,17 +418,16 @@ class CalendarGridReport extends BaseReport {
 
   void _addLegend(excel.Sheet sheet, int daysCount, int unitsCount) {
     final legendStartRow = 6 + unitsCount * 2; // Після таблиці
-    
+
     // Заголовок легенди
-    final legendHeaderCell = sheet.cell(excel.CellIndex.indexByColumnRow(
-      columnIndex: 0, 
-      rowIndex: legendStartRow,
-    ));
-    legendHeaderCell.value = excel.TextCellValue('ЛЕГЕНДА КОЛЬОРІВ:');
-    legendHeaderCell.cellStyle = excel.CellStyle(
-      fontSize: 11,
-      bold: true,
+    final legendHeaderCell = sheet.cell(
+      excel.CellIndex.indexByColumnRow(
+        columnIndex: 0,
+        rowIndex: legendStartRow,
+      ),
     );
+    legendHeaderCell.value = excel.TextCellValue('ЛЕГЕНДА КОЛЬОРІВ:');
+    legendHeaderCell.cellStyle = excel.CellStyle(fontSize: 11, bold: true);
 
     // Кольори та їх значення
     final colorLegend = [
@@ -414,36 +442,40 @@ class CalendarGridReport extends BaseReport {
 
     for (int i = 0; i < colorLegend.length; i++) {
       final (label, color) = colorLegend[i];
-      
+
       // Кольорова клітинка
-      final colorCell = sheet.cell(excel.CellIndex.indexByColumnRow(
-        columnIndex: 0, 
-        rowIndex: legendStartRow + 1 + i,
-      ));
+      final colorCell = sheet.cell(
+        excel.CellIndex.indexByColumnRow(
+          columnIndex: 0,
+          rowIndex: legendStartRow + 1 + i,
+        ),
+      );
       colorCell.value = excel.TextCellValue('■');
       colorCell.cellStyle = excel.CellStyle(
         fontSize: 14,
         backgroundColorHex: excel.ExcelColor.fromHexString(color),
       );
-      
+
       // Підпис
-      final labelCell = sheet.cell(excel.CellIndex.indexByColumnRow(
-        columnIndex: 1, 
-        rowIndex: legendStartRow + 1 + i,
-      ));
-      labelCell.value = excel.TextCellValue(label);
-      labelCell.cellStyle = excel.CellStyle(
-        fontSize: 9,
+      final labelCell = sheet.cell(
+        excel.CellIndex.indexByColumnRow(
+          columnIndex: 1,
+          rowIndex: legendStartRow + 1 + i,
+        ),
       );
+      labelCell.value = excel.TextCellValue(label);
+      labelCell.cellStyle = excel.CellStyle(fontSize: 9);
     }
 
     // Дата генерації
-    final generatedCell = sheet.cell(excel.CellIndex.indexByColumnRow(
-      columnIndex: 0, 
-      rowIndex: legendStartRow + colorLegend.length + 2,
-    ));
+    final generatedCell = sheet.cell(
+      excel.CellIndex.indexByColumnRow(
+        columnIndex: 0,
+        rowIndex: legendStartRow + colorLegend.length + 2,
+      ),
+    );
     generatedCell.value = excel.TextCellValue(
-      'Згенеровано: ${DateFormat('dd.MM.yyyy HH:mm').format(DateTime.now())}'
+      'Згенеровано: ${DateFormat('dd.MM.yyyy HH:mm').format(DateTime.now())}',
     );
     generatedCell.cellStyle = excel.CellStyle(
       fontSize: 8,
@@ -457,7 +489,7 @@ class CalendarGridReport extends BaseReport {
     for (int i = 1; i <= daysCount; i++) {
       sheet.setColumnWidth(i, 15); // Дні
     }
-    
+
     // Висота рядків
     sheet.setRowHeight(4, 25); // Заголовки днів
   }
@@ -466,11 +498,11 @@ class CalendarGridReport extends BaseReport {
     final formatter = DateFormat('dd.MM.yyyy');
     final start = formatter.format(startDate);
     final end = formatter.format(endDate);
-    
+
     if (start == end) {
       return start;
     }
-    
+
     return '$start-$end';
   }
 }

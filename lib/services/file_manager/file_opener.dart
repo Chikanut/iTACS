@@ -3,8 +3,7 @@
 import 'package:flutter/foundation.dart';
 
 // Умовний імпорт - тільки для веб
-import '../html_stub.dart'
-    if (dart.library.html) 'dart:html' as html;
+import '../html_stub.dart' if (dart.library.html) 'dart:html' as html;
 
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
@@ -15,7 +14,11 @@ import 'package:path/path.dart' as p;
 class FileOpener {
   FileOpener();
 
-  Future<void> openFile(String fileId, Uint8List data, FileCacheEntry metadata) async {
+  Future<void> openFile(
+    String fileId,
+    Uint8List data,
+    FileCacheEntry metadata,
+  ) async {
     try {
       final fileName = metadata.filename;
       debugPrint('FileOpener: Відкриваємо файл $fileId з іменем "$fileName"');
@@ -30,15 +33,21 @@ class FileOpener {
     }
   }
 
-  Future<void> _openFileWeb(String fileId, Uint8List data, FileCacheEntry metadata) async {
+  Future<void> _openFileWeb(
+    String fileId,
+    Uint8List data,
+    FileCacheEntry metadata,
+  ) async {
     if (!kIsWeb) return;
-    
+
     final fileName = metadata.filename;
     final mimeType = _getMimeType(metadata.extension);
     debugPrint('FileOpener: Тип MIME визначено як "$mimeType"');
 
     final blob = html.Blob([data], mimeType);
-    debugPrint('FileOpener: Створено blob з ${data.length} байт, типом "$mimeType"');
+    debugPrint(
+      'FileOpener: Створено blob з ${data.length} байт, типом "$mimeType"',
+    );
 
     final url = html.Url.createObjectUrlFromBlob(blob);
     debugPrint('FileOpener: Створено Object URL: $url');
@@ -58,7 +67,11 @@ class FileOpener {
     debugPrint('FileOpener: Object URL звільнено');
   }
 
-  Future<void> _openFileMobile(String fileId, Uint8List data, FileCacheEntry metadata) async {
+  Future<void> _openFileMobile(
+    String fileId,
+    Uint8List data,
+    FileCacheEntry metadata,
+  ) async {
     final fileName = metadata.filename;
     final tempDir = await getTemporaryDirectory();
     final filePath = p.join(tempDir.path, fileName);

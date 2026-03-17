@@ -2,8 +2,6 @@ import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
 
-
-
 class DefaultFirebaseOptions {
   static FirebaseOptions get currentPlatform {
     if (kIsWeb) {
@@ -81,4 +79,5 @@ extension DriveApiKey on FirebaseOptions {
   String get apiKeyForDrive => apiKey;
 }
 
-String get googleDriveApiKey => DefaultFirebaseOptions.currentPlatform.apiKeyForDrive;
+String get googleDriveApiKey =>
+    DefaultFirebaseOptions.currentPlatform.apiKeyForDrive;

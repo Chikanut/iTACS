@@ -28,7 +28,7 @@ class MonthView extends StatelessWidget {
   Widget build(BuildContext context) {
     final monthStart = CalendarUtils.getStartOfMonth(selectedDate);
     final monthEnd = CalendarUtils.getEndOfMonth(selectedDate);
-    
+
     // Отримуємо всі дні місяця
     final daysInMonth = <DateTime>[];
     for (int i = 0; i < monthEnd.day; i++) {
@@ -44,12 +44,12 @@ class MonthView extends StatelessWidget {
             // Заголовок місяця
             _buildMonthHeader(context),
             const SizedBox(height: 20),
-            
+
             // Календарна сітка
             _buildCalendarGrid(context, daysInMonth),
-            
+
             const SizedBox(height: 20),
-            
+
             // Статистика місяця
             _buildMonthStats(context, daysInMonth),
           ],
@@ -65,18 +65,12 @@ class MonthView extends StatelessWidget {
         children: [
           Text(
             DateFormat('MMMM yyyy', 'uk').format(selectedDate),
-            style: const TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
             _getMonthSummary(),
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
           ),
         ],
       ),
@@ -89,10 +83,11 @@ class MonthView extends StatelessWidget {
         // Розраховуємо оптимальну висоту клітинки
         final screenWidth = constraints.maxWidth;
         final screenHeight = MediaQuery.of(context).size.height;
-        
+
         // Ширина клітинки = (доступна ширина - borders) / 7 колонок
-        final cellWidth = (screenWidth - 6) / 7; // -6 для 6 borders між колонками
-        
+        final cellWidth =
+            (screenWidth - 6) / 7; // -6 для 6 borders між колонками
+
         // Висота клітинки залежить від ширини та розміру екрана
         double cellHeight;
         if (screenHeight < 600) {
@@ -105,12 +100,12 @@ class MonthView extends StatelessWidget {
           // Великі екрани
           cellHeight = math.max(80, cellWidth);
         }
-        
+
         // Розраховуємо кількість рядків
         final weekRows = (daysInMonth.length / 7).ceil();
         final totalRows = weekRows + 1; // +1 для заголовків
         final totalHeight = totalRows * cellHeight;
-        
+
         return Container(
           height: totalHeight,
           decoration: BoxDecoration(
@@ -132,7 +127,7 @@ class MonthView extends StatelessWidget {
               if (index < 7) {
                 return _buildDayHeader(index);
               }
-              
+
               final dayIndex = index - 7;
               final day = daysInMonth[dayIndex];
               return _buildDayCell(context, day, cellHeight);
@@ -145,11 +140,11 @@ class MonthView extends StatelessWidget {
 
   Widget _buildDayHeader(int index) {
     final dayNames = ['ПН', 'ВТ', 'СР', 'ЧТ', 'ПТ', 'СБ', 'НД'];
-    
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final isSmall = constraints.maxHeight < 70;
-        
+
         return Container(
           alignment: Alignment.center,
           padding: EdgeInsets.symmetric(vertical: isSmall ? 4 : 8),
@@ -157,7 +152,9 @@ class MonthView extends StatelessWidget {
             color: Colors.grey.shade100,
             border: Border(
               bottom: BorderSide(color: Colors.grey.shade300),
-              right: index < 6 ? BorderSide(color: Colors.grey.shade300) : BorderSide.none,
+              right: index < 6
+                  ? BorderSide(color: Colors.grey.shade300)
+                  : BorderSide.none,
             ),
           ),
           child: Text(
@@ -176,28 +173,31 @@ class MonthView extends StatelessWidget {
   Widget _buildDayCell(BuildContext context, DateTime day, double cellHeight) {
     final lessonsForDay = getLessonsForSpecificDate(day);
     final isToday = CalendarUtils.isToday(day);
-    final isSelected = day.year == selectedDate.year &&
-                      day.month == selectedDate.month &&
-                      day.day == selectedDate.day;
-    
+    final isSelected =
+        day.year == selectedDate.year &&
+        day.month == selectedDate.month &&
+        day.day == selectedDate.day;
+
     // Адаптивні розміри залежно від висоти клітинки
     final isSmallCell = cellHeight < 70;
     final isTinyCell = cellHeight < 60;
-    
+
     return GestureDetector(
       onTap: () => onDateSelected?.call(day),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           border: Border.all(
-            color: isSelected 
-              ? Colors.green
-              : isToday 
-                ? Theme.of(context).primaryColor 
+            color: isSelected
+                ? Colors.green
+                : isToday
+                ? Theme.of(context).primaryColor
                 : Colors.grey.shade300,
             width: (isToday || isSelected) ? 2 : 1,
           ),
-          borderRadius: (isToday || isSelected) ? BorderRadius.circular(4) : null,
+          borderRadius: (isToday || isSelected)
+              ? BorderRadius.circular(4)
+              : null,
         ),
         child: Padding(
           padding: EdgeInsets.all(isSmallCell ? 2 : 4),
@@ -212,19 +212,25 @@ class MonthView extends StatelessWidget {
                   Text(
                     day.day.toString(),
                     style: TextStyle(
-                      fontSize: isTinyCell ? 10 : isSmallCell ? 11 : 12,
-                      fontWeight: (isToday || isSelected) ? FontWeight.bold : FontWeight.normal,
+                      fontSize: isTinyCell
+                          ? 10
+                          : isSmallCell
+                          ? 11
+                          : 12,
+                      fontWeight: (isToday || isSelected)
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                       color: isSelected
-                        ? Colors.green
-                        : isToday 
-                          ? Theme.of(context).primaryColor 
+                          ? Colors.green
+                          : isToday
+                          ? Theme.of(context).primaryColor
                           : Colors.black,
                     ),
                   ),
                   if (lessonsForDay.isNotEmpty)
                     Container(
                       padding: EdgeInsets.symmetric(
-                        horizontal: isSmallCell ? 3 : 4, 
+                        horizontal: isSmallCell ? 3 : 4,
                         vertical: 1,
                       ),
                       decoration: BoxDecoration(
@@ -242,7 +248,7 @@ class MonthView extends StatelessWidget {
                     ),
                 ],
               ),
-              
+
               // Плашки занять
               if (lessonsForDay.isNotEmpty && !isTinyCell) ...[
                 SizedBox(height: isSmallCell ? 1 : 2),
@@ -251,12 +257,13 @@ class MonthView extends StatelessWidget {
                     children: [
                       // Показуємо менше занять для маленьких клітинок
                       ...lessonsForDay.take(isSmallCell ? 2 : 3).map((lesson) {
-                        final readinessStatus = LessonStatusUtils.getReadinessStatus(lesson);
+                        final readinessStatus =
+                            LessonStatusUtils.getReadinessStatus(lesson);
                         return Container(
                           width: double.infinity,
                           margin: const EdgeInsets.only(bottom: 1),
                           padding: EdgeInsets.symmetric(
-                            horizontal: isSmallCell ? 1 : 2, 
+                            horizontal: isSmallCell ? 1 : 2,
                             vertical: 1,
                           ),
                           decoration: BoxDecoration(
@@ -307,10 +314,10 @@ class MonthView extends StatelessWidget {
 
   Widget _buildMonthStats(BuildContext context, List<DateTime> daysInMonth) {
     final totalLessons = lessons.length;
-    final daysWithLessons = daysInMonth.where((day) => 
-      getLessonsForSpecificDate(day).isNotEmpty
-    ).length;
-    
+    final daysWithLessons = daysInMonth
+        .where((day) => getLessonsForSpecificDate(day).isNotEmpty)
+        .length;
+
     // Групуємо заняття по тегах
     final tagCounts = <String, int>{};
     for (final lesson in lessons) {
@@ -318,7 +325,7 @@ class MonthView extends StatelessWidget {
         tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
       }
     }
-    
+
     final topTags = tagCounts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
 
@@ -334,13 +341,10 @@ class MonthView extends StatelessWidget {
         children: [
           const Text(
             'Статистика місяця',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 12),
-          
+
           Row(
             children: [
               Expanded(
@@ -364,40 +368,45 @@ class MonthView extends StatelessWidget {
               ),
             ],
           ),
-          
+
           if (topTags.isNotEmpty) ...[
             const SizedBox(height: 16),
             const Text(
               'Популярні категорії:',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 4,
-              children: topTags.take(5).map((entry) => 
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: Theme.of(context).primaryColor.withOpacity(0.3),
+              children: topTags
+                  .take(5)
+                  .map(
+                    (entry) => Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).primaryColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: Theme.of(
+                            context,
+                          ).primaryColor.withOpacity(0.3),
+                        ),
+                      ),
+                      child: Text(
+                        '${entry.key} (${entry.value})',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Theme.of(context).primaryColor,
+                        ),
+                      ),
                     ),
-                  ),
-                  child: Text(
-                    '${entry.key} (${entry.value})',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: Theme.of(context).primaryColor,
-                    ),
-                  ),
-                ),
-              ).toList(),
+                  )
+                  .toList(),
             ),
           ],
         ],
@@ -421,26 +430,16 @@ class MonthView extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: 24,
-          ),
+          Icon(icon, color: color, size: 24),
           const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-                      Text(
+          Text(
             title,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             textAlign: TextAlign.center,
           ),
         ],
@@ -453,18 +452,18 @@ class MonthView extends StatelessWidget {
     if (totalLessons == 0) {
       return 'Немає запланованих занять';
     }
-    
+
     final uniqueDays = lessons
-        .map((lesson) => DateTime(
-              lesson.startTime.year,
-              lesson.startTime.month,
-              lesson.startTime.day,
-            ))
+        .map(
+          (lesson) => DateTime(
+            lesson.startTime.year,
+            lesson.startTime.month,
+            lesson.startTime.day,
+          ),
+        )
         .toSet()
         .length;
-    
+
     return '$totalLessons занять на $uniqueDays днів';
   }
-
-  
 }

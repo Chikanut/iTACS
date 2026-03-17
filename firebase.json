@@ -23,6 +23,7 @@
     }
   },
   "hosting": {
+    "site": "gspp-9e089",
     "public": "build/web",
     "ignore": [
       "firebase.json",
@@ -35,6 +36,9 @@
         "destination": "/index.html"
       }
     ]
+  },
+  "firestore": {
+    "rules": "cloudstore_rules"
   },
   "functions": [
     {

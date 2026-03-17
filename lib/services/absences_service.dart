@@ -18,23 +18,25 @@ class AbsencesService {
     try {
       final currentUser = Globals.firebaseAuth.currentUser;
       final currentGroupId = Globals.profileManager.currentGroupId;
-      
+
       if (currentUser == null || currentGroupId == null) {
         throw Exception('Не авторизований або не обрана група');
       }
 
       // Перевіряємо чи дозволений тип запиту для користувача
       if (type == AbsenceType.businessTrip || type == AbsenceType.duty) {
-        throw Exception('Цей тип відсутності може призначати тільки адміністратор');
+        throw Exception(
+          'Цей тип відсутності може призначати тільки адміністратор',
+        );
       }
 
       // Перевіряємо перетини з існуючими відсутностями
       final hasConflict = await _checkAbsenceConflict(
-        currentUser.uid, 
-        startDate, 
+        currentUser.uid,
+        startDate,
         endDate,
       );
-      
+
       if (hasConflict) {
         throw Exception('У вказаний період вже є зареєстрована відсутність');
       }
@@ -53,7 +55,11 @@ class AbsencesService {
         creationType: CreationType.userRequest,
         createdAt: DateTime.now(),
         createdBy: currentUser.uid,
-        affectedLessons: await _findAffectedLessons(currentUser.uid, startDate, endDate),
+        affectedLessons: await _findAffectedLessons(
+          currentUser.uid,
+          startDate,
+          endDate,
+        ),
       );
 
       await _saveAbsence(absence);
@@ -79,20 +85,24 @@ class AbsencesService {
       final currentUser = Globals.firebaseAuth.currentUser;
       final currentGroupId = Globals.profileManager.currentGroupId;
       final currentRole = Globals.profileManager.currentRole;
-      
-      if (currentUser == null || currentGroupId == null || currentRole != 'admin') {
+
+      if (currentUser == null ||
+          currentGroupId == null ||
+          currentRole != 'admin') {
         throw Exception('Недостатньо прав для виконання операції');
       }
 
       // Перевіряємо перетини
       final hasConflict = await _checkAbsenceConflict(
-        instructorId, 
-        startDate, 
+        instructorId,
+        startDate,
         endDate,
       );
-      
+
       if (hasConflict) {
-        throw Exception('У вказаний період інструктор вже має зареєстровану відсутність');
+        throw Exception(
+          'У вказаний період інструктор вже має зареєстровану відсутність',
+        );
       }
 
       final absence = InstructorAbsence(
@@ -109,7 +119,11 @@ class AbsencesService {
         assignmentDetails: assignmentDetails,
         createdAt: DateTime.now(),
         createdBy: currentUser.uid,
-        affectedLessons: await _findAffectedLessons(instructorId, startDate, endDate),
+        affectedLessons: await _findAffectedLessons(
+          instructorId,
+          startDate,
+          endDate,
+        ),
       );
 
       await _saveAbsence(absence);
@@ -136,9 +150,12 @@ class AbsencesService {
         endDate: endDate,
         instructorId: instructorId,
       );
-      
+
       return docs.map((doc) {
-        return InstructorAbsence.fromFirestore(doc.data() as Map<String, dynamic>, doc.id);
+        return InstructorAbsence.fromFirestore(
+          doc.data() as Map<String, dynamic>,
+          doc.id,
+        );
       }).toList();
     } catch (e) {
       debugPrint('AbsencesService: Помилка отримання відсутностей: $e');
@@ -155,19 +172,26 @@ class AbsencesService {
         groupId: currentGroupId,
         // Не передаємо startDate та endDate щоб отримати всі записи
       );
-      
+
       final allAbsences = docs.map((doc) {
-        return InstructorAbsence.fromFirestore(doc.data() as Map<String, dynamic>, doc.id);
+        return InstructorAbsence.fromFirestore(
+          doc.data() as Map<String, dynamic>,
+          doc.id,
+        );
       }).toList();
 
       // Сортуємо за датою створення (найновіші спочатку)
       allAbsences.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-      
-      debugPrint('AbsencesService: Завантажено ${allAbsences.length} відсутностей для групи $currentGroupId');
-      
+
+      debugPrint(
+        'AbsencesService: Завантажено ${allAbsences.length} відсутностей для групи $currentGroupId',
+      );
+
       return allAbsences;
     } catch (e) {
-      debugPrint('AbsencesService: Помилка отримання всіх відсутностей групи: $e');
+      debugPrint(
+        'AbsencesService: Помилка отримання всіх відсутностей групи: $e',
+      );
       return [];
     }
   }
@@ -202,14 +226,15 @@ class AbsencesService {
   }
 
   /// Підтвердити запит на відсутність (тільки адмін)
-  Future<bool> approveAbsenceRequest(String absenceId) async {
+  Future<bool> approveAbsenceRequest(InstructorAbsence absence) async {
     try {
       final currentRole = Globals.profileManager.currentRole;
       if (currentRole != 'admin') {
         throw Exception('Недостатньо прав для підтвердження запиту');
       }
 
-      await _updateAbsenceStatus(absenceId, AbsenceStatus.active);
+      await _updateAbsenceStatus(absence.id, AbsenceStatus.active);
+      await Globals.groupNotificationsService.notifyAbsenceApproved(absence);
       return true;
     } catch (e) {
       debugPrint('AbsencesService: Помилка підтвердження запиту: $e');
@@ -218,17 +243,34 @@ class AbsencesService {
   }
 
   /// Відхилити запит на відсутність (тільки адмін)
-  Future<bool> rejectAbsenceRequest(String absenceId) async {
+  Future<bool> rejectAbsenceRequest(InstructorAbsence absence) async {
     try {
       final currentRole = Globals.profileManager.currentRole;
       if (currentRole != 'admin') {
         throw Exception('Недостатньо прав для відхилення запиту');
       }
 
-      await _updateAbsenceStatus(absenceId, AbsenceStatus.cancelled);
+      await _updateAbsenceStatus(absence.id, AbsenceStatus.cancelled);
+      await Globals.groupNotificationsService.notifyAbsenceRejected(absence);
       return true;
     } catch (e) {
       debugPrint('AbsencesService: Помилка відхилення запиту: $e');
+      rethrow;
+    }
+  }
+
+  Future<bool> cancelAbsenceByAdmin(InstructorAbsence absence) async {
+    try {
+      final currentRole = Globals.profileManager.currentRole;
+      if (currentRole != 'admin') {
+        throw Exception('Недостатньо прав для скасування відсутності');
+      }
+
+      await _updateAbsenceStatus(absence.id, AbsenceStatus.cancelled);
+      await Globals.groupNotificationsService.notifyAbsenceCancelled(absence);
+      return true;
+    } catch (e) {
+      debugPrint('AbsencesService: Помилка адмінського скасування: $e');
       rethrow;
     }
   }
@@ -247,18 +289,25 @@ class AbsencesService {
   /// Перевірити чи доступний інструктор на дату
   Future<bool> isInstructorAvailable(String instructorId, DateTime date) async {
     final absences = await getAbsencesForDate(date);
-    return !absences.any((absence) => 
-      absence.instructorId == instructorId && absence.status == AbsenceStatus.active);
+    return !absences.any(
+      (absence) =>
+          absence.instructorId == instructorId &&
+          absence.status == AbsenceStatus.active,
+    );
   }
 
   /// Отримати список усіх інструкторів групи з їх статусами на дату
-  Future<Map<String, InstructorAbsence?>> getInstructorsStatusForDate(DateTime date) async {
+  Future<Map<String, InstructorAbsence?>> getInstructorsStatusForDate(
+    DateTime date,
+  ) async {
     try {
       final currentGroupId = Globals.profileManager.currentGroupId;
       if (currentGroupId == null) return {};
 
       // Отримуємо список учасників групи з повною інформацією
-      final members = await Globals.firestoreManager.getGroupMembersWithDetails(currentGroupId);
+      final members = await Globals.firestoreManager.getGroupMembersWithDetails(
+        currentGroupId,
+      );
       final instructors = <String, InstructorAbsence?>{};
 
       // Отримуємо відсутності на дату
@@ -268,14 +317,18 @@ class AbsencesService {
       for (final member in members) {
         final uid = member['uid'] as String;
         final name = member['fullName'] as String;
-        
-        final absence = absences.where((a) => a.instructorId == uid).firstOrNull;
+
+        final absence = absences
+            .where((a) => a.instructorId == uid)
+            .firstOrNull;
         instructors[name] = absence;
       }
 
       return instructors;
     } catch (e) {
-      debugPrint('AbsencesService: Помилка отримання статусів інструкторів: $e');
+      debugPrint(
+        'AbsencesService: Помилка отримання статусів інструкторів: $e',
+      );
       return {};
     }
   }
@@ -297,8 +350,8 @@ class AbsencesService {
   }
 
   Future<bool> _checkAbsenceConflict(
-    String instructorId, 
-    DateTime startDate, 
+    String instructorId,
+    DateTime startDate,
     DateTime endDate,
   ) async {
     final existingAbsences = await getAbsencesForPeriod(
@@ -307,23 +360,26 @@ class AbsencesService {
       instructorId: instructorId,
     );
 
-    return existingAbsences.any((absence) =>
-      absence.status != AbsenceStatus.cancelled &&
-      !(endDate.isBefore(absence.startDate) || startDate.isAfter(absence.endDate))
+    return existingAbsences.any(
+      (absence) =>
+          absence.status != AbsenceStatus.cancelled &&
+          !(endDate.isBefore(absence.startDate) ||
+              startDate.isAfter(absence.endDate)),
     );
   }
 
   Future<List<String>> _findAffectedLessons(
-    String instructorId, 
-    DateTime startDate, 
+    String instructorId,
+    DateTime startDate,
     DateTime endDate,
   ) async {
     try {
-      final lessons = await Globals.calendarService.getLessonsForPeriodByInstructor(
-        startDate: startDate,
-        endDate: endDate,
-        instructorId: instructorId,
-      );
+      final lessons = await Globals.calendarService
+          .getLessonsForPeriodByInstructor(
+            startDate: startDate,
+            endDate: endDate,
+            instructorId: instructorId,
+          );
 
       return lessons.map((lesson) => lesson.id).toList();
     } catch (e) {
@@ -332,7 +388,10 @@ class AbsencesService {
     }
   }
 
-  Future<void> _updateAbsenceStatus(String absenceId, AbsenceStatus status) async {
+  Future<void> _updateAbsenceStatus(
+    String absenceId,
+    AbsenceStatus status,
+  ) async {
     final currentGroupId = Globals.profileManager.currentGroupId;
     if (currentGroupId == null) throw Exception('Група не обрана');
 

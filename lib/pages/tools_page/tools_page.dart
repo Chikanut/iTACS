@@ -11,7 +11,7 @@ IconData iconFromData(Map<String, dynamic> item, bool isFolder) {
     try {
       final iconCode = item['icon'];
       final fontFamily = item['iconFontFamily'];
-      
+
       if (iconCode is int && fontFamily == 'MaterialIcons') {
         // Повертаємо константну іконку з Map
         return _iconMap[iconCode] ?? (isFolder ? Icons.folder : Icons.web);
@@ -166,10 +166,7 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
         if (mounted) {
           setState(() {
             currentItems = docs
-                .map((d) => {
-                      ...d.data() as Map<String, dynamic>,
-                      'id': d.id,
-                    })
+                .map((d) => {...d.data() as Map<String, dynamic>, 'id': d.id})
                 .toList();
           });
 
@@ -179,7 +176,9 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
     } catch (e) {
       debugPrint('[tools] fetchItems ERROR: $e');
       if (mounted) {
-        Globals.errorNotificationManager.showError('Помилка завантаження інструментів: $e');
+        Globals.errorNotificationManager.showError(
+          'Помилка завантаження інструментів: $e',
+        );
       }
     }
   }
@@ -232,7 +231,9 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
       });
     } catch (e) {
       if (mounted) {
-        Globals.errorNotificationManager.showError("Не вдалося відкрити файл: $e");
+        Globals.errorNotificationManager.showError(
+          "Не вдалося відкрити файл: $e",
+        );
       }
     }
   }
@@ -256,7 +257,9 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
         final userRole = Globals.profileManager.currentRole;
         if (groupId == null || userRole == null) return;
 
-        debugPrint('[tools] deleteItem: id=${item['id']}, groupId=$groupId, role=$userRole');
+        debugPrint(
+          '[tools] deleteItem: id=${item['id']}, groupId=$groupId, role=$userRole',
+        );
 
         Future<void> deleteRecursively(String docId) async {
           final children = await Globals.firestoreManager.getDocumentsForGroup(
@@ -290,7 +293,7 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
 
         await deleteRecursively(item['id']);
         debugPrint('[tools] deleteItem success: ${item['title']}');
-        
+
         if (mounted) {
           await fetchItems();
           Globals.errorNotificationManager.showSuccess(
@@ -309,10 +312,7 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
   Future<void> showAddDialog() async {
     await showDialog(
       context: context,
-      builder: (_) => ToolDialog(
-        parentId: pathStack.last,
-        onSave: fetchItems,
-      ),
+      builder: (_) => ToolDialog(parentId: pathStack.last, onSave: fetchItems),
     );
   }
 
@@ -320,12 +320,12 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
     if (searchQuery == null || searchQuery!.isEmpty) {
       return currentItems;
     }
-    
+
     return currentItems.where((item) {
       final title = (item['title'] ?? '').toString().toLowerCase();
       final description = (item['description'] ?? '').toString().toLowerCase();
       final query = searchQuery!.toLowerCase();
-      
+
       return title.contains(query) || description.contains(query);
     }).toList();
   }
@@ -337,11 +337,13 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
       Material(
         color: Colors.transparent,
         child: InkWell(
-          onTap: isLoading('navigate') ? null : () {
-            pathStack = ['root'];
-            pathMeta = [];
-            fetchItems();
-          },
+          onTap: isLoading('navigate')
+              ? null
+              : () {
+                  pathStack = ['root'];
+                  pathMeta = [];
+                  fetchItems();
+                },
           borderRadius: BorderRadius.circular(4),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -365,20 +367,27 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
     );
 
     for (int i = 0; i < pathMeta.length; i++) {
-      parts.add(Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Icon(Icons.chevron_right, size: 16, color: Colors.grey[600]),
-      ));
-      
+      parts.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Icon(Icons.chevron_right, size: 16, color: Colors.grey[600]),
+        ),
+      );
+
       parts.add(
         Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: isLoading('navigate') ? null : () {
-              pathStack = ['root', ...pathMeta.take(i + 1).map((e) => e['id']!)];
-              pathMeta = pathMeta.take(i + 1).toList();
-              fetchItems();
-            },
+            onTap: isLoading('navigate')
+                ? null
+                : () {
+                    pathStack = [
+                      'root',
+                      ...pathMeta.take(i + 1).map((e) => e['id']!),
+                    ];
+                    pathMeta = pathMeta.take(i + 1).toList();
+                    fetchItems();
+                  },
             borderRadius: BorderRadius.circular(4),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -399,9 +408,7 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: Colors.grey.withOpacity(0.05),
-        border: Border(
-          bottom: BorderSide(color: Colors.grey.withOpacity(0.2)),
-        ),
+        border: Border(bottom: BorderSide(color: Colors.grey.withOpacity(0.2))),
       ),
       child: Row(
         children: [
@@ -451,10 +458,12 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
 
   Widget _buildStatsInfo() {
     final totalItems = currentItems.length;
-    final folders = currentItems.where((item) => item['type'] == 'folder').length;
+    final folders = currentItems
+        .where((item) => item['type'] == 'folder')
+        .length;
     final tools = totalItems - folders;
     final filteredCount = filteredItems.length;
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -483,20 +492,24 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.search_off, size: 64, color: Colors.grey.withOpacity(0.5)),
+            Icon(
+              Icons.search_off,
+              size: 64,
+              color: Colors.grey.withOpacity(0.5),
+            ),
             const SizedBox(height: 16),
             Text(
               'Нічого не знайдено',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                color: Colors.grey[600],
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
             ),
             const SizedBox(height: 8),
             Text(
               'Спробуйте змінити пошуковий запит',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[500],
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
             ),
           ],
         ),
@@ -504,25 +517,29 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
     }
 
     final isAdmin = Globals.profileManager.currentRole != 'viewer';
-    
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.build_circle, size: 64, color: Colors.grey.withOpacity(0.5)),
+          Icon(
+            Icons.build_circle,
+            size: 64,
+            color: Colors.grey.withOpacity(0.5),
+          ),
           const SizedBox(height: 16),
           Text(
             'Інструменти відсутні',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.grey[600],
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
           ),
           const SizedBox(height: 8),
           Text(
             'Додайте перший інструмент або папку',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Colors.grey[500],
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
           ),
           if (isAdmin) ...[
             const SizedBox(height: 24),
@@ -543,15 +560,13 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
     final isNavigating = isLoading('navigate');
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("Інструменти"),
-      ),
+      appBar: AppBar(title: const Text("Інструменти")),
       body: Column(
         children: [
           _buildBreadcrumbs(),
           _buildSearchBar(),
           _buildStatsInfo(),
-          
+
           Expanded(
             child: isLoading('fetch')
                 ? const Center(
@@ -566,13 +581,19 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
                         ? _buildEmptyState()
                         : GridView.builder(
                             padding: const EdgeInsets.all(16),
-                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
-                              childAspectRatio: 1.1,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
-                            ),
-                            itemCount: filteredItems.length + (pathStack.length > 1 ? 1 : 0),
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount:
+                                      MediaQuery.of(context).size.width > 600
+                                      ? 3
+                                      : 2,
+                                  childAspectRatio: 1.1,
+                                  crossAxisSpacing: 12,
+                                  mainAxisSpacing: 12,
+                                ),
+                            itemCount:
+                                filteredItems.length +
+                                (pathStack.length > 1 ? 1 : 0),
                             itemBuilder: (context, index) {
                               // Кнопка "Назад"
                               if (pathStack.length > 1 && index == 0) {
@@ -585,23 +606,34 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
                                       child: Container(
                                         padding: const EdgeInsets.all(16),
                                         child: Column(
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
                                             Container(
                                               width: 48,
                                               height: 48,
                                               decoration: BoxDecoration(
-                                                color: Colors.grey.withOpacity(0.1),
-                                                borderRadius: BorderRadius.circular(12),
+                                                color: Colors.grey.withOpacity(
+                                                  0.1,
+                                                ),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
                                               ),
                                               child: isNavigating
-                                                  ? const LoadingIndicator(size: 24)
-                                                  : const Icon(Icons.arrow_back, size: 24),
+                                                  ? const LoadingIndicator(
+                                                      size: 24,
+                                                    )
+                                                  : const Icon(
+                                                      Icons.arrow_back,
+                                                      size: 24,
+                                                    ),
                                             ),
                                             const SizedBox(height: 8),
                                             const Text(
                                               'Назад',
-                                              style: TextStyle(fontWeight: FontWeight.w500),
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.w500,
+                                              ),
                                             ),
                                           ],
                                         ),
@@ -612,31 +644,35 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
                               }
 
                               // Інструменти та папки
-                              final itemIndex = pathStack.length > 1 ? index - 1 : index;
+                              final itemIndex = pathStack.length > 1
+                                  ? index - 1
+                                  : index;
                               final item = filteredItems[itemIndex];
                               final isFolder = item['type'] == 'folder';
                               final icon = iconFromData(item, isFolder);
 
-                          return ToolTile(
-                            title: item['title'] ?? '',
-                            description: item['description'],
-                            icon: icon,
-                            isFolder: isFolder,
-                            isAdmin: isAdmin,
-                            fileId: isFolder ? null : item['fileId'],
-                            isFileLoading: isLoading('open_${item['id']}'), // 👈 Передаємо стан
-                            onTap: () async {
-                              if (isFolder) {
-                                await navigateToFolder(item['id']);
-                              } else {
-                                await openTool(item);
-                                await fetchItems(); 
-                              }
-                            },
-                            onEdit: () => editItem(item),
-                            onDelete: () => deleteItem(item),
-                            onStatusChanged: () => setState(() {}),
-                          );
+                              return ToolTile(
+                                title: item['title'] ?? '',
+                                description: item['description'],
+                                icon: icon,
+                                isFolder: isFolder,
+                                isAdmin: isAdmin,
+                                fileId: isFolder ? null : item['fileId'],
+                                isFileLoading: isLoading(
+                                  'open_${item['id']}',
+                                ), // 👈 Передаємо стан
+                                onTap: () async {
+                                  if (isFolder) {
+                                    await navigateToFolder(item['id']);
+                                  } else {
+                                    await openTool(item);
+                                    await fetchItems();
+                                  }
+                                },
+                                onEdit: () => editItem(item),
+                                onDelete: () => deleteItem(item),
+                                onStatusChanged: () => setState(() {}),
+                              );
                             },
                           ),
                   ),
@@ -644,12 +680,12 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
         ],
       ),
       floatingActionButton: isAdmin
-    ? FloatingActionButton(
-        onPressed: showAddDialog,
-        tooltip: 'Додати інструмент або папку',
-        child: const Icon(Icons.add),
-      )
-    : null,
+          ? FloatingActionButton(
+              onPressed: showAddDialog,
+              tooltip: 'Додати інструмент або папку',
+              child: const Icon(Icons.add),
+            )
+          : null,
     );
   }
 }

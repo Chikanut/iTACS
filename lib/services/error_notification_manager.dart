@@ -4,19 +4,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 class ErrorNotificationManager {
-  static final ErrorNotificationManager _instance = ErrorNotificationManager._internal();
+  static final ErrorNotificationManager _instance =
+      ErrorNotificationManager._internal();
   factory ErrorNotificationManager() => _instance;
   ErrorNotificationManager._internal();
 
   // Контекст для показу сповіщень
   BuildContext? _context;
-  
+
   void setContext(BuildContext context) {
     _context = context;
   }
 
   // Показ SnackBar для звичайних помилок
-  void showError(String message, {
+  void showError(
+    String message, {
     Duration duration = const Duration(seconds: 4),
     VoidCallback? onRetry,
   }) {
@@ -28,10 +30,7 @@ class ErrorNotificationManager {
           const Icon(Icons.error_outline, color: Colors.white),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(color: Colors.white),
-            ),
+            child: Text(message, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -45,9 +44,7 @@ class ErrorNotificationManager {
             )
           : null,
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     );
 
     ScaffoldMessenger.of(_context!).showSnackBar(snackBar);
@@ -63,19 +60,14 @@ class ErrorNotificationManager {
           const Icon(Icons.check_circle_outline, color: Colors.white),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(color: Colors.white),
-            ),
+            child: Text(message, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
       backgroundColor: Colors.green.shade700,
       duration: const Duration(seconds: 3),
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     );
 
     ScaffoldMessenger.of(_context!).showSnackBar(snackBar);
@@ -91,19 +83,14 @@ class ErrorNotificationManager {
           const Icon(Icons.warning_outlined, color: Colors.white),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(color: Colors.white),
-            ),
+            child: Text(message, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
       backgroundColor: Colors.orange.shade700,
       duration: const Duration(seconds: 4),
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     );
 
     ScaffoldMessenger.of(_context!).showSnackBar(snackBar);
@@ -119,19 +106,14 @@ class ErrorNotificationManager {
           const Icon(Icons.info_outline, color: Colors.white),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(color: Colors.white),
-            ),
+            child: Text(message, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
       backgroundColor: Colors.blue.shade700,
       duration: const Duration(seconds: 3),
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
     );
 
     ScaffoldMessenger.of(_context!).showSnackBar(snackBar);
@@ -153,9 +135,7 @@ class ErrorNotificationManager {
       context: _context!,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
             Icon(Icons.error, color: Colors.red.shade700, size: 28),
@@ -238,9 +218,7 @@ class ErrorNotificationManager {
     showDialog(
       context: _context!,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(title),
         content: Text(message),
         actions: [
@@ -266,4 +244,3 @@ class ErrorNotificationManager {
     );
   }
 }
-  

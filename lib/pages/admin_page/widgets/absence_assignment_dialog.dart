@@ -18,7 +18,8 @@ class AbsenceAssignmentDialog extends StatefulWidget {
   });
 
   @override
-  State<AbsenceAssignmentDialog> createState() => _AbsenceAssignmentDialogState();
+  State<AbsenceAssignmentDialog> createState() =>
+      _AbsenceAssignmentDialogState();
 }
 
 class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
@@ -82,19 +83,24 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                   value: _selectedType,
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                   ),
                   items: [AbsenceType.businessTrip, AbsenceType.duty]
-                      .map((type) => DropdownMenuItem(
-                            value: type,
-                            child: Row(
-                              children: [
-                                Text(type.emoji),
-                                const SizedBox(width: 8),
-                                Text(type.displayName),
-                              ],
-                            ),
-                          ))
+                      .map(
+                        (type) => DropdownMenuItem(
+                          value: type,
+                          child: Row(
+                            children: [
+                              Text(type.emoji),
+                              const SizedBox(width: 8),
+                              Text(type.displayName),
+                            ],
+                          ),
+                        ),
+                      )
                       .toList(),
                   onChanged: (value) {
                     if (value != null) {
@@ -107,10 +113,7 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                 const SizedBox(height: 16),
 
                 // Період
-                Text(
-                  'Період',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
+                Text('Період', style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: 8),
                 Row(
                   children: [
@@ -146,17 +149,17 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                 const SizedBox(height: 16),
 
                 // Основна причина
-                Text(
-                  'Причина',
-                  style: Theme.of(context).textTheme.titleSmall,
-                ),
+                Text('Причина', style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _reasonController,
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
                     hintText: 'Коротка причина призначення...',
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                   ),
                   maxLines: 2,
                   validator: (value) {
@@ -183,7 +186,7 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                         style: Theme.of(context).textTheme.titleSmall,
                       ),
                       const SizedBox(height: 12),
-                      
+
                       if (_selectedType == AbsenceType.businessTrip) ...[
                         // Номер наказу
                         TextFormField(
@@ -191,11 +194,14 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                           decoration: const InputDecoration(
                             labelText: 'Номер наказу',
                             border: OutlineInputBorder(),
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                           ),
                         ),
                         const SizedBox(height: 12),
-                        
+
                         // Місце призначення
                         TextFormField(
                           controller: _destinationController,
@@ -203,10 +209,13 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                             labelText: 'Місце призначення',
                             border: OutlineInputBorder(),
                             hintText: 'Місто, адреса...',
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                           ),
                           validator: (value) {
-                            if (_selectedType == AbsenceType.businessTrip && 
+                            if (_selectedType == AbsenceType.businessTrip &&
                                 (value == null || value.trim().isEmpty)) {
                               return 'Місце призначення обов\'язкове для відрядження';
                             }
@@ -221,10 +230,13 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                             labelText: 'Тип чергування',
                             border: OutlineInputBorder(),
                             hintText: 'Добовий наряд, чергування...',
-                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
                           ),
                           validator: (value) {
-                            if (_selectedType == AbsenceType.duty && 
+                            if (_selectedType == AbsenceType.duty &&
                                 (value == null || value.trim().isEmpty)) {
                               return 'Тип чергування обов\'язковий';
                             }
@@ -232,9 +244,9 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                           },
                         ),
                       ],
-                      
+
                       const SizedBox(height: 12),
-                      
+
                       // Додаткові інструкції
                       TextFormField(
                         controller: _instructionsController,
@@ -242,7 +254,10 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                           labelText: 'Додаткові інструкції',
                           border: OutlineInputBorder(),
                           hintText: 'Особливі вказівки, контакти...',
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                         ),
                         maxLines: 3,
                       ),
@@ -261,7 +276,11 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.warning, color: Colors.orange.shade600, size: 20),
+                      Icon(
+                        Icons.warning,
+                        color: Colors.orange.shade600,
+                        size: 20,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -315,7 +334,7 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
       if (currentGroupId == null) throw Exception('Група не обрана');
 
       final instructorEmail = await Globals.firestoreManager.getUserEmailByUid(
-        currentGroupId, 
+        currentGroupId,
         widget.instructorId,
       );
 
@@ -324,17 +343,17 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
       }
 
       final assignmentDetails = AssignmentDetails(
-        orderNumber: _orderNumberController.text.trim().isNotEmpty 
-            ? _orderNumberController.text.trim() 
+        orderNumber: _orderNumberController.text.trim().isNotEmpty
+            ? _orderNumberController.text.trim()
             : null,
-        destination: _destinationController.text.trim().isNotEmpty 
-            ? _destinationController.text.trim() 
+        destination: _destinationController.text.trim().isNotEmpty
+            ? _destinationController.text.trim()
             : null,
-        duty: _dutyController.text.trim().isNotEmpty 
-            ? _dutyController.text.trim() 
+        duty: _dutyController.text.trim().isNotEmpty
+            ? _dutyController.text.trim()
             : null,
-        instructions: _instructionsController.text.trim().isNotEmpty 
-            ? _instructionsController.text.trim() 
+        instructions: _instructionsController.text.trim().isNotEmpty
+            ? _instructionsController.text.trim()
             : null,
       );
 
@@ -404,10 +423,7 @@ class _DatePickerField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 4),
         InkWell(
           onTap: () => _selectDate(context),
@@ -419,7 +435,11 @@ class _DatePickerField extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
+                Icon(
+                  Icons.calendar_today,
+                  size: 16,
+                  color: Colors.grey.shade600,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(

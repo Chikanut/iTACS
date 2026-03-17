@@ -137,10 +137,7 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.w500)),
       subtitle: Text(
         subtitle,
-        style: TextStyle(
-          fontSize: 12,
-          color: Colors.grey.shade600,
-        ),
+        style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
       ),
       contentPadding: EdgeInsets.zero,
       dense: true,
@@ -165,7 +162,10 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
                   children: [
                     const Text(
                       'Початкова дата:',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     OutlinedButton.icon(
@@ -192,7 +192,10 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
                   children: [
                     const Text(
                       'Кінцева дата:',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     OutlinedButton.icon(
@@ -214,7 +217,7 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
               ),
             ],
           ),
-          
+
           // Швидкі кнопки для кастомного періоду
           const SizedBox(height: 12),
           Wrap(
@@ -232,7 +235,11 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
                 final lastMonth = DateTime(now.year, now.month - 1, 1);
                 setState(() {
                   customStartDate = lastMonth;
-                  customEndDate = DateTime(now.year, now.month, 0); // Останній день минулого місяця
+                  customEndDate = DateTime(
+                    now.year,
+                    now.month,
+                    0,
+                  ); // Останній день минулого місяця
                 });
               }),
               _buildQuickCustomButton('Цей рік', () {
@@ -264,7 +271,7 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
   String _getDateRangeText(String period) {
     final now = DateTime.now();
     final formatter = DateFormat('dd.MM.yyyy');
-    
+
     switch (period) {
       case 'week':
         final startDate = now.subtract(const Duration(days: 7));
@@ -283,7 +290,8 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
   Future<void> _selectCustomStartDate() async {
     final date = await showDatePicker(
       context: context,
-      initialDate: customStartDate ?? DateTime.now().subtract(const Duration(days: 30)),
+      initialDate:
+          customStartDate ?? DateTime.now().subtract(const Duration(days: 30)),
       firstDate: DateTime.now().subtract(const Duration(days: 365 * 2)),
       lastDate: customEndDate ?? DateTime.now(),
       locale: const Locale('uk'),
@@ -304,7 +312,9 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
     final date = await showDatePicker(
       context: context,
       initialDate: customEndDate ?? DateTime.now(),
-      firstDate: customStartDate ?? DateTime.now().subtract(const Duration(days: 365 * 2)),
+      firstDate:
+          customStartDate ??
+          DateTime.now().subtract(const Duration(days: 365 * 2)),
       lastDate: DateTime.now(),
       locale: const Locale('uk'),
     );
@@ -361,9 +371,7 @@ Future<void> showQuickReportDialog({
 }) {
   return showDialog(
     context: context,
-    builder: (context) => QuickReportDialog(
-      reportTitle: reportTitle,
-      onGenerate: onGenerate,
-    ),
+    builder: (context) =>
+        QuickReportDialog(reportTitle: reportTitle, onGenerate: onGenerate),
   );
 }

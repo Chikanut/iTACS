@@ -1,133 +1,145 @@
-// firestore.rules - Фінальні правила безпеки
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Функція для перевірки чи є користувач членом групи
-    function isGroupMember(groupId) {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groups != null &&
-             groupId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.groups;
-    }
-    
-    // Функція для перевірки ролі користувача в групі
-    function getUserRoleInGroup(groupId) {
-      let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
-      return userDoc.data.groups != null && 
-             groupId in userDoc.data.groups ? 
-             userDoc.data.groups[groupId] : null;
-    }
-    
-    // Функція для перевірки чи може користувач редагувати
-    function canEdit(groupId) {
-      let role = getUserRoleInGroup(groupId);
-      return role == 'admin' || role == 'editor';
+    // Список дозволених email-ів по групах.
+    match /allowed_users/{groupId} {
+      allow read: if request.auth != null;
+      allow update: if hasAdminRights(groupId) &&
+                     request.auth != null &&
+                     request.resource.data.diff(resource.data).affectedKeys()
+                       .hasOnly(['members']);
+      allow create: if false;
+      allow delete: if false;
     }
 
-    // Функція для перевірки чи є користувач адміном групи
-    function isAdmin(groupId) {
-      let role = getUserRoleInGroup(groupId);
-      return role == 'admin';
-    }
-
-    // Функція для валідації даних темплейту
-    function isValidTemplate(data) {
-      return data.keys().hasAll(['title', 'description', 'location', 'unit', 'tags', 'durationMinutes', 'type', 'isDefault', 'groupId', 'createdBy']) &&
-             data.title is string && data.title.size() > 0 &&
-             data.description is string &&
-             data.location is string &&
-             data.unit is string &&
-             data.tags is list &&
-             data.durationMinutes is int && data.durationMinutes > 0 &&
-             data.type is string &&
-             data.isDefault is bool &&
-             data.groupId is string &&
-             data.createdBy is string;
-    }
-
-    // Основні документи груп
-    match /groups/{groupId} {
-      allow read: if isGroupMember(groupId);
-      allow write: if isAdmin(groupId);
-      
-      // Темплейти групи
-      match /templates/{templateId} {
-        allow read: if isGroupMember(groupId);
-        allow create: if canEdit(groupId) && 
-                         request.auth != null &&
-                         isValidTemplate(request.resource.data) &&
-                         request.resource.data.groupId == groupId &&
-                         request.resource.data.createdBy == request.auth.uid;
-        allow update: if canEdit(groupId) && 
-                         request.auth != null &&
-                         isValidTemplate(request.resource.data) &&
-                         request.resource.data.groupId == groupId &&
-                         resource.data.groupId == groupId;
-        allow delete: if canEdit(groupId) && resource.data.groupId == groupId;
-      }
-      
-      // Автодоповнення групи
-      match /autocomplete_data/{docId} {
-        allow read: if isGroupMember(groupId);
-        allow write: if canEdit(groupId) && 
-                        request.auth != null &&
-                        docId in ['locations', 'units', 'tags'] &&
-                        request.resource.data.keys().hasAll(['items', 'updatedAt']) &&
-                        request.resource.data.items is list;
-      }
-    }
-
-    // Правила для користувачів
+    // Користувач може читати й редагувати тільки свій документ.
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Правила для календаря та уроків
-    match /lessons/{lessonId} {
-      allow read: if request.auth != null && 
-                     isGroupMember(resource.data.groupId);
-      allow create: if request.auth != null && 
-                      canEdit(request.resource.data.groupId) &&
-                      request.resource.data.createdBy == request.auth.uid;
-      allow update: if request.auth != null && 
-                      canEdit(resource.data.groupId) &&
-                      resource.data.groupId == request.resource.data.groupId;
-      allow delete: if request.auth != null && 
-                      canEdit(resource.data.groupId);
+    // Методички по групах.
+    match /materials/{groupId}/items/{materialId} {
+      allow read: if isInGroup(groupId);
+      allow write: if hasEditorRights(groupId);
     }
 
-    // Правила для матеріалів
-    match /materials/{materialId} {
-      allow read: if request.auth != null && 
-                     isGroupMember(resource.data.groupId);
-      allow create: if request.auth != null && 
-                      canEdit(request.resource.data.groupId) &&
-                      request.resource.data.createdBy == request.auth.uid;
-      allow update: if request.auth != null && 
-                      canEdit(resource.data.groupId) &&
-                      resource.data.groupId == request.resource.data.groupId;
-      allow delete: if request.auth != null && 
-                      canEdit(resource.data.groupId);
+    // Доступ до групового інструментарію.
+    match /tools_by_group/{groupId}/items/{itemId} {
+      allow read: if isInGroup(groupId);
+      allow create, update, delete: if hasEditorRights(groupId);
     }
 
-    // Правила для інструментів
-    match /tools/{toolId} {
-      allow read: if request.auth != null && 
-                     isGroupMember(resource.data.groupId);
-      allow create: if request.auth != null && 
-                      canEdit(request.resource.data.groupId) &&
-                      request.resource.data.createdBy == request.auth.uid;
-      allow update: if request.auth != null && 
-                      canEdit(resource.data.groupId) &&
-                      resource.data.groupId == request.resource.data.groupId;
-      allow delete: if request.auth != null && 
-                      canEdit(resource.data.groupId);
+    // Заняття по групах.
+    match /lessons/{groupId}/items/{lessonId} {
+      allow read: if isInGroup(groupId);
+      allow create: if hasEditorRights(groupId);
+      allow update: if hasEditorRights(groupId) || isLessonCreator(groupId, lessonId);
+      allow delete: if hasEditorRights(groupId) || isLessonCreator(groupId, lessonId);
     }
 
-    // Заборона доступу до всього іншого
-    match /{document=**} {
-      allow read, write: if false;
+    // Відсутності інструкторів по групах.
+    match /instructor_absences/{groupId}/items/{absenceId} {
+      allow read: if isInGroup(groupId);
+
+      allow create: if isInGroup(groupId) &&
+                     request.auth != null &&
+                     request.resource.data.instructorId == request.auth.uid &&
+                     request.resource.data.creationType == 'user_request' &&
+                     request.resource.data.type in ['vacation', 'sick_leave'] &&
+                     request.resource.data.status == 'pending';
+
+      allow create: if hasAdminRights(groupId) &&
+                     request.auth != null &&
+                     request.resource.data.createdBy == request.auth.uid;
+
+      allow update: if isInGroup(groupId) &&
+                     request.auth != null &&
+                     resource.data.instructorId == request.auth.uid &&
+                     resource.data.creationType == 'user_request' &&
+                     resource.data.status == 'pending' &&
+                     request.resource.data.status == 'cancelled' &&
+                     onlyChangedFields(['status', 'modifiedAt']);
+
+      allow update: if hasAdminRights(groupId) &&
+                     request.auth != null;
+
+      allow delete: if hasAdminRights(groupId);
+    }
+
+    // Групові шаблони й автодоповнення.
+    match /groups/{groupId} {
+      allow read: if isInGroup(groupId);
+      allow write: if hasEditorRights(groupId);
+
+      match /templates/{templateId} {
+        allow read: if isInGroup(groupId);
+        allow create, update: if hasEditorRights(groupId) &&
+                                request.resource.data.groupId == groupId &&
+                                request.auth != null;
+        allow delete: if hasEditorRights(groupId);
+      }
+
+      match /autocomplete_data/{docId} {
+        allow read: if isInGroup(groupId);
+        allow create, update: if hasEditorRights(groupId) &&
+                                docId in ['locations', 'units', 'tags'] &&
+                                request.resource.data.keys().hasAll(['items']) &&
+                                request.resource.data.items is list;
+        allow delete: if hasEditorRights(groupId);
+      }
+
+      match /notifications/{notificationId} {
+        allow read: if isInGroup(groupId);
+        allow create, update: if hasAdminRights(groupId) &&
+                                request.auth != null &&
+                                request.resource.data.groupId == groupId;
+        allow delete: if hasAdminRights(groupId);
+      }
+    }
+
+    // Файли.
+    match /files/{fileId} {
+      allow read: if request.auth != null;
+    }
+
+    function isInGroup(groupId) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/allowed_users/$(groupId)) &&
+        get(/databases/$(database)/documents/allowed_users/$(groupId))
+          .data.members[request.auth.token.email] != null;
+    }
+
+    function hasEditorRights(groupId) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/allowed_users/$(groupId)) &&
+        getUserRole(groupId) in ['editor', 'admin'];
+    }
+
+    function hasAdminRights(groupId) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/allowed_users/$(groupId)) &&
+        getUserRole(groupId) == 'admin';
+    }
+
+    function getUserRole(groupId) {
+      let groupDoc = get(/databases/$(database)/documents/allowed_users/$(groupId));
+      let memberValue = groupDoc.data.members[request.auth.token.email];
+
+      return memberValue == null ? 'none' :
+             (memberValue is string ? memberValue : memberValue.get('role', 'viewer'));
+    }
+
+    function isLessonCreator(groupId, lessonId) {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/lessons/$(groupId)/items/$(lessonId)) &&
+        get(/databases/$(database)/documents/lessons/$(groupId)/items/$(lessonId))
+          .data.createdBy == request.auth.uid;
+    }
+
+    function onlyChangedFields(allowedFields) {
+      return request.resource.data.diff(resource.data).affectedKeys()
+        .hasOnly(allowedFields.toSet());
     }
   }
 }

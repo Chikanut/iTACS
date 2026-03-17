@@ -10,6 +10,7 @@ import '../services/reports_service.dart';
 import '../services/reports/base_report.dart';
 import '../services/reports/quick_report_dialog.dart';
 import '../models/instructor_absence.dart';
+import '../models/group_notification.dart';
 import '../widgets/absence_request_dialog.dart';
 import 'admin_page/admin_panel_page.dart';
 
@@ -27,6 +28,7 @@ class _HomePageState extends State<HomePage> {
   bool _isLoading = true;
   String? _error;
   List<InstructorAbsence> _userAbsences = [];
+  List<GroupNotification> _notifications = [];
 
   @override
   void initState() {
@@ -42,20 +44,28 @@ class _HomePageState extends State<HomePage> {
       });
 
       final feed = await _dashboardService.getDashboardFeed();
-      
+
       // Додаємо завантаження відсутностей
       List<InstructorAbsence> absences = [];
+      List<GroupNotification> notifications = [];
       try {
         absences = await Globals.absencesService.getCurrentUserAbsences();
       } catch (e) {
         // Ігноруємо помилки відсутностей, щоб не блокувати основний функціонал
         print('Помилка завантаження відсутностей: $e');
       }
-      
+      try {
+        notifications = await Globals.groupNotificationsService
+            .getNotificationsForCurrentUser();
+      } catch (e) {
+        print('Помилка завантаження сповіщень: $e');
+      }
+
       if (mounted) {
         setState(() {
           _feed = feed;
           _userAbsences = absences;
+          _notifications = notifications;
           _isLoading = false;
         });
       }
@@ -72,18 +82,26 @@ class _HomePageState extends State<HomePage> {
   Future<void> _refreshFeed() async {
     try {
       final feed = await _dashboardService.getDashboardFeed(forceRefresh: true);
-      
+
       List<InstructorAbsence> absences = [];
+      List<GroupNotification> notifications = [];
       try {
         absences = await Globals.absencesService.getCurrentUserAbsences();
       } catch (e) {
         print('Помилка оновлення відсутностей: $e');
       }
-      
+      try {
+        notifications = await Globals.groupNotificationsService
+            .getNotificationsForCurrentUser();
+      } catch (e) {
+        print('Помилка оновлення сповіщень: $e');
+      }
+
       if (mounted) {
         setState(() {
           _feed = feed;
           _userAbsences = absences;
+          _notifications = notifications;
         });
       }
     } catch (e) {
@@ -98,7 +116,7 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    
+
     return Scaffold(
       body: RefreshIndicator(
         onRefresh: _refreshFeed,
@@ -106,7 +124,7 @@ class _HomePageState extends State<HomePage> {
           slivers: [
             // Заголовок з привітанням
             _buildSliverAppBar(user),
-            
+
             // Контент ленти
             if (_isLoading)
               const SliverFillRemaining(
@@ -127,7 +145,7 @@ class _HomePageState extends State<HomePage> {
     final now = DateTime.now();
     final hour = now.hour;
     String greeting;
-    
+
     if (hour < 12) {
       greeting = 'Доброго ранку';
     } else if (hour < 18) {
@@ -138,10 +156,11 @@ class _HomePageState extends State<HomePage> {
 
     greeting += ' v 1.5.3 ';
 
-    final userName = Globals.profileManager.currentUserName ?? 
-                     user?.displayName ?? 
-                     user?.email?.split('@').first ?? 
-                     'Користувач';
+    final userName =
+        Globals.profileManager.currentUserName ??
+        user?.displayName ??
+        user?.email?.split('@').first ??
+        'Користувач';
 
     return SliverAppBar(
       expandedHeight: 80, // Збільшуємо висоту
@@ -158,7 +177,10 @@ class _HomePageState extends State<HomePage> {
             ),
             Text(
               userName,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.normal),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.normal,
+              ),
             ),
           ],
         ),
@@ -171,14 +193,14 @@ class _HomePageState extends State<HomePage> {
   Widget _buildFeedContent() {
     // Поточні та завтрашні заняття разом
     final upcomingLessons = [..._feed.currentLessons];
-    
+
     // Додаємо завтрашні заняття користувача
     final tomorrow = DateTime.now().add(const Duration(days: 1));
     final currentUser = Globals.profileManager.profile.email;
-    
+
     // Тут потрібно буде додати метод для отримання завтрашніх занять користувача
     // Поки що використовуємо існуючі дані
-    
+
     // Сортуємо по даті та часу
     upcomingLessons.sort((a, b) {
       final dateCompare = a.startTime.compareTo(b.startTime);
@@ -188,32 +210,43 @@ class _HomePageState extends State<HomePage> {
     return SliverList(
       delegate: SliverChildListDelegate([
         const SizedBox(height: 16),
+        if (_notifications.isNotEmpty) _buildNotificationsCard(),
         _buildAbsencesCard(),
         // Поточні та завтрашні заняття
         if (upcomingLessons.isNotEmpty)
-          _UpcomingLessonsCard(lessons: upcomingLessons, onLessonUpdated: _refreshFeed),
-        
+          _UpcomingLessonsCard(
+            lessons: upcomingLessons,
+            onLessonUpdated: _refreshFeed,
+          ),
+
         // Заняття без викладача завтра
         if (_feed.tomorrowWithoutInstructor.isNotEmpty)
-          _TomorrowWithoutInstructorCard(lessons: _feed.tomorrowWithoutInstructor, onLessonUpdated: _refreshFeed),
+          _TomorrowWithoutInstructorCard(
+            lessons: _feed.tomorrowWithoutInstructor,
+            onLessonUpdated: _refreshFeed,
+          ),
 
         // Персональна статистика
         _PersonalStatsCard(stats: _feed.userStats),
-        
+
         // Генерація звітів
         _ReportsCard(reportsService: _reportsService),
-        
+
         // Остання оновка та відступ
         _LastUpdatedCard(lastUpdated: _feed.lastUpdated),
-        
+
         const SizedBox(height: 100), // Відступ для навігації
       ]),
     );
   }
 
   Widget _buildAbsencesCard() {
-    final pendingRequests = _userAbsences.where((a) => a.status == AbsenceStatus.pending).toList();
-    final activeAbsences = _userAbsences.where((a) => a.status == AbsenceStatus.active).toList();
+    final pendingRequests = _userAbsences
+        .where((a) => a.status == AbsenceStatus.pending)
+        .toList();
+    final activeAbsences = _userAbsences
+        .where((a) => a.status == AbsenceStatus.active)
+        .toList();
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -228,10 +261,7 @@ class _HomePageState extends State<HomePage> {
                 const SizedBox(width: 8),
                 const Text(
                   'Мої відсутності',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
                 ElevatedButton.icon(
@@ -239,7 +269,10 @@ class _HomePageState extends State<HomePage> {
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Запросити'),
                   style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                   ),
                 ),
               ],
@@ -260,7 +293,11 @@ class _HomePageState extends State<HomePage> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.schedule, color: Colors.orange.shade600, size: 16),
+                        Icon(
+                          Icons.schedule,
+                          color: Colors.orange.shade600,
+                          size: 16,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           '🙋‍♂️ Мої запити:',
@@ -272,7 +309,9 @@ class _HomePageState extends State<HomePage> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    ...pendingRequests.map((absence) => _buildAbsenceItem(absence, isPending: true)),
+                    ...pendingRequests.map(
+                      (absence) => _buildAbsenceItem(absence, isPending: true),
+                    ),
                   ],
                 ),
               ),
@@ -305,7 +344,9 @@ class _HomePageState extends State<HomePage> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    ...activeAbsences.map((absence) => _buildAbsenceItem(absence)),
+                    ...activeAbsences.map(
+                      (absence) => _buildAbsenceItem(absence),
+                    ),
                   ],
                 ),
               ),
@@ -338,7 +379,84 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildAbsenceItem(InstructorAbsence absence, {bool isPending = false}) {
+  Widget _buildNotificationsCard() {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(
+                  Icons.notifications_active,
+                  color: Theme.of(context).primaryColor,
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  'Активні сповіщення',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            ..._notifications.map(_buildNotificationItem),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationItem(GroupNotification notification) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: _notificationColor(notification.type).withOpacity(0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: _notificationColor(notification.type).withOpacity(0.25),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            _notificationIcon(notification.type),
+            color: _notificationColor(notification.type),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  notification.title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(notification.message),
+                const SizedBox(height: 6),
+                Text(
+                  'Активне до ${DateFormat('dd.MM.yyyy HH:mm').format(notification.expiresAt)}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAbsenceItem(
+    InstructorAbsence absence, {
+    bool isPending = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -380,6 +498,32 @@ class _HomePageState extends State<HomePage> {
       // Оновлюємо дані після закриття діалогу
       _refreshFeed();
     });
+  }
+
+  IconData _notificationIcon(GroupNotificationType type) {
+    switch (type) {
+      case GroupNotificationType.announcement:
+        return Icons.campaign;
+      case GroupNotificationType.absenceApproved:
+        return Icons.check_circle_outline;
+      case GroupNotificationType.absenceRejected:
+        return Icons.highlight_off;
+      case GroupNotificationType.absenceCancelled:
+        return Icons.person_off_outlined;
+    }
+  }
+
+  Color _notificationColor(GroupNotificationType type) {
+    switch (type) {
+      case GroupNotificationType.announcement:
+        return Colors.blue;
+      case GroupNotificationType.absenceApproved:
+        return Colors.green;
+      case GroupNotificationType.absenceRejected:
+        return Colors.red;
+      case GroupNotificationType.absenceCancelled:
+        return Colors.orange;
+    }
   }
 
   /// Відображення помилки
@@ -441,7 +585,12 @@ class _UpcomingLessonsCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            ...lessons.map((lesson) => _EnhancedLessonListTile(lesson: lesson, onLessonUpdated: onLessonUpdated)),
+            ...lessons.map(
+              (lesson) => _EnhancedLessonListTile(
+                lesson: lesson,
+                onLessonUpdated: onLessonUpdated,
+              ),
+            ),
           ],
         ),
       ),
@@ -454,13 +603,16 @@ class _TomorrowWithoutInstructorCard extends StatelessWidget {
   final List<LessonModel> lessons;
   final VoidCallback? onLessonUpdated;
 
-  const _TomorrowWithoutInstructorCard({required this.lessons, this.onLessonUpdated});
+  const _TomorrowWithoutInstructorCard({
+    required this.lessons,
+    this.onLessonUpdated,
+  });
 
   @override
   Widget build(BuildContext context) {
     final tomorrow = DateTime.now().add(const Duration(days: 1));
     final tomorrowFormatted = DateFormat('dd.MM', 'uk').format(tomorrow);
-    
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       color: Colors.orange.shade50,
@@ -483,13 +635,15 @@ class _TomorrowWithoutInstructorCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            ...lessons.map((lesson) => _EnhancedLessonListTile(
-              lesson: lesson,
-              showWarning: true,
-              titleColor: Colors.black, // Чорний колір для назви
-              onLessonUpdated: onLessonUpdated, // Передаємо колбек для оновлення
-
-            )),
+            ...lessons.map(
+              (lesson) => _EnhancedLessonListTile(
+                lesson: lesson,
+                showWarning: true,
+                titleColor: Colors.black, // Чорний колір для назви
+                onLessonUpdated:
+                    onLessonUpdated, // Передаємо колбек для оновлення
+              ),
+            ),
           ],
         ),
       ),
@@ -512,7 +666,7 @@ class _PersonalStatsCard extends StatelessWidget {
     final thisMonthLessons = stats.thisMonthLessons ?? 0;
     final completionRate = stats.completionRate ?? 0.0;
     final incompleteCount = stats.incompleteCount ?? 0;
-    
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Padding(
@@ -534,7 +688,7 @@ class _PersonalStatsCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            
+
             // Статистика з безпечними значеннями
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 800),
@@ -649,7 +803,10 @@ class _ReportsCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.file_download, color: Theme.of(context).primaryColor),
+                Icon(
+                  Icons.file_download,
+                  color: Theme.of(context).primaryColor,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Генерація звітів',
@@ -660,16 +817,17 @@ class _ReportsCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            
+
             // Кнопки генерації
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
-               _ReportButton(
+                _ReportButton(
                   label: 'Список занять',
                   icon: Icons.list_alt, // Змінити іконку
-                  onPressed: () => _generateLessonsList(context), // Прибрати параметр period
+                  onPressed: () =>
+                      _generateLessonsList(context), // Прибрати параметр period
                 ),
                 _ReportButton(
                   label: 'Календарна сітка',
@@ -731,12 +889,12 @@ class _ReportsCard extends StatelessWidget {
             startDate: startDate,
             endDate: endDate,
           );
-          
+
           await Globals.fileManager.shareFileByData(fileName, data);
-          
+
           if (context.mounted) {
             Globals.errorNotificationManager.showSuccess(
-              'Список занять згенеровано!\nПеріод: ${DateFormat('dd.MM.yyyy').format(startDate)} - ${DateFormat('dd.MM.yyyy').format(endDate)}'
+              'Список занять згенеровано!\nПеріод: ${DateFormat('dd.MM.yyyy').format(startDate)} - ${DateFormat('dd.MM.yyyy').format(endDate)}',
             );
           }
         } catch (e) {
@@ -744,7 +902,7 @@ class _ReportsCard extends StatelessWidget {
           if (context.mounted) {
             Navigator.of(context).pop();
             Globals.errorNotificationManager.showError(
-              'Помилка генерації звіту: ${e.toString()}'
+              'Помилка генерації звіту: ${e.toString()}',
             );
           }
         }
@@ -798,12 +956,12 @@ class _ReportsCard extends StatelessWidget {
             startDate: startDate,
             endDate: endDate,
           );
-          
+
           await Globals.fileManager.shareFileByData(fileName, data);
-          
+
           if (context.mounted) {
             Globals.errorNotificationManager.showSuccess(
-              'Календарну сітку згенеровано!\nПеріод: ${DateFormat('dd.MM.yyyy').format(startDate)} - ${DateFormat('dd.MM.yyyy').format(endDate)}'
+              'Календарну сітку згенеровано!\nПеріод: ${DateFormat('dd.MM.yyyy').format(startDate)} - ${DateFormat('dd.MM.yyyy').format(endDate)}',
             );
           }
         } catch (e) {
@@ -811,7 +969,7 @@ class _ReportsCard extends StatelessWidget {
           if (context.mounted) {
             Navigator.of(context).pop();
             Globals.errorNotificationManager.showError(
-              'Помилка генерації календарної сітки: ${e.toString()}'
+              'Помилка генерації календарної сітки: ${e.toString()}',
             );
           }
         }
@@ -860,9 +1018,9 @@ class _LastUpdatedCard extends StatelessWidget {
       child: Center(
         child: Text(
           'Оновлено: ${DateFormat('dd.MM.yyyy HH:mm').format(lastUpdated!)}',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-            color: Colors.grey,
-          ),
+          style: Theme.of(
+            context,
+          ).textTheme.bodySmall?.copyWith(color: Colors.grey),
         ),
       ),
     );
@@ -880,7 +1038,7 @@ class _EnhancedLessonListTile extends StatelessWidget {
     required this.lesson,
     this.showWarning = false,
     this.titleColor,
-    required  this.onLessonUpdated,
+    required this.onLessonUpdated,
   });
 
   @override
@@ -888,11 +1046,11 @@ class _EnhancedLessonListTile extends StatelessWidget {
     // Отримуємо статус заняття
     final progressStatus = LessonStatusUtils.getProgressStatus(lesson);
     final readinessStatus = LessonStatusUtils.getReadinessStatus(lesson);
-    
+
     // Визначаємо колір фону на основі статусу
     Color backgroundColor;
     Color textColor = Colors.white;
-    
+
     switch (readinessStatus) {
       case LessonReadinessStatus.completedReady:
       case LessonReadinessStatus.inProgressReady:
@@ -908,13 +1066,15 @@ class _EnhancedLessonListTile extends StatelessWidget {
         backgroundColor = Colors.red;
         break;
     }
-    
+
     final now = DateTime.now();
-    final isToday = DateFormat('dd.MM.yyyy').format(lesson.startTime) == 
-                   DateFormat('dd.MM.yyyy').format(now);
-    final isTomorrow = DateFormat('dd.MM.yyyy').format(lesson.startTime) == 
-                      DateFormat('dd.MM.yyyy').format(now.add(const Duration(days: 1)));
-    
+    final isToday =
+        DateFormat('dd.MM.yyyy').format(lesson.startTime) ==
+        DateFormat('dd.MM.yyyy').format(now);
+    final isTomorrow =
+        DateFormat('dd.MM.yyyy').format(lesson.startTime) ==
+        DateFormat('dd.MM.yyyy').format(now.add(const Duration(days: 1)));
+
     String datePrefix = '';
     if (isToday) {
       datePrefix = 'Сьогодні ';
@@ -926,14 +1086,15 @@ class _EnhancedLessonListTile extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: GestureDetector( // 👈 Додаємо це
+      child: GestureDetector(
+        // 👈 Додаємо це
         onTap: () {
           showDialog(
             context: context,
             builder: (context) => LessonDetailsDialog(
               lesson: lesson,
               onUpdated: () {
-               onLessonUpdated?.call(); 
+                onLessonUpdated?.call();
               },
             ),
           );
@@ -971,9 +1132,9 @@ class _EnhancedLessonListTile extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             const SizedBox(width: 12),
-            
+
             // Інформація
             Expanded(
               child: Column(
@@ -989,9 +1150,9 @@ class _EnhancedLessonListTile extends StatelessWidget {
                   if (lesson.location.isNotEmpty)
                     Text(
                       lesson.location,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
                     ),
                   // Додаємо статус заняття
                   Text(
@@ -1004,7 +1165,7 @@ class _EnhancedLessonListTile extends StatelessWidget {
                 ],
               ),
             ),
-            
+
             // Попередження або іконка статусу
             if (showWarning)
               Icon(Icons.warning, color: Colors.orange[700], size: 20)

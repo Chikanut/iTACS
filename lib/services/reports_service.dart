@@ -18,7 +18,7 @@ class ReportsService {
   /// Ініціалізація сервісу з реєстрацією всіх звітів
   Future<void> initialize() async {
     if (_initialized) return;
-    
+
     try {
       // Реєструємо всі доступні звіти
       _reports.clear();
@@ -30,9 +30,9 @@ class ReportsService {
         // WeeklyScheduleReport(),
         // AttendanceReport(),
       ]);
-      
+
       _initialized = true;
-      
+
       if (kDebugMode) {
         print('ReportsService ініціалізовано з ${_reports.length} звітами');
       }
@@ -48,18 +48,22 @@ class ReportsService {
   List<BaseReport> getAvailableReports() {
     _ensureInitialized();
 
-    final currentUserRole = Globals.profileManager.getRoleInGroup(Globals.profileManager.currentGroupId != null ? Globals.profileManager.currentGroupId! : 'viewer');
+    final currentUserRole = Globals.profileManager.getRoleInGroup(
+      Globals.profileManager.currentGroupId != null
+          ? Globals.profileManager.currentGroupId!
+          : 'viewer',
+    );
 
     return _reports.where((report) {
       // Перевіряємо чи доступний звіт загалом
       if (!report.isAvailable) return false;
-      
+
       // Перевіряємо чи має користувач потрібну роль
       if (!report.requiredRoles.contains(currentUserRole)) {
         // Якщо роль не підходить точно, перевіряємо ієрархію ролей
         return _hasRequiredRole(currentUserRole!, report.requiredRoles);
       }
-      
+
       return true;
     }).toList();
   }
@@ -102,7 +106,7 @@ class ReportsService {
     Map<String, dynamic>? parameters,
   }) async {
     _ensureInitialized();
-    
+
     final report = getReportById(reportId);
     if (report == null) {
       throw Exception('Звіт з ID "$reportId" не знайдено');
@@ -114,7 +118,9 @@ class ReportsService {
     }
 
     if (!report.supportedFormats.contains(format)) {
-      throw Exception('Формат ${format.displayName} не підтримується для звіту "${report.name}"');
+      throw Exception(
+        'Формат ${format.displayName} не підтримується для звіту "${report.name}"',
+      );
     }
 
     // Валідуємо дати
@@ -130,11 +136,12 @@ class ReportsService {
     }
 
     // Додаткова валідація специфічна для звіту
-    final specificValidationError = await report.validateReportSpecificConditions(
-      startDate: startDate,
-      endDate: endDate,
-      parameters: parameters,
-    );
+    final specificValidationError = await report
+        .validateReportSpecificConditions(
+          startDate: startDate,
+          endDate: endDate,
+          parameters: parameters,
+        );
     if (specificValidationError != null) {
       throw Exception('Помилка валідації: $specificValidationError');
     }
@@ -145,17 +152,19 @@ class ReportsService {
 
     try {
       final startTime = DateTime.now();
-      
+
       final result = await report.generate(
         format: format,
         startDate: startDate,
         endDate: endDate,
         parameters: parameters,
       );
-      
+
       final duration = DateTime.now().difference(startTime);
       if (kDebugMode) {
-        print('Звіт "${report.name}" згенеровано за ${duration.inMilliseconds}мс');
+        print(
+          'Звіт "${report.name}" згенеровано за ${duration.inMilliseconds}мс',
+        );
       }
 
       return result;
@@ -175,7 +184,7 @@ class ReportsService {
     Map<String, dynamic>? parameters,
   }) async {
     _ensureInitialized();
-    
+
     final report = getReportById(reportId);
     if (report == null) {
       throw Exception('Звіт з ID "$reportId" не знайдено');
@@ -193,7 +202,9 @@ class ReportsService {
       );
     } catch (e) {
       if (kDebugMode) {
-        print('Помилка отримання попереднього перегляду звіту "${report.name}": $e');
+        print(
+          'Помилка отримання попереднього перегляду звіту "${report.name}": $e',
+        );
       }
       rethrow;
     }
@@ -208,7 +219,7 @@ class ReportsService {
     Map<String, dynamic>? parameters,
   }) {
     _ensureInitialized();
-    
+
     final report = getReportById(reportId);
     if (report == null) {
       throw Exception('Звіт з ID "$reportId" не знайдено');
@@ -225,18 +236,16 @@ class ReportsService {
   /// Перевірити чи ініціалізований сервіс
   void _ensureInitialized() {
     if (!_initialized) {
-      throw Exception('ReportsService не ініціалізовано. Викличте initialize() спочатку.');
+      throw Exception(
+        'ReportsService не ініціалізовано. Викличте initialize() спочатку.',
+      );
     }
   }
 
   /// Перевірити чи має користувач потрібну роль (з урахуванням ієрархії)
   bool _hasRequiredRole(String userRole, List<String> requiredRoles) {
     // Ієрархія ролей: admin > editor > viewer
-    const roleHierarchy = {
-      'admin': 3,
-      'editor': 2,
-      'viewer': 1,
-    };
+    const roleHierarchy = {'admin': 3, 'editor': 2, 'viewer': 1};
 
     final userLevel = roleHierarchy[userRole] ?? 0;
     final minRequiredLevel = requiredRoles
@@ -256,11 +265,11 @@ class ReportsService {
   /// Отримати статистику використання звітів
   Map<String, dynamic> getUsageStatistics() {
     _ensureInitialized();
-    
+
     final availableReports = getAvailableReports();
     final formatStats = <String, int>{};
     final categoryStats = <String, int>{};
-    
+
     for (final format in ReportFormat.values) {
       final count = availableReports
           .where((r) => r.supportedFormats.contains(format))
@@ -276,8 +285,14 @@ class ReportsService {
     return {
       'total_reports': availableReports.length,
       'total_registered': _reports.length,
-      'current_user_role': Globals.profileManager.getRoleInGroup(Globals.profileManager.currentGroupId != null ? Globals.profileManager.currentGroupId! : 'unknown'),
-      'available_formats': ReportFormat.values.map((f) => f.displayName).toList(),
+      'current_user_role': Globals.profileManager.getRoleInGroup(
+        Globals.profileManager.currentGroupId != null
+            ? Globals.profileManager.currentGroupId!
+            : 'unknown',
+      ),
+      'available_formats': ReportFormat.values
+          .map((f) => f.displayName)
+          .toList(),
       'reports_by_format': formatStats,
       'reports_by_category': categoryStats,
       'categories': getAvailableCategories(),
@@ -287,7 +302,7 @@ class ReportsService {
   /// Отримати мета-дані про звіт
   Map<String, dynamic> getReportMetadata(String reportId) {
     _ensureInitialized();
-    
+
     final report = getReportById(reportId);
     if (report == null) {
       throw Exception('Звіт з ID "$reportId" не знайдено');
@@ -298,7 +313,9 @@ class ReportsService {
       'name': report.name,
       'description': report.description,
       'category': report.category,
-      'supported_formats': report.supportedFormats.map((f) => f.displayName).toList(),
+      'supported_formats': report.supportedFormats
+          .map((f) => f.displayName)
+          .toList(),
       'requires_parameters': report.requiresParameters,
       'required_roles': report.requiredRoles,
       'is_available': report.isAvailable,
@@ -309,14 +326,20 @@ class ReportsService {
   /// Експортувати конфігурацію звітів (для резервного копіювання)
   Map<String, dynamic> exportConfiguration() {
     _ensureInitialized();
-    
+
     return {
       'version': '1.0',
       'exported_at': DateTime.now().toIso8601String(),
-      'reports': _reports.map((report) => getReportMetadata(report.id)).toList(),
+      'reports': _reports
+          .map((report) => getReportMetadata(report.id))
+          .toList(),
       'user_context': {
         'group': Globals.profileManager.currentGroupName,
-        'role': Globals.profileManager.getRoleInGroup(Globals.profileManager.currentGroupId != null ? Globals.profileManager.currentGroupId! : ''),
+        'role': Globals.profileManager.getRoleInGroup(
+          Globals.profileManager.currentGroupId != null
+              ? Globals.profileManager.currentGroupId!
+              : '',
+        ),
       },
     };
   }

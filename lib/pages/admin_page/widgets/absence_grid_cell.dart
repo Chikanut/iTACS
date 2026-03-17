@@ -28,10 +28,7 @@ class AbsenceGridCell extends StatelessWidget {
         height: 40,
         margin: const EdgeInsets.all(2),
         decoration: BoxDecoration(
-          border: Border.all(
-            color: Colors.grey.shade300,
-            width: 1,
-          ),
+          border: Border.all(color: Colors.grey.shade300, width: 1),
           borderRadius: BorderRadius.circular(4),
           color: _getBackgroundColor(),
         ),
@@ -43,15 +40,15 @@ class AbsenceGridCell extends StatelessWidget {
                 _getDisplayText(),
                 style: TextStyle(
                   fontSize: 10,
-                  fontWeight: absence?.isAdminAssignment == true 
-                      ? FontWeight.bold 
+                  fontWeight: absence?.isAdminAssignment == true
+                      ? FontWeight.bold
                       : FontWeight.normal,
                   color: _getTextColor(),
                 ),
                 textAlign: TextAlign.center,
               ),
             ),
-            
+
             // Індикатор статусу для запитів
             if (absence != null && absence!.status == AbsenceStatus.pending)
               Positioned(
@@ -77,12 +74,12 @@ class AbsenceGridCell extends StatelessWidget {
     if (absence != null) {
       return absence!.shortSymbol;
     }
-    
+
     // Якщо є заняття, показуємо "З"
     if (hasLessons) {
       return 'З';
     }
-    
+
     // Інакше порожня клітинка
     return '';
   }
@@ -92,17 +89,17 @@ class AbsenceGridCell extends StatelessWidget {
     if (absence != null) {
       return absence!.displayColor.withOpacity(0.2);
     }
-    
+
     // Якщо є заняття, легкий синій фон
     if (hasLessons) {
       return Colors.blue.shade50;
     }
-    
+
     // Вихідні дні - легкий сірий фон
     if (_isWeekend()) {
       return Colors.grey.shade100;
     }
-    
+
     // Звичайний день - білий фон
     return Colors.white;
   }
@@ -112,17 +109,17 @@ class AbsenceGridCell extends StatelessWidget {
     if (absence != null) {
       return absence!.displayColor;
     }
-    
+
     // Якщо є заняття, синій текст
     if (hasLessons) {
       return Colors.blue.shade700;
     }
-    
+
     // Вихідні дні - сірий текст
     if (_isWeekend()) {
       return Colors.grey.shade600;
     }
-    
+
     // Звичайний день - чорний текст
     return Colors.black87;
   }

@@ -31,41 +31,41 @@ class FirestoreManager {
     return groups.isNotEmpty;
   }
 
-Future<List<DocumentSnapshot>> getDocumentsForGroup({
-  required String groupId,
-  required String collection,
-  String? orderBy,
-  bool descending = true,
-  Map<String, dynamic>? whereEqual,
-}) async {
-  debugPrint('[firestore] getDocumentsForGroup:');
-  debugPrint('  groupId: $groupId');
-  debugPrint('  collection: $collection');
-  debugPrint('  orderBy: $orderBy, descending: $descending');
-  debugPrint('  whereEqual: $whereEqual');
+  Future<List<DocumentSnapshot>> getDocumentsForGroup({
+    required String groupId,
+    required String collection,
+    String? orderBy,
+    bool descending = true,
+    Map<String, dynamic>? whereEqual,
+  }) async {
+    debugPrint('[firestore] getDocumentsForGroup:');
+    debugPrint('  groupId: $groupId');
+    debugPrint('  collection: $collection');
+    debugPrint('  orderBy: $orderBy, descending: $descending');
+    debugPrint('  whereEqual: $whereEqual');
 
-  CollectionReference ref = _firestore
-      .collection(collection)
-      .doc(groupId)
-      .collection('items');
+    CollectionReference ref = _firestore
+        .collection(collection)
+        .doc(groupId)
+        .collection('items');
 
-  Query query = ref;
+    Query query = ref;
 
-  if (whereEqual != null) {
-    for (final entry in whereEqual.entries) {
-      query = query.where(entry.key, isEqualTo: entry.value);
+    if (whereEqual != null) {
+      for (final entry in whereEqual.entries) {
+        query = query.where(entry.key, isEqualTo: entry.value);
+      }
     }
+
+    if (orderBy != null) {
+      query = query.orderBy(orderBy, descending: descending);
+    }
+
+    final snapshot = await query.get();
+    debugPrint('[firestore] Fetched ${snapshot.docs.length} documents');
+
+    return snapshot.docs;
   }
-
-  if (orderBy != null) {
-    query = query.orderBy(orderBy, descending: descending);
-  }
-
-  final snapshot = await query.get();
-  debugPrint('[firestore] Fetched ${snapshot.docs.length} documents');
-
-  return snapshot.docs;
-}
 
   Future<void> createDocument({
     required String groupId,
@@ -73,9 +73,9 @@ Future<List<DocumentSnapshot>> getDocumentsForGroup({
     required Map<String, dynamic> data,
   }) async {
     final ref = FirebaseFirestore.instance
-      .collection(collection)
-      .doc(groupId)
-      .collection('items');
+        .collection(collection)
+        .doc(groupId)
+        .collection('items');
 
     await ref.add(data);
   }
@@ -87,48 +87,54 @@ Future<List<DocumentSnapshot>> getDocumentsForGroup({
     required Map<String, dynamic> data,
   }) async {
     final ref = FirebaseFirestore.instance
-      .collection(collection)
-      .doc(groupId)
-      .collection('items')
-      .doc(docId);
+        .collection(collection)
+        .doc(groupId)
+        .collection('items')
+        .doc(docId);
 
     await ref.update(data);
   }
 
-Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
-  required String docId,
-  required String groupId,
-  required String userRole,
-  required String collection,
-}) async {
-  final deleted = <String>[];
-  final skipped = <String>[];
+  Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
+    required String docId,
+    required String groupId,
+    required String userRole,
+    required String collection,
+  }) async {
+    final deleted = <String>[];
+    final skipped = <String>[];
 
-  if (userRole == 'admin') {
-    final ref = _firestore.collection(collection).doc(groupId).collection('items').doc(docId);
-    final doc = await ref.get();
-    if (doc.exists) {
-      await ref.delete();
-      deleted.add(groupId);
+    if (userRole == 'admin') {
+      final ref = _firestore
+          .collection(collection)
+          .doc(groupId)
+          .collection('items')
+          .doc(docId);
+      final doc = await ref.get();
+      if (doc.exists) {
+        await ref.delete();
+        deleted.add(groupId);
+      }
+    } else {
+      skipped.add(groupId);
     }
-  } else {
-    skipped.add(groupId);
+
+    return {'deleted': deleted, 'skipped': skipped};
   }
 
-  return {
-    'deleted': deleted,
-    'skipped': skipped,
-  };
-}
-
-/// Отримати список учасників групи з повною інформацією
+  /// Отримати список учасників групи з повною інформацією
   /// Отримати список учасників групи з повною інформацією
   /// Отримати список учасників групи з повною інформацією (через email lookup)
-  Future<List<Map<String, dynamic>>> getGroupMembersWithDetails(String groupId) async {
+  Future<List<Map<String, dynamic>>> getGroupMembersWithDetails(
+    String groupId,
+  ) async {
     try {
       // Отримуємо список email-ів з групи
-      final groupDoc = await _firestore.collection('allowed_users').doc(groupId).get();
-      
+      final groupDoc = await _firestore
+          .collection('allowed_users')
+          .doc(groupId)
+          .get();
+
       if (!groupDoc.exists) {
         debugPrint('FirestoreManager: Група $groupId не знайдена');
         return [];
@@ -136,14 +142,14 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
 
       final data = groupDoc.data() as Map<String, dynamic>;
       final members = Map<String, dynamic>.from(data['members'] ?? {});
-      
+
       final List<Map<String, dynamic>> membersWithDetails = [];
-      
+
       // Для кожного email отримуємо повну інформацію з users
       for (final entry in members.entries) {
         final email = entry.key;
         final roleValue = entry.value;
-        
+
         // Роль може бути як рядком (стара структура), так і об'єктом (нова)
         String role = 'viewer';
         if (roleValue is String) {
@@ -151,7 +157,7 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
         } else if (roleValue is Map<String, dynamic>) {
           role = roleValue['role'] as String? ?? 'viewer';
         }
-        
+
         try {
           // Шукаємо користувача в колекції users за email
           final userSnapshot = await _firestore
@@ -159,17 +165,20 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
               .where('email', isEqualTo: email)
               .limit(1)
               .get();
-          
+
           if (userSnapshot.docs.isNotEmpty) {
             final userDoc = userSnapshot.docs.first;
             final userData = userDoc.data();
             final uid = userDoc.id; // UID = document ID
-            
+
             membersWithDetails.add({
               'uid': uid,
               'email': email,
               'role': role,
-              'fullName': userData['fullName'] ?? userData['firstName'] ?? email.split('@').first,
+              'fullName':
+                  userData['fullName'] ??
+                  userData['firstName'] ??
+                  email.split('@').first,
               'firstName': userData['firstName'] ?? '',
               'lastName': userData['lastName'] ?? '',
               'rank': userData['rank'] ?? '',
@@ -192,7 +201,9 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
             });
           }
         } catch (e) {
-          debugPrint('FirestoreManager: Помилка отримання даних користувача $email: $e');
+          debugPrint(
+            'FirestoreManager: Помилка отримання даних користувача $email: $e',
+          );
           // Додаємо базову інформацію навіть при помилці
           membersWithDetails.add({
             'uid': '',
@@ -207,12 +218,15 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
           });
         }
       }
-      
+
       // Сортуємо за ім'ям
-      membersWithDetails.sort((a, b) => 
-        (a['fullName'] as String).compareTo(b['fullName'] as String));
-      
-      debugPrint('FirestoreManager: Завантажено ${membersWithDetails.length} учасників групи');
+      membersWithDetails.sort(
+        (a, b) => (a['fullName'] as String).compareTo(b['fullName'] as String),
+      );
+
+      debugPrint(
+        'FirestoreManager: Завантажено ${membersWithDetails.length} учасників групи',
+      );
       return membersWithDetails;
     } catch (e) {
       debugPrint('FirestoreManager: Помилка отримання учасників групи: $e');
@@ -224,28 +238,33 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
   Future<String?> getUserEmailByUid(String groupId, String uid) async {
     try {
       if (uid.isEmpty) return null;
-      
+
       // Шукаємо користувача в users за UID (document ID)
       final userDoc = await _firestore.collection('users').doc(uid).get();
-      
+
       if (userDoc.exists) {
         final userData = userDoc.data() as Map<String, dynamic>;
         final email = userData['email'] as String?;
-        
+
         if (email != null) {
           // Перевіряємо чи цей email є в групі
-          final groupDoc = await _firestore.collection('allowed_users').doc(groupId).get();
+          final groupDoc = await _firestore
+              .collection('allowed_users')
+              .doc(groupId)
+              .get();
           if (groupDoc.exists) {
             final groupData = groupDoc.data() as Map<String, dynamic>;
-            final members = Map<String, dynamic>.from(groupData['members'] ?? {});
-            
+            final members = Map<String, dynamic>.from(
+              groupData['members'] ?? {},
+            );
+
             if (members.containsKey(email)) {
               return email;
             }
           }
         }
       }
-      
+
       return null;
     } catch (e) {
       debugPrint('FirestoreManager: Помилка пошуку email для UID $uid: $e');
@@ -253,15 +272,78 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
     }
   }
 
+  Future<void> addOrUpdateGroupMember({
+    required String groupId,
+    required String email,
+    String role = 'viewer',
+  }) async {
+    final normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail.isEmpty) {
+      throw Exception('Email не може бути порожнім');
+    }
+
+    final groupRef = _firestore.collection('allowed_users').doc(groupId);
+    final groupDoc = await groupRef.get();
+    final groupData = groupDoc.data() ?? {};
+    final members = Map<String, dynamic>.from(groupData['members'] ?? {});
+    final existingMember = members[normalizedEmail];
+
+    String? memberUid;
+    if (existingMember is Map<String, dynamic>) {
+      memberUid = existingMember['uid'] as String?;
+    }
+
+    final userSnapshot = await _firestore
+        .collection('users')
+        .where('email', isEqualTo: normalizedEmail)
+        .limit(1)
+        .get();
+
+    if (userSnapshot.docs.isNotEmpty) {
+      memberUid = userSnapshot.docs.first.id;
+    }
+
+    final memberPayload = <String, dynamic>{'role': role};
+    if (memberUid != null && memberUid.isNotEmpty) {
+      memberPayload['uid'] = memberUid;
+    }
+
+    await groupRef.set({
+      'members': {normalizedEmail: memberPayload},
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> updateGroupMemberRole({
+    required String groupId,
+    required String email,
+    required String role,
+  }) async {
+    await addOrUpdateGroupMember(groupId: groupId, email: email, role: role);
+  }
+
+  Future<void> removeGroupMember({
+    required String groupId,
+    required String email,
+  }) async {
+    final normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail.isEmpty) {
+      throw Exception('Email не може бути порожнім');
+    }
+
+    await _firestore.collection('allowed_users').doc(groupId).update({
+      'members.$normalizedEmail': FieldValue.delete(),
+    });
+  }
+
   /// Отримати інформацію про користувача за UID
   Future<Map<String, dynamic>?> getUserByUid(String uid) async {
     try {
       final userDoc = await _firestore.collection('users').doc(uid).get();
-      
+
       if (userDoc.exists) {
         return userDoc.data() as Map<String, dynamic>;
       }
-      
+
       return null;
     } catch (e) {
       debugPrint('FirestoreManager: Помилка отримання користувача $uid: $e');
@@ -270,7 +352,7 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
   }
 
   /// CRUD операції для відсутностей
-  
+
   /// Створити відсутність
   Future<String?> createAbsence({
     required String groupId,
@@ -282,7 +364,7 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
           .doc(groupId)
           .collection('items')
           .add(absenceData);
-      
+
       debugPrint('FirestoreManager: Відсутність створена з ID: ${docRef.id}');
       return docRef.id;
     } catch (e) {
@@ -307,11 +389,17 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
 
       // Фільтри по датах
       if (startDate != null) {
-        query = query.where('endDate', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate));
+        query = query.where(
+          'endDate',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+        );
       }
-      
+
       if (endDate != null) {
-        query = query.where('startDate', isLessThanOrEqualTo: Timestamp.fromDate(endDate));
+        query = query.where(
+          'startDate',
+          isLessThanOrEqualTo: Timestamp.fromDate(endDate),
+        );
       }
 
       // Фільтр по інструктору
@@ -328,8 +416,10 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
       query = query.orderBy('startDate');
 
       final snapshot = await query.get();
-      debugPrint('FirestoreManager: Знайдено ${snapshot.docs.length} відсутностей');
-      
+      debugPrint(
+        'FirestoreManager: Знайдено ${snapshot.docs.length} відсутностей',
+      );
+
       return snapshot.docs;
     } catch (e) {
       debugPrint('FirestoreManager: Помилка отримання відсутностей: $e');
@@ -350,7 +440,7 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
           .collection('items')
           .doc(absenceId)
           .update(updates);
-      
+
       debugPrint('FirestoreManager: Відсутність $absenceId оновлена');
       return true;
     } catch (e) {
@@ -371,7 +461,7 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
           .collection('items')
           .doc(absenceId)
           .delete();
-      
+
       debugPrint('FirestoreManager: Відсутність $absenceId видалена');
       return true;
     } catch (e) {
@@ -380,7 +470,10 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
     }
   }
 
-  Future<void> saveUserProfile({required String uid, required String email}) async {
+  Future<void> saveUserProfile({
+    required String uid,
+    required String email,
+  }) async {
     final groups = await getUserGroups(email);
     final userDocRef = _firestore.collection('users').doc(uid);
     final existingDoc = await userDocRef.get();
@@ -405,7 +498,7 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
     String? position,
     String? rank,
     String? phone, // 👈 додано
-    }) async {
+  }) async {
     Map<String, dynamic> updates = {};
 
     if (firstName != null) updates['firstName'] = firstName;
@@ -415,7 +508,10 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
     if (phone != null) updates['phone'] = phone;
 
     if (updates.isNotEmpty) {
-      await FirebaseFirestore.instance.collection('users').doc(uid).update(updates);
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .update(updates);
     }
   }
 
@@ -465,6 +561,7 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
     debugPrint('🎯 Результат ролей: $rolesByGroup');
     return rolesByGroup;
   }
+
   Future<Map<String, dynamic>?> getOrCreateUserData() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return null;
@@ -552,27 +649,33 @@ Future<Map<String, dynamic>> deleteDocumentWhereAllowed({
 
           // Перевіряємо чи це стара структура (тільки роль як рядок)
           if (currentValue is String) {
-            debugPrint('🔄 Оновлюємо структуру для $normalizedEmail в групі $groupId');
-            
+            debugPrint(
+              '🔄 Оновлюємо структуру для $normalizedEmail в групі $groupId',
+            );
+
             // Оновлюємо на нову структуру з UID
             await _firestore.collection('allowed_users').doc(groupId).update({
               'members.$normalizedEmail': {
                 'uid': uid,
                 'role': currentValue, // зберігаємо стару роль
-              }
+              },
             });
-            
+
             debugPrint('✅ UID додано для $normalizedEmail в групі $groupId');
           } else if (currentValue is Map<String, dynamic>) {
             // Перевіряємо чи UID вже є
             if (currentValue['uid'] != uid) {
-              debugPrint('🔄 Оновлюємо UID для $normalizedEmail в групі $groupId');
-              
+              debugPrint(
+                '🔄 Оновлюємо UID для $normalizedEmail в групі $groupId',
+              );
+
               await _firestore.collection('allowed_users').doc(groupId).update({
                 'members.$normalizedEmail.uid': uid,
               });
-              
-              debugPrint('✅ UID оновлено для $normalizedEmail в групі $groupId');
+
+              debugPrint(
+                '✅ UID оновлено для $normalizedEmail в групі $groupId',
+              );
             }
           }
         }

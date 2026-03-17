@@ -61,7 +61,7 @@ enum StatsPeriod { week, month, quarter, year }
 class DashboardService {
   static const String _cacheKey = 'dashboard_cache';
   static const Duration _cacheTimeout = Duration(minutes: 5);
-  
+
   DashboardFeed? _cachedFeed;
   DateTime? _lastCacheTime;
 
@@ -74,15 +74,22 @@ class DashboardService {
       final today = DateTime.now();
       final tomorrow = today.add(const Duration(days: 1));
       final startOfDay = DateTime(today.year, today.month, today.day);
-      final endOfDay = DateTime(tomorrow.year, tomorrow.month, tomorrow.day, 23, 59, 59);
+      final endOfDay = DateTime(
+        tomorrow.year,
+        tomorrow.month,
+        tomorrow.day,
+        23,
+        59,
+        59,
+      );
 
       final currentGroupId = Globals.profileManager.currentGroupId;
       if (currentGroupId == null) return [];
 
       final querySnapshot = await FirebaseFirestore.instance
           .collection('lessons')
-          .doc(currentGroupId)              
-          .collection('items') 
+          .doc(currentGroupId)
+          .collection('items')
           .where('startTime', isGreaterThanOrEqualTo: startOfDay)
           .where('startTime', isLessThanOrEqualTo: endOfDay)
           .where('instructorId', isEqualTo: currentUser.uid)
@@ -114,22 +121,25 @@ class DashboardService {
 
       final querySnapshot = await FirebaseFirestore.instance
           .collection('lessons')
-          .doc(currentGroupId)              
+          .doc(currentGroupId)
           .collection('items')
           .where('startTime', isGreaterThanOrEqualTo: startOfDay)
           .where('startTime', isLessThanOrEqualTo: endOfDay)
           .orderBy('startTime')
           .get();
 
-      final lessons = querySnapshot.docs.map((doc) {
-        final data = doc.data();
-        return LessonModel.fromFirestore(data, doc.id);
-      }).where((lesson) {
-        // Заняття без викладача або з пустим викладачем
-        return lesson.instructorId.isEmpty || 
-               lesson.instructorId.trim().isEmpty ||
-               lesson.instructorId == 'Не призначено';
-      }).toList();
+      final lessons = querySnapshot.docs
+          .map((doc) {
+            final data = doc.data();
+            return LessonModel.fromFirestore(data, doc.id);
+          })
+          .where((lesson) {
+            // Заняття без викладача або з пустим викладачем
+            return lesson.instructorId.isEmpty ||
+                lesson.instructorId.trim().isEmpty ||
+                lesson.instructorId == 'Не призначено';
+          })
+          .toList();
 
       return lessons;
     } catch (e) {
@@ -151,7 +161,7 @@ class DashboardService {
 
       final now = DateTime.now();
       DateTime startDate;
-      
+
       switch (period) {
         case StatsPeriod.week:
           startDate = CalendarUtils.getStartOfWeek(now);
@@ -171,7 +181,7 @@ class DashboardService {
       // Всі заняття користувача за період
       final allLessonsQuery = await FirebaseFirestore.instance
           .collection('lessons')
-          .doc(currentGroupId)              
+          .doc(currentGroupId)
           .collection('items')
           .where('instructorId', isEqualTo: currentUser.uid)
           .where('startTime', isGreaterThanOrEqualTo: startDate)
@@ -212,8 +222,8 @@ class DashboardService {
       }).length;
 
       // Відсоток завершення
-      final completionRate = allLessons.isNotEmpty 
-          ? (conductedLessons / allLessons.length) * 100 
+      final completionRate = allLessons.isNotEmpty
+          ? (conductedLessons / allLessons.length) * 100
           : 0.0;
 
       return UserStats(
@@ -293,7 +303,7 @@ class DashboardService {
 
       Query query = FirebaseFirestore.instance
           .collection('lessons')
-          .doc(currentGroupId)              
+          .doc(currentGroupId)
           .collection('items')
           .where('startTime', isGreaterThanOrEqualTo: startDate)
           .where('startTime', isLessThanOrEqualTo: endDate);
@@ -327,7 +337,7 @@ class DashboardService {
 
       final querySnapshot = await FirebaseFirestore.instance
           .collection('lessons')
-          .doc(currentGroupId)              
+          .doc(currentGroupId)
           .collection('items')
           .where('startTime', isGreaterThanOrEqualTo: startDate)
           .where('startTime', isLessThanOrEqualTo: endDate)
@@ -342,8 +352,8 @@ class DashboardService {
       // Групуємо по інструкторах
       final Map<String, List<LessonModel>> lessonsByInstructor = {};
       for (final lesson in allLessons) {
-        final instructor = lesson.instructorId.isEmpty 
-            ? 'Без викладача' 
+        final instructor = lesson.instructorId.isEmpty
+            ? 'Без викладача'
             : lesson.instructorName;
         lessonsByInstructor.putIfAbsent(instructor, () => []).add(lesson);
       }
@@ -360,9 +370,8 @@ class DashboardService {
           return lesson.endTime.isBefore(now);
         }).length;
 
-    
-        final completionRate = lessons.isNotEmpty 
-            ? (conductedLessons / lessons.length) * 100 
+        final completionRate = lessons.isNotEmpty
+            ? (conductedLessons / lessons.length) * 100
             : 0.0;
 
         instructorStats[instructor] = UserStats(

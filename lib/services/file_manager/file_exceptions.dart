@@ -42,4 +42,3 @@ class FileAccessException implements Exception {
   @override
   String toString() => 'FileAccessException: $message (fileId: $fileId)';
 }
-

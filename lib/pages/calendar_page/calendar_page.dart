@@ -44,11 +44,17 @@ class _CalendarPageState extends State<CalendarPage> {
           break;
         case CalendarViewType.week:
           // 👈 ВИПРАВЛЕННЯ: йдемо точно на 7 днів назад від понеділка поточного тижня
-          final startOfCurrentWeek = CalendarUtils.getStartOfWeek(_selectedDate);
+          final startOfCurrentWeek = CalendarUtils.getStartOfWeek(
+            _selectedDate,
+          );
           _selectedDate = startOfCurrentWeek.subtract(const Duration(days: 7));
           break;
         case CalendarViewType.month:
-          _selectedDate = DateTime(_selectedDate.year, _selectedDate.month - 1, 1);
+          _selectedDate = DateTime(
+            _selectedDate.year,
+            _selectedDate.month - 1,
+            1,
+          );
           break;
         case CalendarViewType.year:
           _selectedDate = DateTime(_selectedDate.year - 1, 1, 1);
@@ -66,11 +72,17 @@ class _CalendarPageState extends State<CalendarPage> {
           break;
         case CalendarViewType.week:
           // 👈 ВИПРАВЛЕННЯ: йдемо точно на 7 днів вперед від понеділка поточного тижня
-          final startOfCurrentWeek = CalendarUtils.getStartOfWeek(_selectedDate);
+          final startOfCurrentWeek = CalendarUtils.getStartOfWeek(
+            _selectedDate,
+          );
           _selectedDate = startOfCurrentWeek.add(const Duration(days: 7));
           break;
         case CalendarViewType.month:
-          _selectedDate = DateTime(_selectedDate.year, _selectedDate.month + 1, 1);
+          _selectedDate = DateTime(
+            _selectedDate.year,
+            _selectedDate.month + 1,
+            1,
+          );
           break;
         case CalendarViewType.year:
           _selectedDate = DateTime(_selectedDate.year + 1, 1, 1);
@@ -115,7 +127,9 @@ class _CalendarPageState extends State<CalendarPage> {
       case CalendarViewType.day:
         return DateFormat('dd MMMM yyyy', 'uk').format(_selectedDate);
       case CalendarViewType.week:
-        final startOfWeek = _selectedDate.subtract(Duration(days: _selectedDate.weekday - 1));
+        final startOfWeek = _selectedDate.subtract(
+          Duration(days: _selectedDate.weekday - 1),
+        );
         final endOfWeek = startOfWeek.add(const Duration(days: 6));
         return '${DateFormat('dd MMM', 'uk').format(startOfWeek)} - ${DateFormat('dd MMM yyyy', 'uk').format(endOfWeek)}';
       case CalendarViewType.month:
@@ -128,23 +142,23 @@ class _CalendarPageState extends State<CalendarPage> {
   void _selectDate(DateTime date) {
     setState(() {
       _selectedDate = date;
-      
+
       // Автоматично переключаємо тип перегляду залежно від поточного
       switch (_viewType) {
         case CalendarViewType.year:
-          _viewType = CalendarViewType.month;  // Рік → Місяць
+          _viewType = CalendarViewType.month; // Рік → Місяць
           break;
         case CalendarViewType.month:
-          _viewType = CalendarViewType.week;   // Місяць → Тиждень
+          _viewType = CalendarViewType.week; // Місяць → Тиждень
           break;
         case CalendarViewType.week:
-          _viewType = CalendarViewType.day;    // Тиждень → День
+          _viewType = CalendarViewType.day; // Тиждень → День
           break;
         case CalendarViewType.day:
           // День залишається днем
           break;
       }
-      
+
       _refreshKey++;
     });
   }
@@ -201,9 +215,9 @@ class _CalendarPageState extends State<CalendarPage> {
             const Text('Календар занять'),
             Text(
               _getFormattedPeriod(),
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Colors.grey.shade600,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
             ),
           ],
         ),

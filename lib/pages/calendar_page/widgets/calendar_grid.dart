@@ -55,19 +55,25 @@ class _CalendarGridState extends State<CalendarGrid> {
 
   Future<void> _loadLessons() async {
     setState(() => _isLoading = true);
-    
+
     try {
       List<LessonModel> lessons;
-      
+
       switch (widget.viewType) {
         case CalendarViewType.day:
-          lessons = await _calendarService.getLessonsForDay(widget.selectedDate);
+          lessons = await _calendarService.getLessonsForDay(
+            widget.selectedDate,
+          );
           break;
         case CalendarViewType.week:
-          lessons = await _calendarService.getLessonsForWeek(widget.selectedDate);
+          lessons = await _calendarService.getLessonsForWeek(
+            widget.selectedDate,
+          );
           break;
         case CalendarViewType.month:
-          final startOfMonth = CalendarUtils.getStartOfMonth(widget.selectedDate);
+          final startOfMonth = CalendarUtils.getStartOfMonth(
+            widget.selectedDate,
+          );
           final endOfMonth = CalendarUtils.getEndOfMonth(widget.selectedDate);
           lessons = await _calendarService.getLessonsForPeriod(
             startDate: startOfMonth,
@@ -87,7 +93,7 @@ class _CalendarGridState extends State<CalendarGrid> {
       if (mounted) {
         setState(() {
           _lessons = lessons;
-          
+
           // Динамічно обчислюємо межі часу
           if (lessons.isNotEmpty) {
             _minHour = CalendarUtils.getMinHourFromLessons(lessons);
@@ -96,7 +102,7 @@ class _CalendarGridState extends State<CalendarGrid> {
             _minHour = 8.0;
             _maxHour = 20.0;
           }
-          
+
           _isLoading = false;
         });
       }
@@ -111,12 +117,12 @@ class _CalendarGridState extends State<CalendarGrid> {
   // Методи для отримання занять по датах
   List<LessonModel> getLessonsForSpecificDate(DateTime date) {
     final normalizedTargetDate = DateTime(date.year, date.month, date.day);
-    
+
     return _lessons.where((lesson) {
       final normalizedLessonDate = DateTime(
-        lesson.startTime.year, 
-        lesson.startTime.month, 
-        lesson.startTime.day
+        lesson.startTime.year,
+        lesson.startTime.month,
+        lesson.startTime.day,
       );
       return normalizedLessonDate.isAtSameMomentAs(normalizedTargetDate);
     }).toList();
@@ -135,16 +141,15 @@ class _CalendarGridState extends State<CalendarGrid> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     return LayoutBuilder(
       builder: (context, constraints) {
         final isMobile = constraints.maxWidth < 600;
-        final isTablet = constraints.maxWidth >= 600 && constraints.maxWidth < 1024;
-        
+        final isTablet =
+            constraints.maxWidth >= 600 && constraints.maxWidth < 1024;
+
         switch (widget.viewType) {
           case CalendarViewType.day:
             return MobileDayView(
@@ -155,7 +160,7 @@ class _CalendarGridState extends State<CalendarGrid> {
               onRefresh: _loadLessons,
               getLessonsForSpecificDate: getLessonsForSpecificDate,
             );
-            
+
           case CalendarViewType.week:
             if (isMobile) {
               return MobileWeekView(
@@ -179,7 +184,7 @@ class _CalendarGridState extends State<CalendarGrid> {
                 showSingleDay: false,
               );
             }
-            
+
           case CalendarViewType.month:
             return MonthView(
               selectedDate: widget.selectedDate,
@@ -189,7 +194,7 @@ class _CalendarGridState extends State<CalendarGrid> {
               getLessonsForSpecificDate: getLessonsForSpecificDate,
               isMobile: isMobile,
             );
-            
+
           case CalendarViewType.year:
             return YearView(
               selectedDate: widget.selectedDate,

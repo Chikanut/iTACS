@@ -17,7 +17,7 @@ class LessonsListReport extends BaseReport {
   String get name => 'Список занять';
 
   @override
-  String get description => 
+  String get description =>
       'Список проведених занять по інструкторах у форматі:\n'
       'Дата | Підрозділ | Період навчання | Назва заняття';
 
@@ -50,7 +50,7 @@ class LessonsListReport extends BaseReport {
   @override
   String? validateParameters(Map<String, dynamic>? parameters) {
     if (parameters == null) return null;
-    
+
     // Перевіряємо ID інструктора якщо вказано
     if (parameters.containsKey('instructorId')) {
       final instructorId = parameters['instructorId'];
@@ -61,7 +61,7 @@ class LessonsListReport extends BaseReport {
         return 'ID інструктора не може бути порожнім';
       }
     }
-    
+
     return null;
   }
 
@@ -80,7 +80,7 @@ class LessonsListReport extends BaseReport {
       );
 
       final filteredLessons = _filterLessons(lessons, parameters);
-      
+
       if (filteredLessons.isEmpty) {
         return 'За вказаний період не знайдено проведених занять з інструкторами';
       }
@@ -140,19 +140,19 @@ class LessonsListReport extends BaseReport {
     Map<String, dynamic>? parameters,
   }) {
     final dateRange = _formatDateRange(startDate, endDate);
-    
+
     String fileName = 'Список_занять_$dateRange';
-    
+
     // Додаємо ім'я інструктора якщо вибрано конкретного
-    if (parameters != null && 
-        parameters['instructorName'] != null && 
+    if (parameters != null &&
+        parameters['instructorName'] != null &&
         parameters['instructorName'] != 'Всі інструктори') {
       final instructorName = (parameters['instructorName'] as String)
           .replaceAll(RegExp(r'[^\w\s-]'), '')
           .replaceAll(' ', '_');
       fileName = 'Список_занять_${instructorName}_$dateRange';
     }
-    
+
     return '$fileName.${format.extension}';
   }
 
@@ -164,7 +164,9 @@ class LessonsListReport extends BaseReport {
     Map<String, dynamic>? parameters,
   }) async {
     if (format != ReportFormat.excel) {
-      throw UnsupportedError('Формат ${format.displayName} поки не підтримується для звіту "$name"');
+      throw UnsupportedError(
+        'Формат ${format.displayName} поки не підтримується для звіту "$name"',
+      );
     }
 
     return await _generateExcelReport(
@@ -194,22 +196,25 @@ class LessonsListReport extends BaseReport {
 
     // Фільтруємо заняття
     final filteredLessons = _filterLessons(lessons, parameters);
-    
+
     // Групуємо по інструкторах
     final lessonsByInstructor = _groupLessonsByInstructor(filteredLessons);
 
     // Генеруємо звіт
     _createHeader(sheet, startDate, endDate, parameters);
-    
+
     // ВАЖЛИВО: тепер _createContent асинхронний
     await _createContent(sheet, lessonsByInstructor, startDate, endDate);
-    
+
     _formatSheet(sheet);
 
     return Uint8List.fromList(excel.encode()!);
   }
 
-  List<LessonModel> _filterLessons(List<LessonModel> lessons, Map<String, dynamic>? parameters) {
+  List<LessonModel> _filterLessons(
+    List<LessonModel> lessons,
+    Map<String, dynamic>? parameters,
+  ) {
     return lessons.where((lesson) {
       // Тільки проведені заняття
       final isCompleted = lesson.endTime.isBefore(DateTime.now());
@@ -229,14 +234,16 @@ class LessonsListReport extends BaseReport {
     }).toList();
   }
 
-  Map<String, List<LessonModel>> _groupLessonsByInstructor(List<LessonModel> lessons) {
+  Map<String, List<LessonModel>> _groupLessonsByInstructor(
+    List<LessonModel> lessons,
+  ) {
     final grouped = <String, List<LessonModel>>{};
-    
+
     for (final lesson in lessons) {
-      final key = lesson.instructorName.isNotEmpty 
-          ? lesson.instructorName 
+      final key = lesson.instructorName.isNotEmpty
+          ? lesson.instructorName
           : 'ID: ${lesson.instructorId}';
-      
+
       grouped.putIfAbsent(key, () => []).add(lesson);
     }
 
@@ -248,13 +255,22 @@ class LessonsListReport extends BaseReport {
     return grouped;
   }
 
-  void _createHeader(ex.Sheet sheet, DateTime startDate, DateTime endDate, Map<String, dynamic>? parameters) {
+  void _createHeader(
+    ex.Sheet sheet,
+    DateTime startDate,
+    DateTime endDate,
+    Map<String, dynamic>? parameters,
+  ) {
     // Основний заголовок
     final titleText = 'СПИСОК ЗАНЯТЬ';
-    final titleCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0));
+    final titleCell = sheet.cell(
+      ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
+    );
     titleCell.value = ex.TextCellValue(titleText);
-    sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0), 
-               ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0));
+    sheet.merge(
+      ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
+      ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0),
+    );
 
     titleCell.cellStyle = ex.CellStyle(
       fontSize: 16,
@@ -263,11 +279,16 @@ class LessonsListReport extends BaseReport {
     );
 
     // Період
-    final dateRange = 'за період з ${DateFormat('dd.MM.yyyy').format(startDate)} по ${DateFormat('dd.MM.yyyy').format(endDate)}';
-    final periodCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1));
+    final dateRange =
+        'за період з ${DateFormat('dd.MM.yyyy').format(startDate)} по ${DateFormat('dd.MM.yyyy').format(endDate)}';
+    final periodCell = sheet.cell(
+      ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1),
+    );
     periodCell.value = ex.TextCellValue(dateRange);
-    sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1), 
-               ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 1));
+    sheet.merge(
+      ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1),
+      ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 1),
+    );
 
     periodCell.cellStyle = ex.CellStyle(
       fontSize: 12,
@@ -276,10 +297,14 @@ class LessonsListReport extends BaseReport {
 
     // Група
     final groupName = Globals.profileManager.currentGroupName ?? 'Не вибрано';
-    final groupCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 2));
+    final groupCell = sheet.cell(
+      ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 2),
+    );
     groupCell.value = ex.TextCellValue('Група: $groupName');
-    sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 2), 
-               ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 2));
+    sheet.merge(
+      ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 2),
+      ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 2),
+    );
 
     groupCell.cellStyle = ex.CellStyle(
       fontSize: 11,
@@ -288,12 +313,18 @@ class LessonsListReport extends BaseReport {
 
     // Додаткова інформація про фільтри
     int currentRow = 3;
-    if (parameters != null && parameters['instructorName'] != null && parameters['instructorName'] != 'Всі інструктори') {
+    if (parameters != null &&
+        parameters['instructorName'] != null &&
+        parameters['instructorName'] != 'Всі інструктори') {
       final instructorName = parameters['instructorName'] as String;
-      final instructorCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+      final instructorCell = sheet.cell(
+        ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+      );
       instructorCell.value = ex.TextCellValue('Інструктор: $instructorName');
-      sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
-                 ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
+      sheet.merge(
+        ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+        ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+      );
 
       instructorCell.cellStyle = ex.CellStyle(
         fontSize: 11,
@@ -304,11 +335,16 @@ class LessonsListReport extends BaseReport {
     }
 
     // Дата генерації
-    final generatedText = 'Згенеровано: ${DateFormat('dd.MM.yyyy HH:mm').format(DateTime.now())}';
-    final generatedCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+    final generatedText =
+        'Згенеровано: ${DateFormat('dd.MM.yyyy HH:mm').format(DateTime.now())}';
+    final generatedCell = sheet.cell(
+      ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+    );
     generatedCell.value = ex.TextCellValue(generatedText);
-    sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
-               ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
+    sheet.merge(
+      ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+      ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+    );
 
     generatedCell.cellStyle = ex.CellStyle(
       fontSize: 9,
@@ -317,13 +353,20 @@ class LessonsListReport extends BaseReport {
     );
   }
 
-  Future<void> _createContent(ex.Sheet sheet, Map<String, List<LessonModel>> lessonsByInstructor, DateTime startDate, DateTime endDate) async {
+  Future<void> _createContent(
+    ex.Sheet sheet,
+    Map<String, List<LessonModel>> lessonsByInstructor,
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
     int currentRow = 5; // Почати після заголовків
 
     // Заголовки таблиці
     final headers = ['Дата', 'Підрозділ', 'Період навчання', 'Назва заняття'];
     for (int i = 0; i < headers.length; i++) {
-      final cell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: currentRow));
+      final cell = sheet.cell(
+        ex.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: currentRow),
+      );
       cell.value = ex.TextCellValue(headers[i]);
       cell.cellStyle = ex.CellStyle(
         fontSize: 11,
@@ -347,21 +390,30 @@ class LessonsListReport extends BaseReport {
 
     for (final instructorName in sortedInstructors) {
       final lessons = lessonsByInstructor[instructorName]!;
-      
+
       // Знаходимо ID інструктора для перевірки відсутностей
       final instructorId = lessons.isNotEmpty ? lessons.first.instructorId : '';
-      
+
       // Фільтруємо відсутності цього інструктора
-      final instructorAbsences = allAbsences.where((absence) => 
-        absence.instructorId == instructorId && 
-        absence.status == AbsenceStatus.active
-      ).toList();
+      final instructorAbsences = allAbsences
+          .where(
+            (absence) =>
+                absence.instructorId == instructorId &&
+                absence.status == AbsenceStatus.active,
+          )
+          .toList();
 
       // Заголовок інструктора
-      final instructorHeaderCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
-      instructorHeaderCell.value = ex.TextCellValue('ІНСТРУКТОР: $instructorName');
-      sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
-                ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
+      final instructorHeaderCell = sheet.cell(
+        ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+      );
+      instructorHeaderCell.value = ex.TextCellValue(
+        'ІНСТРУКТОР: $instructorName',
+      );
+      sheet.merge(
+        ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+        ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+      );
 
       instructorHeaderCell.cellStyle = ex.CellStyle(
         fontSize: 11,
@@ -382,46 +434,64 @@ class LessonsListReport extends BaseReport {
       // Заняття інструктора
       for (final lesson in lessons) {
         // Дата
-        final dateCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
-        dateCell.value = ex.TextCellValue(DateFormat('dd.MM.yyyy').format(lesson.startTime));
+        final dateCell = sheet.cell(
+          ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+        );
+        dateCell.value = ex.TextCellValue(
+          DateFormat('dd.MM.yyyy').format(lesson.startTime),
+        );
         dateCell.cellStyle = ex.CellStyle(
           fontSize: 11,
           horizontalAlign: ex.HorizontalAlign.Center,
         );
-        
+
         // Підрозділ (unit)
-        final unitCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow));
-        unitCell.value = ex.TextCellValue(lesson.unit.isNotEmpty ? lesson.unit : '-');
+        final unitCell = sheet.cell(
+          ex.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow),
+        );
+        unitCell.value = ex.TextCellValue(
+          lesson.unit.isNotEmpty ? lesson.unit : '-',
+        );
         unitCell.cellStyle = ex.CellStyle(
           fontSize: 11,
           horizontalAlign: ex.HorizontalAlign.Left,
         );
-        
+
         // Період навчання
-        final periodCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow));
-        periodCell.value = ex.TextCellValue(_formatTrainingPeriod(lesson.trainingPeriod));
+        final periodCell = sheet.cell(
+          ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow),
+        );
+        periodCell.value = ex.TextCellValue(
+          _formatTrainingPeriod(lesson.trainingPeriod),
+        );
         periodCell.cellStyle = ex.CellStyle(
           fontSize: 11,
           horizontalAlign: ex.HorizontalAlign.Left,
         );
-        
+
         // Назва заняття
-        final titleCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
+        final titleCell = sheet.cell(
+          ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+        );
         titleCell.value = ex.TextCellValue(lesson.title);
         titleCell.cellStyle = ex.CellStyle(
           fontSize: 11,
           horizontalAlign: ex.HorizontalAlign.Left,
         );
-        
+
         currentRow++;
       }
 
       // Підсумок для інструктора
-      final summaryCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+      final summaryCell = sheet.cell(
+        ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+      );
       summaryCell.value = ex.TextCellValue('Всього занять: ${lessons.length}');
-      sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
-                ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
-      
+      sheet.merge(
+        ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+        ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+      );
+
       summaryCell.cellStyle = ex.CellStyle(
         fontSize: 11,
         bold: true,
@@ -435,18 +505,28 @@ class LessonsListReport extends BaseReport {
     _createFinalStatistics(sheet, lessonsByInstructor, currentRow);
   }
 
-  void _createFinalStatistics(ex.Sheet sheet, Map<String, List<LessonModel>> lessonsByInstructor, int startRow) {
+  void _createFinalStatistics(
+    ex.Sheet sheet,
+    Map<String, List<LessonModel>> lessonsByInstructor,
+    int startRow,
+  ) {
     if (lessonsByInstructor.isEmpty) return;
-    
+
     int currentRow = startRow;
-    final totalLessons = lessonsByInstructor.values
-        .fold(0, (sum, lessons) => sum + lessons.length);
+    final totalLessons = lessonsByInstructor.values.fold(
+      0,
+      (sum, lessons) => sum + lessons.length,
+    );
     final totalInstructors = lessonsByInstructor.length;
 
-    final totalHeaderCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+    final totalHeaderCell = sheet.cell(
+      ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+    );
     totalHeaderCell.value = ex.TextCellValue('ЗАГАЛЬНА СТАТИСТИКА');
-    sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
-              ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
+    sheet.merge(
+      ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+      ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+    );
 
     totalHeaderCell.cellStyle = ex.CellStyle(
       fontSize: 12,
@@ -458,29 +538,41 @@ class LessonsListReport extends BaseReport {
     currentRow++;
 
     // Кількість інструкторів
-    final instructorsCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+    final instructorsCell = sheet.cell(
+      ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+    );
     instructorsCell.value = ex.TextCellValue('Інструкторів: $totalInstructors');
-    sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
-              ex.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow));
+    sheet.merge(
+      ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+      ex.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow),
+    );
 
     // Загальна кількість занять
-    final totalCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow));
+    final totalCell = sheet.cell(
+      ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow),
+    );
     totalCell.value = ex.TextCellValue('Всього занять: $totalLessons');
-    sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow), 
-              ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
+    sheet.merge(
+      ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow),
+      ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+    );
   }
 
   // Новий метод для додавання інформації про відсутність
   int _addAbsenceInfo(ex.Sheet sheet, InstructorAbsence absence, int startRow) {
     int currentRow = startRow;
-    
+
     // Основна інформація про відсутність
     final absenceTypeText = _getAbsenceDisplayText(absence.type);
-    final absenceMainCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+    final absenceMainCell = sheet.cell(
+      ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+    );
     absenceMainCell.value = ex.TextCellValue('**$absenceTypeText**');
-    sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
-              ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
-    
+    sheet.merge(
+      ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+      ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+    );
+
     absenceMainCell.cellStyle = ex.CellStyle(
       fontSize: 11,
       bold: true,
@@ -493,11 +585,15 @@ class LessonsListReport extends BaseReport {
     // Період відсутності
     final startDateText = DateFormat('dd.MM.yyyy').format(absence.startDate);
     final endDateText = DateFormat('dd.MM.yyyy').format(absence.endDate);
-    final periodCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+    final periodCell = sheet.cell(
+      ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+    );
     periodCell.value = ex.TextCellValue('**з $startDateText по $endDateText**');
-    sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
-              ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
-    
+    sheet.merge(
+      ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+      ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+    );
+
     periodCell.cellStyle = ex.CellStyle(
       fontSize: 11,
       bold: true,
@@ -510,14 +606,18 @@ class LessonsListReport extends BaseReport {
     // Інформація про наказ (якщо є)
     if (absence.assignmentDetails != null) {
       final details = absence.assignmentDetails!;
-      
+
       // Підстава наказу
       if (details.orderBase != null && details.orderBase!.isNotEmpty) {
-        final orderBaseCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+        final orderBaseCell = sheet.cell(
+          ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+        );
         orderBaseCell.value = ex.TextCellValue('**${details.orderBase}**');
-        sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
-                  ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
-        
+        sheet.merge(
+          ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+          ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+        );
+
         orderBaseCell.cellStyle = ex.CellStyle(
           fontSize: 11,
           bold: true,
@@ -530,19 +630,23 @@ class LessonsListReport extends BaseReport {
 
       // Номер та дата наказу
       if (details.orderNumber != null && details.orderNumber!.isNotEmpty) {
-        final orderDateText = details.orderDate != null 
+        final orderDateText = details.orderDate != null
             ? DateFormat('dd.MM.yyyy').format(details.orderDate!)
             : '';
-        
-        final orderNumberText = orderDateText.isNotEmpty 
+
+        final orderNumberText = orderDateText.isNotEmpty
             ? '**№${details.orderNumber} від $orderDateText**'
             : '**№${details.orderNumber}**';
-        
-        final orderNumberCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
+
+        final orderNumberCell = sheet.cell(
+          ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+        );
         orderNumberCell.value = ex.TextCellValue(orderNumberText);
-        sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
-                  ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
-        
+        sheet.merge(
+          ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+          ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+        );
+
         orderNumberCell.cellStyle = ex.CellStyle(
           fontSize: 11,
           bold: true,
@@ -552,13 +656,20 @@ class LessonsListReport extends BaseReport {
         );
         currentRow++;
       }
-    } else if (absence.documentNumber != null && absence.documentNumber!.isNotEmpty) {
+    } else if (absence.documentNumber != null &&
+        absence.documentNumber!.isNotEmpty) {
       // Якщо є documentNumber, але немає assignmentDetails
-      final docCell = sheet.cell(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow));
-      docCell.value = ex.TextCellValue('**документ №${absence.documentNumber}**');
-      sheet.merge(ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow), 
-                ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow));
-      
+      final docCell = sheet.cell(
+        ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+      );
+      docCell.value = ex.TextCellValue(
+        '**документ №${absence.documentNumber}**',
+      );
+      sheet.merge(
+        ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
+        ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+      );
+
       docCell.cellStyle = ex.CellStyle(
         fontSize: 11,
         bold: true,
@@ -588,7 +699,7 @@ class LessonsListReport extends BaseReport {
 
   String _formatTrainingPeriod(String period) {
     if (period.isEmpty || period == '-') return '-';
-    
+
     if (period.contains(' - ')) {
       try {
         final parts = period.split(' - ');
@@ -601,7 +712,7 @@ class LessonsListReport extends BaseReport {
         // Якщо не вдається розпарсити - повертаємо як є
       }
     }
-    
+
     return period;
   }
 
@@ -617,11 +728,11 @@ class LessonsListReport extends BaseReport {
     final formatter = DateFormat('dd.MM.yyyy');
     final start = formatter.format(startDate);
     final end = formatter.format(endDate);
-    
+
     if (start == end) {
       return start;
     }
-    
+
     return '$start-$end';
   }
 }
@@ -639,10 +750,12 @@ class LessonsListParametersWidget extends StatefulWidget {
   });
 
   @override
-  State<LessonsListParametersWidget> createState() => _LessonsListParametersWidgetState();
+  State<LessonsListParametersWidget> createState() =>
+      _LessonsListParametersWidgetState();
 }
 
-class _LessonsListParametersWidgetState extends State<LessonsListParametersWidget> {
+class _LessonsListParametersWidgetState
+    extends State<LessonsListParametersWidget> {
   String? selectedInstructorId;
   String? selectedInstructorName;
   final Map<String, String> availableInstructors = {};
@@ -653,7 +766,7 @@ class _LessonsListParametersWidgetState extends State<LessonsListParametersWidge
   void initState() {
     super.initState();
     _loadInstructors();
-    
+
     // Ініціалізуємо з початковими параметрами
     if (widget.initialParameters != null) {
       selectedInstructorId = widget.initialParameters!['instructorId'];
@@ -672,7 +785,7 @@ class _LessonsListParametersWidgetState extends State<LessonsListParametersWidge
       final dashboardService = DashboardService();
       final now = DateTime.now();
       final oneMonthAgo = now.subtract(const Duration(days: 30));
-      
+
       final recentLessons = await dashboardService.getLessonsForPeriod(
         startDate: oneMonthAgo,
         endDate: now,
@@ -683,7 +796,8 @@ class _LessonsListParametersWidgetState extends State<LessonsListParametersWidge
       instructors['all'] = 'Всі інструктори';
 
       for (final lesson in recentLessons) {
-        if (lesson.instructorId.isNotEmpty && lesson.instructorName.isNotEmpty) {
+        if (lesson.instructorId.isNotEmpty &&
+            lesson.instructorName.isNotEmpty) {
           instructors[lesson.instructorId] = lesson.instructorName;
         }
       }
@@ -700,7 +814,6 @@ class _LessonsListParametersWidgetState extends State<LessonsListParametersWidge
         selectedInstructorName = 'Всі інструктори';
         _updateParameters();
       }
-
     } catch (e) {
       setState(() {
         _loading = false;
@@ -713,12 +826,12 @@ class _LessonsListParametersWidgetState extends State<LessonsListParametersWidge
 
   void _updateParameters() {
     final parameters = <String, dynamic>{};
-    
+
     if (selectedInstructorId != null && selectedInstructorId != 'all') {
       parameters['instructorId'] = selectedInstructorId;
       parameters['instructorName'] = selectedInstructorName;
     }
-    
+
     widget.onParametersChanged(parameters);
   }
 
@@ -736,16 +849,13 @@ class _LessonsListParametersWidgetState extends State<LessonsListParametersWidge
                 const Icon(Icons.settings, size: 20),
                 const SizedBox(width: 8),
                 const Text(
-                  'Параметри звіту', 
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                  'Параметри звіту',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            
+
             if (_loading)
               const Center(
                 child: Padding(
@@ -784,7 +894,7 @@ class _LessonsListParametersWidgetState extends State<LessonsListParametersWidge
                 style: TextStyle(fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 8),
-              
+
               Container(
                 decoration: BoxDecoration(
                   border: Border.all(color: Colors.grey.shade300),
@@ -794,16 +904,16 @@ class _LessonsListParametersWidgetState extends State<LessonsListParametersWidge
                   value: selectedInstructorId ?? 'all',
                   decoration: const InputDecoration(
                     border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                   ),
                   isExpanded: true,
                   items: availableInstructors.entries.map((entry) {
                     return DropdownMenuItem(
                       value: entry.key,
-                      child: Text(
-                        entry.value,
-                        overflow: TextOverflow.ellipsis,
-                      ),
+                      child: Text(entry.value, overflow: TextOverflow.ellipsis),
                     );
                   }).toList(),
                   onChanged: (value) {
@@ -820,9 +930,9 @@ class _LessonsListParametersWidgetState extends State<LessonsListParametersWidge
                   },
                 ),
               ),
-              
+
               const SizedBox(height: 12),
-              
+
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(

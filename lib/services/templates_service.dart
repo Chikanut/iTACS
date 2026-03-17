@@ -19,11 +19,11 @@ enum TemplateType {
   other('other', 'Інше', '📋');
 
   const TemplateType(this.id, this.displayName, this.emoji);
-  
+
   final String id;
   final String displayName;
   final String emoji;
-  
+
   static TemplateType fromId(String id) {
     return TemplateType.values.firstWhere(
       (type) => type.id == id,
@@ -110,10 +110,10 @@ class GroupTemplate {
     isDefault: json['isDefault'] ?? false,
     groupId: json['groupId'] ?? '',
     createdBy: json['createdBy'] ?? '',
-    createdAt: json['createdAt'] is String 
+    createdAt: json['createdAt'] is String
         ? DateTime.parse(json['createdAt'])
         : DateTime.now(),
-    updatedAt: json['updatedAt'] is String 
+    updatedAt: json['updatedAt'] is String
         ? DateTime.parse(json['updatedAt'])
         : DateTime.now(),
     customFields: Map<String, dynamic>.from(json['customFields'] ?? {}),
@@ -133,10 +133,10 @@ class GroupTemplate {
       isDefault: data['isDefault'] ?? false,
       groupId: data['groupId'] ?? '',
       createdBy: data['createdBy'] ?? '',
-      createdAt: data['createdAt'] is Timestamp 
+      createdAt: data['createdAt'] is Timestamp
           ? (data['createdAt'] as Timestamp).toDate()
           : DateTime.now(),
-      updatedAt: data['updatedAt'] is Timestamp 
+      updatedAt: data['updatedAt'] is Timestamp
           ? (data['updatedAt'] as Timestamp).toDate()
           : DateTime.now(),
       customFields: Map<String, dynamic>.from(data['customFields'] ?? {}),
@@ -172,14 +172,15 @@ class GroupTemplate {
 }
 
 class GroupTemplatesService {
-  static final GroupTemplatesService _instance = GroupTemplatesService._internal();
+  static final GroupTemplatesService _instance =
+      GroupTemplatesService._internal();
   factory GroupTemplatesService() => _instance;
   GroupTemplatesService._internal();
 
   // Hive boxes
   static const String _templatesBoxName = 'group_templates';
   static const String _autoCompleteBoxName = 'group_autocomplete_data';
-  
+
   Box<String>? _templatesBox;
   Box<String>? _autoCompleteBox;
 
@@ -189,7 +190,7 @@ class GroupTemplatesService {
   Set<String> _locations = {};
   Set<String> _units = {};
   Set<String> _allTags = {};
-  
+
   // Слухач змін в Firestore
   StreamSubscription<QuerySnapshot>? _templatesSubscription;
   StreamSubscription<QuerySnapshot>? _autocompleteSubscription;
@@ -225,15 +226,15 @@ class GroupTemplatesService {
     // Очищуємо попередні слухачі
     await _templatesSubscription?.cancel();
     await _autocompleteSubscription?.cancel();
-    
+
     _currentGroupId = groupId;
-    
+
     // Завантажуємо з кешу
     await _loadFromCache(groupId);
-    
+
     // Запускаємо слухачі Firestore
     _startFirestoreListeners(groupId);
-    
+
     // Завантажуємо з Firestore і оновлюємо кеш
     await _syncWithFirestore(groupId);
   }
@@ -246,13 +247,13 @@ class GroupTemplatesService {
         .collection('templates')
         .snapshots()
         .listen((snapshot) {
-      try {
-        _updateTemplatesFromSnapshot(snapshot);
-        _saveToCache(groupId);
-      } catch (e) {
-        debugPrint('GroupTemplatesService: Помилка слухача темплейтів: $e');
-      }
-    });
+          try {
+            _updateTemplatesFromSnapshot(snapshot);
+            _saveToCache(groupId);
+          } catch (e) {
+            debugPrint('GroupTemplatesService: Помилка слухача темплейтів: $e');
+          }
+        });
 
     // Слухач для автодоповнення
     _autocompleteSubscription = FirebaseFirestore.instance
@@ -261,13 +262,15 @@ class GroupTemplatesService {
         .collection('autocomplete_data')
         .snapshots()
         .listen((snapshot) {
-      try {
-        _updateAutocompleteFromSnapshot(snapshot);
-        _saveToCache(groupId);
-      } catch (e) {
-        debugPrint('GroupTemplatesService: Помилка слухача автодоповнення: $e');
-      }
-    });
+          try {
+            _updateAutocompleteFromSnapshot(snapshot);
+            _saveToCache(groupId);
+          } catch (e) {
+            debugPrint(
+              'GroupTemplatesService: Помилка слухача автодоповнення: $e',
+            );
+          }
+        });
   }
 
   void _updateTemplatesFromSnapshot(QuerySnapshot snapshot) {
@@ -278,11 +281,15 @@ class GroupTemplatesService {
         final template = GroupTemplate.fromFirestore(doc);
         _templates.add(template);
       } catch (e) {
-        debugPrint('GroupTemplatesService: Помилка парсингу темплейту ${doc.id}: $e');
+        debugPrint(
+          'GroupTemplatesService: Помилка парсингу темплейту ${doc.id}: $e',
+        );
       }
     }
 
-    debugPrint('GroupTemplatesService: Оновлено ${_templates.length} темплейтів');
+    debugPrint(
+      'GroupTemplatesService: Оновлено ${_templates.length} темплейтів',
+    );
   }
 
   void _updateAutocompleteFromSnapshot(QuerySnapshot snapshot) {
@@ -307,7 +314,9 @@ class GroupTemplatesService {
             break;
         }
       } catch (e) {
-        debugPrint('GroupTemplatesService: Помилка парсингу автодоповнення ${doc.id}: $e');
+        debugPrint(
+          'GroupTemplatesService: Помилка парсингу автодоповнення ${doc.id}: $e',
+        );
       }
     }
 
@@ -318,7 +327,9 @@ class GroupTemplatesService {
       _allTags.addAll(template.tags);
     }
 
-    debugPrint('GroupTemplatesService: Оновлено автодоповнення: ${_locations.length} локацій, ${_units.length} підрозділів, ${_allTags.length} тегів');
+    debugPrint(
+      'GroupTemplatesService: Оновлено автодоповнення: ${_locations.length} локацій, ${_units.length} підрозділів, ${_allTags.length} тегів',
+    );
   }
 
   Future<void> _syncWithFirestore(String groupId) async {
@@ -348,7 +359,9 @@ class GroupTemplatesService {
         await _createDefaultTemplates(groupId);
       }
     } catch (e) {
-      debugPrint('GroupTemplatesService: Помилка синхронізації з Firestore: $e');
+      debugPrint(
+        'GroupTemplatesService: Помилка синхронізації з Firestore: $e',
+      );
     }
   }
 
@@ -357,17 +370,17 @@ class GroupTemplatesService {
     if (currentUser == null) return;
 
     final defaultTemplates = _getDefaultTemplatesForGroup(groupId);
-    
+
     try {
       final batch = FirebaseFirestore.instance.batch();
-      
+
       for (final template in defaultTemplates) {
         final docRef = FirebaseFirestore.instance
             .collection('groups')
             .doc(groupId)
             .collection('templates')
             .doc();
-        
+
         batch.set(docRef, template.toFirestore());
       }
 
@@ -376,9 +389,13 @@ class GroupTemplatesService {
       // Також створюємо дефолтні автодоповнення
       await _createDefaultAutocomplete(groupId);
 
-      debugPrint('GroupTemplatesService: Створено ${defaultTemplates.length} дефолтних темплейтів');
+      debugPrint(
+        'GroupTemplatesService: Створено ${defaultTemplates.length} дефолтних темплейтів',
+      );
     } catch (e) {
-      debugPrint('GroupTemplatesService: Помилка створення дефолтних темплейтів: $e');
+      debugPrint(
+        'GroupTemplatesService: Помилка створення дефолтних темплейтів: $e',
+      );
     }
   }
 
@@ -408,7 +425,9 @@ class GroupTemplatesService {
 
       await batch.commit();
     } catch (e) {
-      debugPrint('GroupTemplatesService: Помилка створення дефолтного автодоповнення: $e');
+      debugPrint(
+        'GroupTemplatesService: Помилка створення дефолтного автодоповнення: $e',
+      );
     }
   }
 
@@ -420,7 +439,8 @@ class GroupTemplatesService {
       GroupTemplate(
         id: '',
         title: 'Т1',
-        description: 'Прийоми психічної саморегуляції. Перша психологічна допомога та самодопомога',
+        description:
+            'Прийоми психічної саморегуляції. Перша психологічна допомога та самодопомога',
         location: 'Навчальний клас',
         unit: '',
         tags: ['психологія', 'теорія'],
@@ -450,7 +470,8 @@ class GroupTemplatesService {
       GroupTemplate(
         id: '',
         title: 'Стройова підготовка',
-        description: 'Заняття зі стройової підготовки: строї, повороти, пересування',
+        description:
+            'Заняття зі стройової підготовки: строї, повороти, пересування',
         location: 'Плац',
         unit: '',
         tags: ['стройова', 'практика'],
@@ -466,24 +487,63 @@ class GroupTemplatesService {
   }
 
   List<String> _getDefaultLocations() => [
-    'Навчальний клас №1', 'Навчальний клас №2', 'Навчальний клас №3',
-    'Актовий зал', 'Спортивний зал', 'Плац', 'Стрілецький тир',
-    'Навчальний полігон', 'Технічний парк', 'Майстерня', 'Їдальня',
-    'Казарма', 'Автопарк', 'Медичний пункт', 'НТК ПСП', 'Обкатка танком',
-    'Кабінет командира'
+    'Навчальний клас №1',
+    'Навчальний клас №2',
+    'Навчальний клас №3',
+    'Актовий зал',
+    'Спортивний зал',
+    'Плац',
+    'Стрілецький тир',
+    'Навчальний полігон',
+    'Технічний парк',
+    'Майстерня',
+    'Їдальня',
+    'Казарма',
+    'Автопарк',
+    'Медичний пункт',
+    'НТК ПСП',
+    'Обкатка танком',
+    'Кабінет командира',
   ];
 
   List<String> _getDefaultUnits() => [
-    '1 НБ 1 НР', '1 НБ 2 НР', '1 НБ 3 НР', '1 НБ 4 НР', '1 НБ 5 НР',
-    '2 НБ 1 НР', '2 НБ 2 НР', '2 НБ 3 НР', '2 НБ 4 НР', '2 НБ 5 НР',
-    'Граніт-1 1 НР', 'Граніт-1 2 НР', 'Граніт-1 3 НР',
-    'Граніт-95 1 НР', 'Граніт-95 2 НР', 'ШПР', '190 НЦ'
+    '1 НБ 1 НР',
+    '1 НБ 2 НР',
+    '1 НБ 3 НР',
+    '1 НБ 4 НР',
+    '1 НБ 5 НР',
+    '2 НБ 1 НР',
+    '2 НБ 2 НР',
+    '2 НБ 3 НР',
+    '2 НБ 4 НР',
+    '2 НБ 5 НР',
+    'Граніт-1 1 НР',
+    'Граніт-1 2 НР',
+    'Граніт-1 3 НР',
+    'Граніт-95 1 НР',
+    'Граніт-95 2 НР',
+    'ШПР',
+    '190 НЦ',
   ];
 
   List<String> _getDefaultTags() => [
-    'тактика', 'фізична', 'стройова', 'теорія', 'практика', 'технічна',
-    'водіння', 'стрільби', 'медична', 'зв\'язок', 'інженерна', 'хімзахист',
-    'топографія', 'статути', 'психологія', 'бронетехніка', 'артилерія'
+    'тактика',
+    'фізична',
+    'стройова',
+    'теорія',
+    'практика',
+    'технічна',
+    'водіння',
+    'стрільби',
+    'медична',
+    'зв\'язок',
+    'інженерна',
+    'хімзахист',
+    'топографія',
+    'статути',
+    'психологія',
+    'бронетехніка',
+    'артилерія',
   ];
 
   // Робота з кешем
@@ -511,7 +571,9 @@ class GroupTemplatesService {
 
   Future<void> _saveToCache(String groupId) async {
     try {
-      final templatesJson = json.encode(_templates.map((t) => t.toJson()).toList());
+      final templatesJson = json.encode(
+        _templates.map((t) => t.toJson()).toList(),
+      );
       await _templatesBox?.put('templates_$groupId', templatesJson);
 
       final autoCompleteData = {
@@ -519,7 +581,10 @@ class GroupTemplatesService {
         'units': _units.toList(),
         'tags': _allTags.toList(),
       };
-      await _autoCompleteBox?.put('autocomplete_$groupId', json.encode(autoCompleteData));
+      await _autoCompleteBox?.put(
+        'autocomplete_$groupId',
+        json.encode(autoCompleteData),
+      );
     } catch (e) {
       debugPrint('GroupTemplatesService: Помилка збереження в кеш: $e');
     }
@@ -548,7 +613,7 @@ class GroupTemplatesService {
   Future<bool> saveTemplate(GroupTemplate template) async {
     try {
       await ensureInitializedForCurrentGroup();
-      
+
       final currentUser = Globals.firebaseAuth.currentUser;
       if (currentUser == null) {
         throw Exception('Користувач не авторизований');
@@ -586,10 +651,14 @@ class GroupTemplatesService {
         );
 
         await templatesRef.add(newTemplate.toFirestore());
+        _addTemplateValuesToAutocomplete(newTemplate);
       } else {
         // Оновлення існуючого
         final updatedTemplate = template.copyWith();
-        await templatesRef.doc(template.id).update(updatedTemplate.toFirestore());
+        await templatesRef
+            .doc(template.id)
+            .update(updatedTemplate.toFirestore());
+        _addTemplateValuesToAutocomplete(updatedTemplate);
       }
 
       // Оновлюємо автодоповнення
@@ -623,10 +692,27 @@ class GroupTemplatesService {
     }
   }
 
+  void _addTemplateValuesToAutocomplete(GroupTemplate template) {
+    if (template.location.trim().isNotEmpty) {
+      _locations.add(template.location.trim());
+    }
+    if (template.unit.trim().isNotEmpty) {
+      _units.add(template.unit.trim());
+    }
+    for (final tag in template.tags) {
+      final normalizedTag = tag.trim().toLowerCase();
+      if (normalizedTag.isNotEmpty) {
+        _allTags.add(normalizedTag);
+      }
+    }
+  }
+
   // Автодоповнення
   List<String> getLocationSuggestions(String query) {
     return _locations
-        .where((location) => location.toLowerCase().contains(query.toLowerCase()))
+        .where(
+          (location) => location.toLowerCase().contains(query.toLowerCase()),
+        )
         .take(5)
         .toList();
   }
@@ -664,6 +750,21 @@ class GroupTemplatesService {
       _allTags.add(tag.trim().toLowerCase());
       await _updateAutocompleteData();
     }
+  }
+
+  Future<void> removeLocation(String location) async {
+    _locations.remove(location.trim());
+    await _updateAutocompleteData();
+  }
+
+  Future<void> removeUnit(String unit) async {
+    _units.remove(unit.trim());
+    await _updateAutocompleteData();
+  }
+
+  Future<void> removeTag(String tag) async {
+    _allTags.remove(tag.trim().toLowerCase());
+    await _updateAutocompleteData();
   }
 
   Future<void> _updateAutocompleteData() async {
@@ -716,7 +817,9 @@ class GroupTemplatesService {
   // Для зворотної сумісності з LessonModel
   Map<String, dynamic> createLessonFromTemplate(GroupTemplate template) {
     if (template.type != TemplateType.lesson) {
-      debugPrint('GroupTemplatesService: Використання не-урочного темплейту для створення уроку');
+      debugPrint(
+        'GroupTemplatesService: Використання не-урочного темплейту для створення уроку',
+      );
     }
     return createEventFromTemplate(template);
   }
@@ -726,15 +829,15 @@ class GroupTemplatesService {
     try {
       await _templatesSubscription?.cancel();
       await _autocompleteSubscription?.cancel();
-      
+
       _templates.clear();
       _locations.clear();
       _units.clear();
       _allTags.clear();
-      
+
       await _templatesBox?.clear();
       await _autoCompleteBox?.clear();
-      
+
       _currentGroupId = null;
     } catch (e) {
       debugPrint('GroupTemplatesService: Помилка очищення даних: $e');
@@ -754,7 +857,10 @@ class GroupTemplatesService {
   int get locationsCount => _locations.length;
   int get unitsCount => _units.length;
   int get tagsCount => _allTags.length;
-  
+  List<String> get allLocations => _locations.toList()..sort();
+  List<String> get allUnits => _units.toList()..sort();
+  List<String> get allTags => _allTags.toList()..sort();
+
   Map<TemplateType, int> get templatesByType {
     final Map<TemplateType, int> counts = {};
     for (final template in _templates) {

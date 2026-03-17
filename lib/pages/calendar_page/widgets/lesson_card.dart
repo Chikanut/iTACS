@@ -66,30 +66,21 @@ class LessonCard extends StatelessWidget {
           children: [
             Text(
               title,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
+              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 2),
             Text(
               group,
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey.shade700,
-              ),
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade700),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 2),
             Text(
               '$filled/$total',
-              style: TextStyle(
-                fontSize: 10,
-                color: Colors.grey.shade600,
-              ),
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -178,40 +169,29 @@ class LessonCard extends StatelessWidget {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 12),
-            
+
             // Інформація про групу
             Row(
               children: [
-                Icon(
-                  Icons.group,
-                  size: 16,
-                  color: Colors.grey.shade600,
-                ),
+                Icon(Icons.group, size: 16, color: Colors.grey.shade600),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
                     group,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade700,
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
                   ),
                 ),
               ],
             ),
-            
+
             // Інструктор
             if (instructor != null) ...[
               const SizedBox(height: 6),
               Row(
                 children: [
-                  Icon(
-                    Icons.person,
-                    size: 16,
-                    color: Colors.grey.shade600,
-                  ),
+                  Icon(Icons.person, size: 16, color: Colors.grey.shade600),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -225,7 +205,7 @@ class LessonCard extends StatelessWidget {
                 ],
               ),
             ],
-            
+
             // Локація
             if (location != null) ...[
               const SizedBox(height: 6),
@@ -251,30 +231,30 @@ class LessonCard extends StatelessWidget {
             ],
 
             if (unit != null && unit!.isNotEmpty) ...[
-            const SizedBox(height: 6),
-            Row(
-              children: [
-                Icon(
-                  Icons.military_tech,
-                  size: 16,
-                  color: Colors.grey.shade600,
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    unit!,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey.shade700,
+              const SizedBox(height: 6),
+              Row(
+                children: [
+                  Icon(
+                    Icons.military_tech,
+                    size: 16,
+                    color: Colors.grey.shade600,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      unit!,
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey.shade700,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-          ],
-                      
+                ],
+              ),
+            ],
+
             const SizedBox(height: 12),
-            
+
             // Прогрес-бар заповненості
             Row(
               children: [
@@ -283,7 +263,7 @@ class LessonCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        '$filled учнів',  // 👈 змінити текст
+                        '$filled учнів', // 👈 змінити текст
                         style: TextStyle(
                           fontSize: 12,
                           color: Colors.grey.shade600,
@@ -307,7 +287,7 @@ class LessonCard extends StatelessWidget {
                 _buildStatusChip(isFull, isAlmostFull, isRegistered),
               ],
             ),
-            
+
             // Теги
             if (tags != null && tags!.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -317,7 +297,7 @@ class LessonCard extends StatelessWidget {
                 children: tags!.take(3).map((tag) => _buildTag(tag)).toList(),
               ),
             ],
-            
+
             // Кнопки дій
             const SizedBox(height: 16),
             Row(
@@ -328,10 +308,7 @@ class LessonCard extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 8),
                     ),
-                    child: const Text(
-                      'Деталі',
-                      style: TextStyle(fontSize: 12),
-                    ),
+                    child: const Text('Деталі', style: TextStyle(fontSize: 12)),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -340,20 +317,17 @@ class LessonCard extends StatelessWidget {
                     onPressed: isRegistered || isFull ? null : onRegister,
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 8),
-                      backgroundColor: isRegistered 
-                        ? Colors.green.shade400 
-                        : Theme.of(context).primaryColor,
+                      backgroundColor: isRegistered
+                          ? Colors.green.shade400
+                          : Theme.of(context).primaryColor,
                     ),
                     child: Text(
-                      isRegistered 
-                        ? 'Зареєстровано' 
-                        : isFull 
+                      isRegistered
+                          ? 'Зареєстровано'
+                          : isFull
                           ? 'Заповнено'
                           : 'Записатися',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.white,
-                      ),
+                      style: const TextStyle(fontSize: 12, color: Colors.white),
                     ),
                   ),
                 ),
@@ -402,11 +376,7 @@ class LessonCard extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            icon,
-            size: 12,
-            color: textColor,
-          ),
+          Icon(icon, size: 12, color: textColor),
           const SizedBox(width: 4),
           Text(
             text,

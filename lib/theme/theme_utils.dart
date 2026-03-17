@@ -3,7 +3,6 @@ import 'app_theme.dart';
 
 /// Утилітарний клас для швидкого доступу до теми без контексту
 class ThemeUtils {
-  
   // 🎨 Статичні кольори для випадків, коли немає контексту
   static const Color primary = AppTheme.primaryBlue;
   static const Color accent = AppTheme.accentBlue;
@@ -12,32 +11,32 @@ class ThemeUtils {
   static const Color danger = AppTheme.dangerRed;
   static final Color folder = AppTheme.folderColor;
   static final Color file = AppTheme.fileColor;
-  
+
   // 📝 Текстові стилі
   static TextStyle headlineStyle = TextStyle(
     color: AppTheme.textPrimary,
     fontSize: 24,
     fontWeight: FontWeight.bold,
   );
-  
+
   static TextStyle titleStyle = TextStyle(
     color: AppTheme.textPrimary,
     fontSize: 18,
     fontWeight: FontWeight.w600,
   );
-  
+
   static TextStyle bodyStyle = TextStyle(
     color: AppTheme.textPrimary,
     fontSize: 16,
     fontWeight: FontWeight.normal,
   );
-  
+
   static TextStyle captionStyle = TextStyle(
     color: AppTheme.textSecondary,
     fontSize: 14,
     fontWeight: FontWeight.normal,
   );
-  
+
   static TextStyle mutedStyle = TextStyle(
     color: AppTheme.textMuted,
     fontSize: 12,
@@ -56,25 +55,25 @@ class ThemeUtils {
       ),
     ],
   );
-  
+
   static BoxDecoration get surfaceDecoration => BoxDecoration(
     color: AppTheme.surfaceDark,
     borderRadius: BorderRadius.circular(8),
   );
-  
+
   // 🚨 Декорації для статусів
   static BoxDecoration successDecoration = BoxDecoration(
     color: AppTheme.secondaryGreen.withOpacity(0.1),
     borderRadius: BorderRadius.circular(6),
     border: Border.all(color: AppTheme.secondaryGreen.withOpacity(0.3)),
   );
-  
+
   static BoxDecoration warningDecoration = BoxDecoration(
     color: AppTheme.warningOrange.withOpacity(0.1),
     borderRadius: BorderRadius.circular(6),
     border: Border.all(color: AppTheme.warningOrange.withOpacity(0.3)),
   );
-  
+
   static BoxDecoration dangerDecoration = BoxDecoration(
     color: AppTheme.dangerRed.withOpacity(0.1),
     borderRadius: BorderRadius.circular(6),
@@ -99,7 +98,7 @@ class ThemeUtils {
         return primary;
     }
   }
-  
+
   static Color getTypeColor(String type) {
     switch (type.toLowerCase()) {
       case 'folder':

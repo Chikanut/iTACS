@@ -26,7 +26,7 @@ class MobileWeekView extends StatelessWidget {
   Widget build(BuildContext context) {
     final weekDays = CalendarUtils.getWeekDays(selectedDate);
     final daysWithLessons = <DateTime, List<LessonModel>>{};
-    
+
     // Групуємо заняття по датах
     for (final day in weekDays) {
       final dayLessons = getLessonsForSpecificDate(day);
@@ -47,25 +47,26 @@ class MobileWeekView extends StatelessWidget {
         itemBuilder: (context, index) {
           final date = daysWithLessons.keys.elementAt(index);
           final lessonsForDay = daysWithLessons[date]!;
-          
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Заголовок дати
               _buildDateHeader(context, date),
-              
+
               // Заняття для цього дня
-              ...lessonsForDay.map((lesson) => Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: MobileLessonCard(
-                  lesson: lesson,
-                  onTap: () => onLessonTap?.call(lesson),
+              ...lessonsForDay.map(
+                (lesson) => Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: MobileLessonCard(
+                    lesson: lesson,
+                    onTap: () => onLessonTap?.call(lesson),
+                  ),
                 ),
-              )),
-              
+              ),
+
               // Розділювач між днями
-              if (index < daysWithLessons.length - 1)
-                const Divider(height: 32),
+              if (index < daysWithLessons.length - 1) const Divider(height: 32),
             ],
           );
         },
@@ -80,10 +81,7 @@ class MobileWeekView extends StatelessWidget {
         children: [
           Text(
             DateFormat('EEEE, dd MMMM', 'uk').format(date),
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           if (CalendarUtils.isToday(date)) ...[
             const SizedBox(width: 8),
@@ -113,18 +111,11 @@ class MobileWeekView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.event_busy,
-            size: 64,
-            color: Colors.grey.shade400,
-          ),
+          Icon(Icons.event_busy, size: 64, color: Colors.grey.shade400),
           const SizedBox(height: 16),
           Text(
             'Немає занять на цьому тижні',
-            style: TextStyle(
-              fontSize: 16,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
           ),
           const SizedBox(height: 8),
           ElevatedButton.icon(
@@ -137,4 +128,3 @@ class MobileWeekView extends StatelessWidget {
     );
   }
 }
-

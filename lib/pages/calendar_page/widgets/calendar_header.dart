@@ -47,7 +47,7 @@ class CalendarHeader extends StatelessWidget {
         builder: (context, constraints) {
           // Визначаємо, чи достатньо місця для повного макету
           final isWideScreen = constraints.maxWidth > 400;
-          
+
           if (isWideScreen) {
             // Звичайний горизонтальний макет для широких екранів
             return Row(
@@ -57,13 +57,16 @@ class CalendarHeader extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.chevron_left), 
+                      icon: const Icon(Icons.chevron_left),
                       onPressed: onPrevious,
                       visualDensity: VisualDensity.compact,
                     ),
                     Container(
                       constraints: BoxConstraints(
-                        minWidth: math.min(200, constraints.maxWidth * 0.4), // Адаптивна ширина
+                        minWidth: math.min(
+                          200,
+                          constraints.maxWidth * 0.4,
+                        ), // Адаптивна ширина
                       ),
                       child: Text(
                         _getFormattedPeriod(),
@@ -72,28 +75,35 @@ class CalendarHeader extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.chevron_right), 
+                      icon: const Icon(Icons.chevron_right),
                       onPressed: onNext,
                       visualDensity: VisualDensity.compact,
                     ),
                   ],
                 ),
-                
+
                 const Spacer(),
-                
+
                 // Група кнопок управління
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    TextButton(onPressed: onToday, child: const Text('Сьогодні')),
+                    TextButton(
+                      onPressed: onToday,
+                      child: const Text('Сьогодні'),
+                    ),
                     const SizedBox(width: 12),
                     DropdownButton<CalendarViewType>(
                       value: viewType,
                       onChanged: (v) => onViewTypeChange(v!),
-                      items: CalendarViewType.values.map((type) => DropdownMenuItem(
-                        value: type,
-                        child: Text(type.label),
-                      )).toList(),
+                      items: CalendarViewType.values
+                          .map(
+                            (type) => DropdownMenuItem(
+                              value: type,
+                              child: Text(type.label),
+                            ),
+                          )
+                          .toList(),
                     ),
                   ],
                 ),
@@ -107,7 +117,7 @@ class CalendarHeader extends StatelessWidget {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(Icons.chevron_left), 
+                      icon: const Icon(Icons.chevron_left),
                       onPressed: onPrevious,
                       visualDensity: VisualDensity.compact,
                     ),
@@ -119,27 +129,34 @@ class CalendarHeader extends StatelessWidget {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.chevron_right), 
+                      icon: const Icon(Icons.chevron_right),
                       onPressed: onNext,
                       visualDensity: VisualDensity.compact,
                     ),
                   ],
                 ),
-                
+
                 const SizedBox(height: 8),
-                
+
                 // Нижній рядок: кнопки управління
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: [
-                    TextButton(onPressed: onToday, child: const Text('Сьогодні')),
+                    TextButton(
+                      onPressed: onToday,
+                      child: const Text('Сьогодні'),
+                    ),
                     DropdownButton<CalendarViewType>(
                       value: viewType,
                       onChanged: (v) => onViewTypeChange(v!),
-                      items: CalendarViewType.values.map((type) => DropdownMenuItem(
-                        value: type,
-                        child: Text(type.label),
-                      )).toList(),
+                      items: CalendarViewType.values
+                          .map(
+                            (type) => DropdownMenuItem(
+                              value: type,
+                              child: Text(type.label),
+                            ),
+                          )
+                          .toList(),
                     ),
                   ],
                 ),

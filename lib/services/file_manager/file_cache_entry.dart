@@ -44,16 +44,16 @@ class FileCacheEntry extends HiveObject {
   /// Повертає людино-читабельний розмір файлу
   String get humanReadableSize {
     if (size == null) return 'Невідомий розмір';
-    
+
     const units = ['Б', 'КБ', 'МБ', 'ГБ'];
     int unitIndex = 0;
     double fileSize = size!.toDouble();
-    
+
     while (fileSize >= 1024 && unitIndex < units.length - 1) {
       fileSize /= 1024;
       unitIndex++;
     }
-    
+
     return '${fileSize.toStringAsFixed(1)} ${units[unitIndex]}';
   }
 

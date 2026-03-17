@@ -1,9 +1,4 @@
-enum CalendarViewType {
-  day,
-  week,
-  month,
-  year,
-}
+enum CalendarViewType { day, week, month, year }
 
 extension CalendarViewTypeExtension on CalendarViewType {
   String get label {

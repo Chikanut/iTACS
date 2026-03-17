@@ -81,10 +81,12 @@ class LessonModel {
       id: data['id'] ?? '',
       title: data['title'] ?? '',
       description: data['description'] ?? '',
-      startTime: data['startTime'] is Timestamp 
+      startTime: data['startTime'] is Timestamp
           ? (data['startTime'] as Timestamp).toDate()
-          : DateTime.parse(data['startTime'] ?? DateTime.now().toIso8601String()),
-      endTime: data['endTime'] is Timestamp 
+          : DateTime.parse(
+              data['startTime'] ?? DateTime.now().toIso8601String(),
+            ),
+      endTime: data['endTime'] is Timestamp
           ? (data['endTime'] as Timestamp).toDate()
           : DateTime.parse(data['endTime'] ?? DateTime.now().toIso8601String()),
       groupId: data['groupId'] ?? '',
@@ -98,12 +100,16 @@ class LessonModel {
       status: data['status'] ?? 'scheduled',
       tags: List<String>.from(data['tags'] ?? []),
       createdBy: data['createdBy'] ?? '',
-      createdAt: data['createdAt'] is Timestamp 
+      createdAt: data['createdAt'] is Timestamp
           ? (data['createdAt'] as Timestamp).toDate()
-          : DateTime.parse(data['createdAt'] ?? DateTime.now().toIso8601String()),
-      updatedAt: data['updatedAt'] is Timestamp 
+          : DateTime.parse(
+              data['createdAt'] ?? DateTime.now().toIso8601String(),
+            ),
+      updatedAt: data['updatedAt'] is Timestamp
           ? (data['updatedAt'] as Timestamp).toDate()
-          : DateTime.parse(data['updatedAt'] ?? DateTime.now().toIso8601String()),
+          : DateTime.parse(
+              data['updatedAt'] ?? DateTime.now().toIso8601String(),
+            ),
       recurrence: data['recurrence'] != null
           ? Recurrence.fromMap(data['recurrence'])
           : null,
@@ -292,7 +298,7 @@ class Recurrence {
     return Recurrence(
       type: data['type'] ?? 'none',
       interval: data['interval'] ?? 1,
-      endDate: data['endDate'] is Timestamp 
+      endDate: data['endDate'] is Timestamp
           ? (data['endDate'] as Timestamp).toDate()
           : DateTime.parse(data['endDate'] ?? DateTime.now().toIso8601String()),
     );
@@ -300,11 +306,7 @@ class Recurrence {
 
   /// Конвертувати у Map
   Map<String, dynamic> toMap() {
-    return {
-      'type': type,
-      'interval': interval,
-      'endDate': endDate,
-    };
+    return {'type': type, 'interval': interval, 'endDate': endDate};
   }
 
   /// Конвертувати у Map для Firestore (з Timestamp)
@@ -317,11 +319,7 @@ class Recurrence {
   }
 
   /// Створити копію з оновленими полями
-  Recurrence copyWith({
-    String? type,
-    int? interval,
-    DateTime? endDate,
-  }) {
+  Recurrence copyWith({String? type, int? interval, DateTime? endDate}) {
     return Recurrence(
       type: type ?? this.type,
       interval: interval ?? this.interval,
@@ -346,7 +344,7 @@ class Recurrence {
     }
 
     DateTime nextDate;
-    
+
     switch (type) {
       case 'daily':
         nextDate = currentDate.add(Duration(days: interval));
@@ -368,13 +366,17 @@ class Recurrence {
     }
 
     // Перевіряємо, чи наступна дата не перевищує кінцеву дату
-    return nextDate.isBefore(endDate) || nextDate.isAtSameMomentAs(endDate) 
-        ? nextDate 
+    return nextDate.isBefore(endDate) || nextDate.isAtSameMomentAs(endDate)
+        ? nextDate
         : null;
   }
 
   /// Отримати всі дати повторень у заданому періоді
-  List<DateTime> getOccurrencesInPeriod(DateTime startDate, DateTime periodStart, DateTime periodEnd) {
+  List<DateTime> getOccurrencesInPeriod(
+    DateTime startDate,
+    DateTime periodStart,
+    DateTime periodEnd,
+  ) {
     if (!isActive) return [];
 
     List<DateTime> occurrences = [];
@@ -391,11 +393,11 @@ class Recurrence {
       if (nextDate == null || nextDate.isAfter(periodEnd)) {
         break;
       }
-      
+
       if (nextDate.isAfter(periodStart) && nextDate.isBefore(periodEnd)) {
         occurrences.add(nextDate);
       }
-      
+
       currentDate = nextDate;
     }
 
@@ -405,10 +407,10 @@ class Recurrence {
   /// Отримати опис повторення для користувача
   String get description {
     if (type == 'none') return 'Без повторення';
-    
+
     String intervalText = interval == 1 ? '' : 'кожні $interval ';
     String typeText;
-    
+
     switch (type) {
       case 'daily':
         typeText = interval == 1 ? 'щодня' : '$intervalTextдні';
@@ -422,7 +424,7 @@ class Recurrence {
       default:
         typeText = 'невідомо';
     }
-    
+
     final endDateStr = DateFormat('dd.MM.yyyy').format(endDate);
     return 'Повторювати $typeText до $endDateStr';
   }
@@ -458,24 +460,25 @@ class Recurrence {
   /// Перевірити чи дата є повторенням
   bool isOccurrenceDate(DateTime date, DateTime originalDate) {
     if (!isActive) return false;
-    
+
     if (date.isAtSameMomentAs(originalDate)) return true;
     if (date.isBefore(originalDate) || date.isAfter(endDate)) return false;
-    
+
     final difference = date.difference(originalDate);
-    
+
     switch (type) {
       case 'daily':
         return difference.inDays % interval == 0;
       case 'weekly':
         return difference.inDays % (7 * interval) == 0;
       case 'monthly':
-        final monthsDiff = (date.year - originalDate.year) * 12 + 
-                          (date.month - originalDate.month);
-        return monthsDiff % interval == 0 && 
-              date.day == originalDate.day &&
-              date.hour == originalDate.hour &&
-              date.minute == originalDate.minute;
+        final monthsDiff =
+            (date.year - originalDate.year) * 12 +
+            (date.month - originalDate.month);
+        return monthsDiff % interval == 0 &&
+            date.day == originalDate.day &&
+            date.hour == originalDate.hour &&
+            date.minute == originalDate.minute;
       default:
         return false;
     }

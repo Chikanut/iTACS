@@ -3,9 +3,9 @@ import 'package:flutter/material.dart';
 
 mixin LoadingStateMixin<T extends StatefulWidget> on State<T> {
   final Map<String, bool> _loadingStates = {};
-  
+
   bool isLoading(String key) => _loadingStates[key] ?? false;
-  
+
   void setLoading(String key, bool loading) {
     if (mounted) {
       setState(() {
@@ -13,7 +13,7 @@ mixin LoadingStateMixin<T extends StatefulWidget> on State<T> {
       });
     }
   }
-  
+
   void clearLoading(String key) {
     if (mounted) {
       setState(() {
@@ -21,7 +21,7 @@ mixin LoadingStateMixin<T extends StatefulWidget> on State<T> {
       });
     }
   }
-  
+
   void clearAllLoading() {
     if (mounted) {
       setState(() {
@@ -29,12 +29,12 @@ mixin LoadingStateMixin<T extends StatefulWidget> on State<T> {
       });
     }
   }
-  
+
   Future<T> withLoading<T>(String key, Future<T> Function() operation) async {
     if (isLoading(key)) {
       throw Exception('Операція вже виконується');
     }
-    
+
     try {
       setLoading(key, true);
       return await operation();

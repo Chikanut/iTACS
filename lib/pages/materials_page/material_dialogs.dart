@@ -8,40 +8,39 @@ class MaterialDialog extends StatefulWidget {
   final Map<String, dynamic>? material; // null для створення нового
   final VoidCallback onRefresh;
 
-  const MaterialDialog({
-    super.key,
-    this.material,
-    required this.onRefresh,
-  });
+  const MaterialDialog({super.key, this.material, required this.onRefresh});
 
   @override
   State<MaterialDialog> createState() => _MaterialDialogState();
 }
 
-class _MaterialDialogState extends State<MaterialDialog> with LoadingStateMixin {
+class _MaterialDialogState extends State<MaterialDialog>
+    with LoadingStateMixin {
   late final TextEditingController titleController;
   late final TextEditingController urlController;
   late final TextEditingController tagsController;
-  
+
   final formKey = GlobalKey<FormState>();
   bool _urlValidated = false;
   String? _urlError;
   List<String> _suggestedTags = [];
-  
+
   bool get isEditing => widget.material != null;
 
   @override
   void initState() {
     super.initState();
-    titleController = TextEditingController(text: widget.material?['title'] ?? '');
+    titleController = TextEditingController(
+      text: widget.material?['title'] ?? '',
+    );
     urlController = TextEditingController(text: widget.material?['url'] ?? '');
     tagsController = TextEditingController(
       text: (widget.material?['tags'] as List<dynamic>?)?.join(', ') ?? '',
     );
-    
+
     // Додаємо лістенер для валідації URL в реальному часі
     urlController.addListener(_validateUrl);
-    
+
     // Завантажуємо популярні теги для автокомплиту
     _loadSuggestedTags();
   }
@@ -115,9 +114,13 @@ class _MaterialDialogState extends State<MaterialDialog> with LoadingStateMixin 
     final title = titleController.text.trim();
     final url = urlController.text.trim();
     final tagsText = tagsController.text.trim();
-    final tags = tagsText.isEmpty 
+    final tags = tagsText.isEmpty
         ? <String>[]
-        : tagsText.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+        : tagsText
+              .split(',')
+              .map((e) => e.trim())
+              .where((e) => e.isNotEmpty)
+              .toList();
 
     final fileId = Globals.fileManager.extractFileId(url);
     if (fileId == null) {
@@ -164,7 +167,7 @@ class _MaterialDialogState extends State<MaterialDialog> with LoadingStateMixin 
         if (mounted) {
           Navigator.pop(context);
           widget.onRefresh();
-          
+
           Globals.errorNotificationManager.showSuccess(
             isEditing ? 'Матеріал оновлено' : 'Матеріал додано',
           );
@@ -172,9 +175,7 @@ class _MaterialDialogState extends State<MaterialDialog> with LoadingStateMixin 
       });
     } catch (e) {
       if (mounted) {
-        Globals.errorNotificationManager.showError(
-          'Помилка збереження: $e',
-        );
+        Globals.errorNotificationManager.showError('Помилка збереження: $e');
       }
     }
   }
@@ -209,8 +210,8 @@ class _MaterialDialogState extends State<MaterialDialog> with LoadingStateMixin 
                 label: Text(tag),
                 onPressed: () {
                   final currentTags = tagsController.text.trim();
-                  final newTags = currentTags.isEmpty 
-                      ? tag 
+                  final newTags = currentTags.isEmpty
+                      ? tag
                       : '$currentTags, $tag';
                   tagsController.text = newTags;
                 },
@@ -225,7 +226,7 @@ class _MaterialDialogState extends State<MaterialDialog> with LoadingStateMixin 
   @override
   Widget build(BuildContext context) {
     final isSaving = isLoading('save');
-    
+
     return AlertDialog(
       title: Row(
         children: [
@@ -260,9 +261,9 @@ class _MaterialDialogState extends State<MaterialDialog> with LoadingStateMixin 
                   textInputAction: TextInputAction.next,
                   enabled: !isSaving,
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // URL
                 TextFormField(
                   controller: urlController,
@@ -299,14 +300,14 @@ class _MaterialDialogState extends State<MaterialDialog> with LoadingStateMixin 
                   textInputAction: TextInputAction.next,
                   enabled: !isSaving,
                 ),
-                
+
                 const SizedBox(height: 16),
-                
+
                 // Теги
                 _buildTagsField(),
-                
+
                 const SizedBox(height: 8),
-                
+
                 // Підказка
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -317,9 +318,11 @@ class _MaterialDialogState extends State<MaterialDialog> with LoadingStateMixin 
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.info_outline, 
-                           size: 16, 
-                           color: Colors.blue.shade700),
+                      Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: Colors.blue.shade700,
+                      ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -355,7 +358,10 @@ class _MaterialDialogState extends State<MaterialDialog> with LoadingStateMixin 
 }
 
 // Wrapper функції для зворотної сумісності
-Future<void> showAddMaterialDialog(BuildContext context, VoidCallback onRefresh) async {
+Future<void> showAddMaterialDialog(
+  BuildContext context,
+  VoidCallback onRefresh,
+) async {
   return showDialog(
     context: context,
     builder: (context) => MaterialDialog(onRefresh: onRefresh),
@@ -363,15 +369,13 @@ Future<void> showAddMaterialDialog(BuildContext context, VoidCallback onRefresh)
 }
 
 Future<void> showEditMaterialDialog(
-  BuildContext context, 
-  Map<String, dynamic> material, 
+  BuildContext context,
+  Map<String, dynamic> material,
   VoidCallback onRefresh,
 ) async {
   return showDialog(
     context: context,
-    builder: (context) => MaterialDialog(
-      material: material,
-      onRefresh: onRefresh,
-    ),
+    builder: (context) =>
+        MaterialDialog(material: material, onRefresh: onRefresh),
   );
 }

@@ -5,8 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart';
 
-import '../html_stub.dart'
-    if (dart.library.html) 'dart:html' as html;
+import '../html_stub.dart' if (dart.library.html) 'dart:html' as html;
 
 class FileSharer {
   Future<void> shareFile(Uint8List data, String filename) async {

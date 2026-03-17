@@ -72,7 +72,7 @@ class _AutocompleteFieldState extends State<AutocompleteField> {
   void _updateSuggestions() {
     final query = widget.controller.text;
     final suggestions = widget.getSuggestions(query);
-    
+
     setState(() {
       _suggestions = suggestions;
       _showSuggestions = suggestions.isNotEmpty && query.isNotEmpty;
@@ -90,14 +90,15 @@ class _AutocompleteFieldState extends State<AutocompleteField> {
 
   void _showSuggestionsOverlay() {
     _removeOverlay();
-    
+
     // Отримуємо розмір та позицію поля
-    final RenderBox? renderBox = _fieldKey.currentContext?.findRenderObject() as RenderBox?;
+    final RenderBox? renderBox =
+        _fieldKey.currentContext?.findRenderObject() as RenderBox?;
     if (renderBox == null) return;
-    
+
     final size = renderBox.size;
     final offset = renderBox.localToGlobal(Offset.zero);
-    
+
     _overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
         left: offset.dx,
@@ -122,13 +123,13 @@ class _AutocompleteFieldState extends State<AutocompleteField> {
                 return InkWell(
                   onTap: () => _selectSuggestion(suggestion),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     child: Text(
                       suggestion,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        color: Colors.black,
-                      ),
+                      style: const TextStyle(fontSize: 14, color: Colors.black),
                       selectionColor: const Color.fromARGB(255, 0, 0, 0),
                     ),
                   ),
@@ -148,10 +149,10 @@ class _AutocompleteFieldState extends State<AutocompleteField> {
     widget.controller.selection = TextSelection.fromPosition(
       TextPosition(offset: suggestion.length),
     );
-    
+
     // Додаємо нове значення до автодоповнення якщо потрібно
     widget.onNewValue?.call(suggestion);
-    
+
     _hideSuggestions();
     _focusNode.unfocus();
   }
@@ -179,7 +180,9 @@ class _AutocompleteFieldState extends State<AutocompleteField> {
         decoration: InputDecoration(
           labelText: widget.labelText,
           hintText: widget.hintText,
-          prefixIcon: widget.prefixIcon != null ? Icon(widget.prefixIcon) : null,
+          prefixIcon: widget.prefixIcon != null
+              ? Icon(widget.prefixIcon)
+              : null,
           border: const OutlineInputBorder(),
           suffixIcon: widget.controller.text.isNotEmpty
               ? IconButton(

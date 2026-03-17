@@ -55,19 +55,24 @@ class _AbsenceRequestDialogState extends State<AbsenceRequestDialog> {
                 value: _selectedType,
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                 ),
                 items: [AbsenceType.vacation, AbsenceType.sickLeave]
-                    .map((type) => DropdownMenuItem(
-                          value: type,
-                          child: Row(
-                            children: [
-                              Text(type.emoji),
-                              const SizedBox(width: 8),
-                              Text(type.displayName),
-                            ],
-                          ),
-                        ))
+                    .map(
+                      (type) => DropdownMenuItem(
+                        value: type,
+                        child: Row(
+                          children: [
+                            Text(type.emoji),
+                            const SizedBox(width: 8),
+                            Text(type.displayName),
+                          ],
+                        ),
+                      ),
+                    )
                     .toList(),
                 onChanged: (value) {
                   if (value != null) {
@@ -130,7 +135,10 @@ class _AbsenceRequestDialogState extends State<AbsenceRequestDialog> {
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   hintText: 'Вкажіть причину відсутності...',
-                  contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
                 ),
                 maxLines: 3,
                 validator: (value) {
@@ -154,7 +162,10 @@ class _AbsenceRequestDialogState extends State<AbsenceRequestDialog> {
                   decoration: const InputDecoration(
                     border: OutlineInputBorder(),
                     hintText: 'Номер документа (опціонально)',
-                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -282,10 +293,7 @@ class _DatePickerField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
+        Text(label, style: Theme.of(context).textTheme.bodySmall),
         const SizedBox(height: 4),
         InkWell(
           onTap: () => _selectDate(context),
@@ -297,7 +305,11 @@ class _DatePickerField extends StatelessWidget {
             ),
             child: Row(
               children: [
-                Icon(Icons.calendar_today, size: 16, color: Colors.grey.shade600),
+                Icon(
+                  Icons.calendar_today,
+                  size: 16,
+                  color: Colors.grey.shade600,
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(

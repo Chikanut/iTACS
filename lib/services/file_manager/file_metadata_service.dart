@@ -8,7 +8,6 @@ import 'file_exceptions.dart';
 import 'file_cache_entry.dart';
 
 class FileMetadataService {
-  
   final AuthService authService;
 
   FileMetadataService({required this.authService});
@@ -24,69 +23,94 @@ class FileMetadataService {
   }
 
   /// Отримання метаданих з retry логікою
-  Future<FileCacheEntry?> _getFileMetadataWithRetry(String fileId, {int maxRetries = 2}) async {
+  Future<FileCacheEntry?> _getFileMetadataWithRetry(
+    String fileId, {
+    int maxRetries = 2,
+  }) async {
     for (int attempt = 0; attempt < maxRetries; attempt++) {
       try {
         final token = await authService.getAccessToken();
 
         if (token == null) {
-          throw MetadataException('Не вдалося отримати токен для метаданих', fileId);
+          throw MetadataException(
+            'Не вдалося отримати токен для метаданих',
+            fileId,
+          );
         }
 
         final uri = Uri.parse(
           'https://itacs-webservice.onrender.com/filemeta?fileId=$fileId&access_token=$token',
         );
 
-        debugPrint('FileMetadata: Отримання метаданих через проксі (спроба ${attempt + 1}): $uri');
+        debugPrint(
+          'FileMetadata: Отримання метаданих через проксі (спроба ${attempt + 1}): $uri',
+        );
         final response = await http.get(uri);
 
-        debugPrint('FileMetadata: Відповідь проксі - статус: ${response.statusCode}');
+        debugPrint(
+          'FileMetadata: Відповідь проксі - статус: ${response.statusCode}',
+        );
 
         if (response.statusCode == 200) {
           final jsonData = json.decode(response.body);
           debugPrint('FileMetadata: Відповідь проксі - тіло: $jsonData');
-          
+
           // Конвертуємо JSON в FileCacheEntry
           return _jsonToFileCacheEntry(fileId, jsonData);
         } else if (response.statusCode == 401 || response.statusCode == 403) {
           // Токен можливо застарів, спробуємо оновити
-          debugPrint('FileMetadata: Токен застарів (${response.statusCode}), оновлюємо...');
-          
+          debugPrint(
+            'FileMetadata: Токен застарів (${response.statusCode}), оновлюємо...',
+          );
+
           if (attempt < maxRetries - 1) {
             // Примусово оновлюємо токен
             await authService.forceRefreshToken();
             continue; // Спробуємо знову
           }
-          
-          throw MetadataException('Проблема з авторизацією: ${response.statusCode}', fileId);
+
+          throw MetadataException(
+            'Проблема з авторизацією: ${response.statusCode}',
+            fileId,
+          );
         } else {
-          throw MetadataException('Проксі повернув помилку: ${response.statusCode}', fileId);
+          throw MetadataException(
+            'Проксі повернув помилку: ${response.statusCode}',
+            fileId,
+          );
         }
       } catch (e) {
         debugPrint('FileMetadata: Спроба ${attempt + 1} не вдалася: $e');
-        
+
         if (attempt == maxRetries - 1) {
           // Остання спроба
           rethrow;
         }
-        
+
         // Чекаємо трохи перед наступною спробою
         await Future.delayed(Duration(seconds: 1));
       }
     }
-    
-    throw MetadataException('Не вдалося отримати метадані після $maxRetries спроб', fileId);
+
+    throw MetadataException(
+      'Не вдалося отримати метадані після $maxRetries спроб',
+      fileId,
+    );
   }
 
   /// Конвертує JSON відповідь в FileCacheEntry
-  FileCacheEntry _jsonToFileCacheEntry(String fileId, Map<String, dynamic> jsonData) {
+  FileCacheEntry _jsonToFileCacheEntry(
+    String fileId,
+    Map<String, dynamic> jsonData,
+  ) {
     // Адаптуємо до структури JSON, що повертає API
-    
+
     final name = jsonData['name'] as String? ?? '';
     final extension = _extractExtensionFromName(name);
-    final modifiedDate = jsonData['modifiedTime'] as String? ?? DateTime.now().toIso8601String();
+    final modifiedDate =
+        jsonData['modifiedTime'] as String? ?? DateTime.now().toIso8601String();
     final mimeType = jsonData['mimeType'] as String?;
-    
+
     // Безпечно конвертуємо size в int
     int? size;
     final sizeValue = jsonData['size'];

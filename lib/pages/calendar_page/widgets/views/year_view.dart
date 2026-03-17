@@ -23,7 +23,7 @@ class YearView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final year = selectedDate.year;
-    
+
     return RefreshIndicator(
       onRefresh: onRefresh,
       child: SingleChildScrollView(
@@ -33,12 +33,12 @@ class YearView extends StatelessWidget {
             // Заголовок року
             _buildYearHeader(context, year),
             const SizedBox(height: 20),
-            
+
             // Сітка місяців
             _buildMonthsGrid(context, year),
-            
+
             const SizedBox(height: 20),
-            
+
             // Річна статистика
             _buildYearStats(context, year),
           ],
@@ -49,25 +49,19 @@ class YearView extends StatelessWidget {
 
   Widget _buildYearHeader(BuildContext context, int year) {
     final yearLessons = _getLessonsForYear(year);
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 16),
       child: Column(
         children: [
           Text(
             year.toString(),
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
             _getYearSummary(yearLessons),
-            style: TextStyle(
-              fontSize: 14,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
           ),
         ],
       ),
@@ -78,13 +72,13 @@ class YearView extends StatelessWidget {
     // Обмежуємо максимальний розмір клітинки
     const maxCellWidth = 200.0;
     const maxCellHeight = 150.0;
-    
+
     return LayoutBuilder(
       builder: (context, constraints) {
         // Визначаємо кількість колонок залежно від ширини
         final screenWidth = constraints.maxWidth;
         int crossAxisCount;
-        
+
         if (screenWidth < 400) {
           crossAxisCount = 1; // Дуже вузькі екрани - 1 колонка
         } else if (screenWidth < 600) {
@@ -92,11 +86,12 @@ class YearView extends StatelessWidget {
         } else {
           crossAxisCount = 3; // Планшет/десктоп - 3 колонки
         }
-        
+
         // Розраховуємо висоту сітки динамічно
         final rows = (12 / crossAxisCount).ceil();
-        final gridHeight = rows * maxCellHeight + (rows - 1) * 16; // +16 для mainAxisSpacing
-        
+        final gridHeight =
+            rows * maxCellHeight + (rows - 1) * 16; // +16 для mainAxisSpacing
+
         return SizedBox(
           height: gridHeight, // Динамічна висота замість maxHeight
           child: GridView.builder(
@@ -123,14 +118,15 @@ class YearView extends StatelessWidget {
 
   Widget _buildMonthCard(BuildContext context, DateTime monthDate, int month) {
     final monthLessons = _getLessonsForMonth(monthDate.year, month);
-    final isCurrentMonth = monthDate.year == DateTime.now().year &&
-                          monthDate.month == DateTime.now().month;
-    
+    final isCurrentMonth =
+        monthDate.year == DateTime.now().year &&
+        monthDate.month == DateTime.now().month;
+
     return LayoutBuilder(
       builder: (context, constraints) {
         // Адаптуємо розмір шрифту для вузьких карток
         final isNarrow = constraints.maxWidth < 150;
-        
+
         return GestureDetector(
           onTap: () => onDateSelected?.call(monthDate),
           child: Container(
@@ -138,9 +134,9 @@ class YearView extends StatelessWidget {
               color: Colors.white,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: isCurrentMonth 
-                  ? Theme.of(context).primaryColor 
-                  : Colors.grey.shade300,
+                color: isCurrentMonth
+                    ? Theme.of(context).primaryColor
+                    : Colors.grey.shade300,
                 width: isCurrentMonth ? 2 : 1,
               ),
               boxShadow: [
@@ -152,28 +148,33 @@ class YearView extends StatelessWidget {
               ],
             ),
             child: Padding(
-              padding: EdgeInsets.all(isNarrow ? 8 : 12), // Менший padding для вузьких карток
+              padding: EdgeInsets.all(
+                isNarrow ? 8 : 12,
+              ), // Менший padding для вузьких карток
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Назва місяця
                   Text(
-                    CalendarUtils.getMonthName(month, short: isNarrow), // Короткі назви для вузьких карток
+                    CalendarUtils.getMonthName(
+                      month,
+                      short: isNarrow,
+                    ), // Короткі назви для вузьких карток
                     style: TextStyle(
                       fontSize: isNarrow ? 14 : 16,
                       fontWeight: FontWeight.bold,
-                      color: isCurrentMonth 
-                        ? Theme.of(context).primaryColor 
-                        : Colors.black,
+                      color: isCurrentMonth
+                          ? Theme.of(context).primaryColor
+                          : Colors.black,
                     ),
                   ),
                   SizedBox(height: isNarrow ? 4 : 8),
-                  
+
                   // Кількість занять
                   if (monthLessons.isNotEmpty) ...[
                     Container(
                       padding: EdgeInsets.symmetric(
-                        horizontal: isNarrow ? 8 : 12, 
+                        horizontal: isNarrow ? 8 : 12,
                         vertical: isNarrow ? 4 : 6,
                       ),
                       decoration: BoxDecoration(
@@ -190,7 +191,7 @@ class YearView extends StatelessWidget {
                       ),
                     ),
                     SizedBox(height: isNarrow ? 4 : 8),
-                    
+
                     // Топ категорії (показуємо тільки для широких карток)
                     if (!isNarrow) _buildMonthTopCategories(monthLessons),
                   ] else ...[
@@ -218,45 +219,48 @@ class YearView extends StatelessWidget {
         tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
       }
     }
-    
+
     final topTags = tagCounts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    
+
     if (topTags.isEmpty) return const SizedBox.shrink();
-    
+
     return Column(
-      children: topTags.take(2).map((entry) => 
-        Container(
-          margin: const EdgeInsets.only(bottom: 2),
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Text(
-            '${entry.key} (${entry.value})',
-            style: TextStyle(
-              fontSize: 9,
-              color: Colors.grey.shade700,
-              fontWeight: FontWeight.w500,
+      children: topTags
+          .take(2)
+          .map(
+            (entry) => Container(
+              margin: const EdgeInsets.only(bottom: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${entry.key} (${entry.value})',
+                style: TextStyle(
+                  fontSize: 9,
+                  color: Colors.grey.shade700,
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
-            textAlign: TextAlign.center,
-          ),
-        ),
-      ).toList(),
+          )
+          .toList(),
     );
   }
 
   Widget _buildYearStats(BuildContext context, int year) {
     final yearLessons = _getLessonsForYear(year);
     final totalLessons = yearLessons.length;
-    
+
     // Статистика по місяцях
     final monthlyStats = <int, int>{};
     for (int month = 1; month <= 12; month++) {
       monthlyStats[month] = _getLessonsForMonth(year, month).length;
     }
-    
+
     // Топ категорії
     final tagCounts = <String, int>{};
     for (final lesson in yearLessons) {
@@ -264,13 +268,14 @@ class YearView extends StatelessWidget {
         tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
       }
     }
-    
+
     final topTags = tagCounts.entries.toList()
       ..sort((a, b) => b.value.compareTo(a.value));
-    
-    final mostActiveMonth = monthlyStats.entries
-        .reduce((a, b) => a.value > b.value ? a : b);
-    
+
+    final mostActiveMonth = monthlyStats.entries.reduce(
+      (a, b) => a.value > b.value ? a : b,
+    );
+
     final activeMonths = monthlyStats.values.where((count) => count > 0).length;
 
     return Container(
@@ -285,13 +290,10 @@ class YearView extends StatelessWidget {
         children: [
           Text(
             'Статистика $year року',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
-          
+
           // Основні показники
           Row(
             children: [
@@ -316,9 +318,9 @@ class YearView extends StatelessWidget {
               ),
             ],
           ),
-          
+
           const SizedBox(height: 12),
-          
+
           if (totalLessons > 0) ...[
             Row(
               children: [
@@ -326,7 +328,10 @@ class YearView extends StatelessWidget {
                   child: _buildStatCard(
                     context,
                     'Найактивніший місяць',
-                    CalendarUtils.getMonthName(mostActiveMonth.key, short: true),
+                    CalendarUtils.getMonthName(
+                      mostActiveMonth.key,
+                      short: true,
+                    ),
                     Icons.trending_up,
                     Colors.orange,
                   ),
@@ -343,42 +348,49 @@ class YearView extends StatelessWidget {
                 ),
               ],
             ),
-            
+
             const SizedBox(height: 16),
-            
+
             // Топ категорії
             if (topTags.isNotEmpty) ...[
               const Text(
                 'Найпопулярніші категорії:',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
               ),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 6,
-                children: topTags.take(6).map((entry) => 
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).primaryColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: Theme.of(context).primaryColor.withOpacity(0.3),
+                children: topTags
+                    .take(6)
+                    .map(
+                      (entry) => Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(
+                            context,
+                          ).primaryColor.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Theme.of(
+                              context,
+                            ).primaryColor.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Text(
+                          '${entry.key} (${entry.value})',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      '${entry.key} (${entry.value})',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: Theme.of(context).primaryColor,
-                      ),
-                    ),
-                  ),
-                ).toList(),
+                    )
+                    .toList(),
               ),
             ],
           ],
@@ -403,26 +415,16 @@ class YearView extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Icon(
-            icon,
-            color: color,
-            size: 20,
-          ),
+          Icon(icon, color: color, size: 20),
           const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 2),
           Text(
             title,
-            style: TextStyle(
-              fontSize: 10,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -438,21 +440,24 @@ class YearView extends StatelessWidget {
   }
 
   List<LessonModel> _getLessonsForMonth(int year, int month) {
-    return lessons.where((lesson) => 
-      lesson.startTime.year == year && lesson.startTime.month == month
-    ).toList();
+    return lessons
+        .where(
+          (lesson) =>
+              lesson.startTime.year == year && lesson.startTime.month == month,
+        )
+        .toList();
   }
 
   String _getYearSummary(List<LessonModel> yearLessons) {
     if (yearLessons.isEmpty) {
       return 'Немає запланованих занять';
     }
-    
+
     final uniqueMonths = yearLessons
         .map((lesson) => lesson.startTime.month)
         .toSet()
         .length;
-    
+
     return '${yearLessons.length} занять в $uniqueMonths місяцях';
   }
 }

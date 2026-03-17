@@ -8,7 +8,7 @@ enum AbsenceType {
   duty('duty', '🛡️', 'Наряд');
 
   const AbsenceType(this.value, this.emoji, this.displayName);
-  
+
   final String value;
   final String emoji;
   final String displayName;
@@ -28,7 +28,7 @@ enum AbsenceStatus {
   cancelled('cancelled', 'Скасовано');
 
   const AbsenceStatus(this.value, this.displayName);
-  
+
   final String value;
   final String displayName;
 
@@ -45,7 +45,7 @@ enum CreationType {
   adminAssignment('admin_assignment', 'Призначено адміном');
 
   const CreationType(this.value, this.displayName);
-  
+
   final String value;
   final String displayName;
 
@@ -162,9 +162,10 @@ class InstructorAbsence {
     final startOnly = DateTime(startDate.year, startDate.month, startDate.day);
     final endOnly = DateTime(endDate.year, endDate.month, endDate.day);
 
-    return (dateOnly.isAtSameMomentAs(startOnly) || dateOnly.isAfter(startOnly)) &&
-           (dateOnly.isAtSameMomentAs(endOnly) || dateOnly.isBefore(endOnly)) &&
-           status == AbsenceStatus.active;
+    return (dateOnly.isAtSameMomentAs(startOnly) ||
+            dateOnly.isAfter(startOnly)) &&
+        (dateOnly.isAtSameMomentAs(endOnly) || dateOnly.isBefore(endOnly)) &&
+        status == AbsenceStatus.active;
   }
 
   /// Отримати короткий символ для таблиці
@@ -189,7 +190,7 @@ class InstructorAbsence {
     if (isAdminAssignment) {
       return const Color(0xFF1976D2); // Синій для призначень адміном
     }
-    
+
     switch (type) {
       case AbsenceType.sickLeave:
         return const Color(0xFFE53935); // Червоний
@@ -222,7 +223,10 @@ class InstructorAbsence {
     };
   }
 
-  factory InstructorAbsence.fromFirestore(Map<String, dynamic> data, String id) {
+  factory InstructorAbsence.fromFirestore(
+    Map<String, dynamic> data,
+    String id,
+  ) {
     return InstructorAbsence(
       id: id,
       instructorId: data['instructorId'] ?? '',
@@ -234,9 +238,13 @@ class InstructorAbsence {
       reason: data['reason'] ?? '',
       documentNumber: data['documentNumber'],
       status: AbsenceStatus.fromString(data['status'] ?? 'pending'),
-      creationType: CreationType.fromString(data['creationType'] ?? 'user_request'),
+      creationType: CreationType.fromString(
+        data['creationType'] ?? 'user_request',
+      ),
       assignmentDetails: data['assignmentDetails'] != null
-          ? AssignmentDetails.fromMap(Map<String, dynamic>.from(data['assignmentDetails']))
+          ? AssignmentDetails.fromMap(
+              Map<String, dynamic>.from(data['assignmentDetails']),
+            )
           : null,
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       createdBy: data['createdBy'] ?? '',
