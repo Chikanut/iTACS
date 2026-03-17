@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
-import '../services/auth_service.dart';
-import 'email_check_page.dart';
+import '../services/app_session_controller.dart';
 
 class LoginPage extends StatelessWidget {
-  const LoginPage({super.key});
+  const LoginPage({super.key, required this.sessionController});
+
+  final SessionController sessionController;
 
   @override
   Widget build(BuildContext context) {
@@ -13,14 +13,7 @@ class LoginPage extends StatelessWidget {
       body: Center(
         child: ElevatedButton(
           onPressed: () async {
-            await AuthService.signInWithGoogle(context);
-
-            if (FirebaseAuth.instance.currentUser != null) {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const EmailCheckPage()),
-              );
-            }
+            await sessionController.signIn(context);
           },
           child: const Text('Увійти через Google'),
         ),

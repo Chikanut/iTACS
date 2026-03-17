@@ -14,13 +14,11 @@ import 'theme/app_theme.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   await initializeDateFormatting('uk', null);
 
-   if (kIsWeb) {
+  if (kIsWeb) {
     await Hive.initFlutter(); // автоматично використовує hive_web
   } else {
     final dir = await getApplicationDocumentsDirectory();
@@ -45,9 +43,13 @@ class MyApp extends StatelessWidget {
       title: 'iTACS',
       theme: AppTheme.darkTheme,
       home: const AuthGate(),
+      builder: (context, child) {
+        Globals.errorNotificationManager.setContext(context);
+        return child ?? const SizedBox.shrink();
+      },
       debugShowCheckedModeBanner: false,
 
-       // Додати локалізацію 👇
+      // Додати локалізацію 👇
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

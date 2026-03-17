@@ -16,14 +16,13 @@ import 'file_exceptions.dart';
 import 'file_cache_entry.dart';
 
 class FileManager {
-
   late final FileMetadataService _metadataService;
   late final FileCacheService _cacheService;
   late final FileDownloader _downloaderService;
   late final FileOpener _fileOpenerService;
   late final FileSharer _fileSharerService;
 
-static FileManager? _instance;
+  static FileManager? _instance;
 
   static Future<FileManager> create({required AuthService authService}) async {
     final manager = FileManager._internal(authService: authService);
@@ -36,13 +35,18 @@ static FileManager? _instance;
     if (_instance != null) {
       return _instance!;
     }
-    throw Exception('FileManager must be initialized using FileManager.create()');
+    throw Exception(
+      'FileManager must be initialized using FileManager.create()',
+    );
   }
 
   FileManager._internal({required AuthService authService}) {
     _metadataService = FileMetadataService(authService: authService);
     _cacheService = FileCacheService();
-    _downloaderService = FileDownloader(metadataService: _metadataService, authService: authService);
+    _downloaderService = FileDownloader(
+      metadataService: _metadataService,
+      authService: authService,
+    );
     _fileOpenerService = FileOpener();
     _fileSharerService = FileSharer();
 
@@ -58,22 +62,30 @@ static FileManager? _instance;
       if (metadata == null) {
         metadata = await _metadataService.getFileMetadata(fileId);
         if (metadata == null) {
-          throw FileMetadataException('Не вдалося отримати метадані для файлу', fileId);
+          throw FileMetadataException(
+            'Не вдалося отримати метадані для файлу',
+            fileId,
+          );
         }
       }
       var fileBytes = await cacheFile(fileId);
-      
+
       if (fileBytes == null) {
-        throw FileAccessException('Файл не знайдено після завантаження або кешування', fileId);
+        throw FileAccessException(
+          'Файл не знайдено після завантаження або кешування',
+          fileId,
+        );
       }
 
       if (metadata.extension.toLowerCase() == 'html') {
-        debugPrint('FileManager: Інжектування даних користувача в HTML файл $fileId');
+        debugPrint(
+          'FileManager: Інжектування даних користувача в HTML файл $fileId',
+        );
         // Інжектувати дані користувача
         fileBytes = _injectUserDataIntoHtml(fileBytes);
       }
 
-      await _fileOpenerService.openFile(fileId,fileBytes, metadata);
+      await _fileOpenerService.openFile(fileId, fileBytes, metadata);
     } catch (e) {
       debugPrint('FileManager: Помилка відкриття файлу $fileId: $e');
       rethrow;
@@ -89,14 +101,17 @@ static FileManager? _instance;
       if (metadata == null) {
         metadata = await _metadataService.getFileMetadata(fileId);
         if (metadata == null) {
-          throw FileMetadataException('Не вдалося отримати метадані для файлу', fileId);
+          throw FileMetadataException(
+            'Не вдалося отримати метадані для файлу',
+            fileId,
+          );
         }
       }
 
       // Перевіряємо, чи потрібно оновлювати файл
       final shouldUpdate = _cacheService.shouldUpdateFile(
-        fileId, 
-        metadata.modifiedDate ?? DateTime.now().toIso8601String()
+        fileId,
+        metadata.modifiedDate ?? DateTime.now().toIso8601String(),
       );
 
       Uint8List? fileBytes;
@@ -104,32 +119,42 @@ static FileManager? _instance;
       if (await _cacheService.isCached(fileId) && !shouldUpdate) {
         // Файл актуальний, беремо з кешу
         debugPrint('FileManager: Завантажуємо файл з кешу: $fileId');
-        final (cachedData, fileName) = await _cacheService.getCachedFile(fileId);
+        final (cachedData, fileName) = await _cacheService.getCachedFile(
+          fileId,
+        );
         fileBytes = cachedData;
-        
+
         if (fileBytes != null) {
-          debugPrint('FileManager: Файл успішно завантажено з кешу: $fileName (${fileBytes.length} байт)');
+          debugPrint(
+            'FileManager: Файл успішно завантажено з кешу: $fileName (${fileBytes.length} байт)',
+          );
         }
       } else {
         // Завантажуємо файл з сервера
         debugPrint('FileManager: Завантажуємо файл з сервера: $fileId');
         fileBytes = await _downloaderService.downloadFile(fileId);
-        
+
         // Зберігаємо в кеш з додатковими метаданими
         await _cacheService.cacheFile(
           fileId: fileId,
           name: metadata.filename,
           extension: metadata.extension,
-          modifiedDate: metadata.modifiedDate ?? DateTime.now().toIso8601String(),
+          modifiedDate:
+              metadata.modifiedDate ?? DateTime.now().toIso8601String(),
           data: fileBytes,
           mimeType: _getMimeType(metadata.extension), // Додаємо MIME тип
         );
-        
-        debugPrint('FileManager: Файл збережено в кеш: ${metadata.filename} (${fileBytes.length} байт)');
-            }
+
+        debugPrint(
+          'FileManager: Файл збережено в кеш: ${metadata.filename} (${fileBytes.length} байт)',
+        );
+      }
 
       if (fileBytes == null) {
-        throw FileAccessException('Файл не знайдено після завантаження або кешування', fileId);
+        throw FileAccessException(
+          'Файл не знайдено після завантаження або кешування',
+          fileId,
+        );
       }
 
       return fileBytes;
@@ -144,7 +169,9 @@ static FileManager? _instance;
     try {
       // Спочатку перевіряємо кеш
       if (await _cacheService.isCached(fileId)) {
-        final (cachedData, fileName) = await _cacheService.getCachedFile(fileId);
+        final (cachedData, fileName) = await _cacheService.getCachedFile(
+          fileId,
+        );
         if (cachedData != null) {
           debugPrint('FileManager: Файл завантажено з кешу: $fileName');
           return cachedData;
@@ -164,16 +191,21 @@ static FileManager? _instance;
       // Отримуємо метадані
       final metadata = await _metadataService.getFileMetadata(fileId);
       if (metadata == null) {
-        throw FileMetadataException('Не вдалося отримати метадані для файлу', fileId);
+        throw FileMetadataException(
+          'Не вдалося отримати метадані для файлу',
+          fileId,
+        );
       }
 
       // Перевіряємо, чи файл актуальний
       return _cacheService.shouldUpdateFile(
-        fileId, 
-        metadata.modifiedDate ?? DateTime.now().toIso8601String()
+        fileId,
+        metadata.modifiedDate ?? DateTime.now().toIso8601String(),
       );
     } catch (e) {
-      debugPrint('FileManager: Помилка перевірки актуальності файлу $fileId: $e');
+      debugPrint(
+        'FileManager: Помилка перевірки актуальності файлу $fileId: $e',
+      );
       return false;
     }
   }
@@ -185,21 +217,25 @@ static FileManager? _instance;
 
       final metadata = await _metadataService.getFileMetadata(fileId);
       if (metadata == null) {
-        throw FileMetadataException('Не вдалося отримати метадані для файлу', fileId);
+        throw FileMetadataException(
+          'Не вдалося отримати метадані для файлу',
+          fileId,
+        );
       }
 
       if (shouldUpdate) {
         debugPrint('FileManager: Оновлюємо файл $fileId');
         final fileBytes = await _downloaderService.downloadFile(fileId);
-        
+
         await _cacheService.updateCachedFile(
           fileId: fileId,
-          modifiedDate: metadata.modifiedDate ?? DateTime.now().toIso8601String(),
+          modifiedDate:
+              metadata.modifiedDate ?? DateTime.now().toIso8601String(),
           data: fileBytes,
           mimeType: _getMimeType(metadata.extension),
         );
         return true;
-            }
+      }
 
       return false;
     } catch (e) {
@@ -212,16 +248,19 @@ static FileManager? _instance;
   Future<bool> forceRefreshFile(String fileId) async {
     try {
       debugPrint('FileManager: Примусове оновлення файлу $fileId');
-      
+
       // Отримуємо метадані
       final metadata = await _metadataService.getFileMetadata(fileId);
       if (metadata == null) {
-        throw FileMetadataException('Не вдалося отримати метадані для файлу', fileId);
+        throw FileMetadataException(
+          'Не вдалося отримати метадані для файлу',
+          fileId,
+        );
       }
-      
+
       // Завантажуємо файл
       final fileBytes = await _downloaderService.downloadFile(fileId);
-      
+
       // Оновлюємо кеш
       await _cacheService.updateCachedFile(
         fileId: fileId,
@@ -229,12 +268,13 @@ static FileManager? _instance;
         data: fileBytes,
         mimeType: _getMimeType(metadata.extension),
       );
-      
+
       debugPrint('FileManager: Файл $fileId примусово оновлено');
       return true;
-      
     } catch (e) {
-      debugPrint('FileManager: Помилка примусового оновлення файлу $fileId: $e');
+      debugPrint(
+        'FileManager: Помилка примусового оновлення файлу $fileId: $e',
+      );
       rethrow;
     }
   }
@@ -242,7 +282,7 @@ static FileManager? _instance;
   /// Пакетне кешування файлів
   Future<List<String>> cacheMultipleFiles(List<String> fileIds) async {
     final successfullycached = <String>[];
-    
+
     for (final fileId in fileIds) {
       try {
         await cacheFile(fileId);
@@ -253,51 +293,65 @@ static FileManager? _instance;
       }
     }
 
-    debugPrint('FileManager: Успішно закешовано ${successfullycached.length} з ${fileIds.length} файлів');
+    debugPrint(
+      'FileManager: Успішно закешовано ${successfullycached.length} з ${fileIds.length} файлів',
+    );
     return successfullycached;
   }
 
   /// Попереднє завантаження файлів
   Future<void> preloadFiles(List<String> fileIds) async {
-    debugPrint('FileManager: Починаємо попереднє завантаження ${fileIds.length} файлів');
-    
+    debugPrint(
+      'FileManager: Починаємо попереднє завантаження ${fileIds.length} файлів',
+    );
+
     // Фільтруємо файли, які вже є в кеші та актуальні
     final filesToPreload = <String>[];
-    
+
     for (final fileId in fileIds) {
       try {
         var metadata = _cacheService.getFileMetadata(fileId);
         if (metadata == null) {
           metadata = await _metadataService.getFileMetadata(fileId);
           if (metadata == null) {
-            throw FileMetadataException('Не вдалося отримати метадані для файлу', fileId);
+            throw FileMetadataException(
+              'Не вдалося отримати метадані для файлу',
+              fileId,
+            );
           }
         }
-        
+
         final shouldUpdate = _cacheService.shouldUpdateFile(
-          fileId, 
-          metadata.modifiedDate ?? DateTime.now().toIso8601String()
+          fileId,
+          metadata.modifiedDate ?? DateTime.now().toIso8601String(),
         );
-        
+
         if (!await _cacheService.isCached(fileId) || shouldUpdate) {
           filesToPreload.add(fileId);
         }
       } catch (e) {
-        debugPrint('FileManager: Помилка перевірки файлу $fileId для preload: $e');
+        debugPrint(
+          'FileManager: Помилка перевірки файлу $fileId для preload: $e',
+        );
       }
     }
-    
-    debugPrint('FileManager: Потрібно завантажити ${filesToPreload.length} файлів');
-    
+
+    debugPrint(
+      'FileManager: Потрібно завантажити ${filesToPreload.length} файлів',
+    );
+
     // Завантажуємо файли пакетами по 3 одночасно
     const batchSize = 3;
     for (int i = 0; i < filesToPreload.length; i += batchSize) {
       final batch = filesToPreload.skip(i).take(batchSize).toList();
-      
+
       await Future.wait(
-        batch.map((fileId) => cacheFile(fileId).catchError((e) {
-          debugPrint('FileManager: Помилка preload файлу $fileId: $e');
-        })),
+        batch.map(
+          (fileId) => cacheFile(fileId).catchError((e) {
+            debugPrint('FileManager: Помилка preload файлу $fileId: $e');
+            return null;
+          }),
+        ),
       );
     }
   }
@@ -312,7 +366,7 @@ static FileManager? _instance;
       final isCached = await this.isCached(fileId);
       final metadata = _cacheService.getFileMetadata(fileId);
       final shouldRefresh = await shouldRefreshFile(fileId);
-      
+
       return {
         'isCached': isCached,
         'shouldRefresh': shouldRefresh,
@@ -324,11 +378,7 @@ static FileManager? _instance;
       };
     } catch (e) {
       debugPrint('FileManager: Помилка отримання статусу файлу $fileId: $e');
-      return {
-        'isCached': false,
-        'shouldRefresh': true,
-        'error': e.toString(),
-      };
+      return {'isCached': false, 'shouldRefresh': true, 'error': e.toString()};
     }
   }
 
@@ -350,29 +400,32 @@ static FileManager? _instance;
     List<String> importantFileIds = const [],
   }) async {
     debugPrint('FileManager: Починаємо очищення кешу');
-    
+
     // Спочатку видаляємо старі файли, крім важливих
-    final oldFiles = _cacheService.getCachedFilesList()
+    final oldFiles = _cacheService
+        .getCachedFilesList()
         .where((entry) {
           if (importantFileIds.contains(entry.fileId)) return false;
           final modifiedDate = entry.modifiedDateTime;
-          return modifiedDate != null && 
-                 modifiedDate.isBefore(DateTime.now().subtract(maxAge));
+          return modifiedDate != null &&
+              modifiedDate.isBefore(DateTime.now().subtract(maxAge));
         })
         .map((entry) => entry.fileId)
         .toList();
-    
+
     for (final fileId in oldFiles) {
       await _cacheService.removeCachedFile(fileId);
     }
-    
+
     // Якщо кеш все ще занадто великий, видаляємо найбільші файли
     if (_cacheService.getCacheSize() > maxSizeBytes) {
-      final largeFiles = _cacheService.getCachedFilesList()
-          .where((entry) => !importantFileIds.contains(entry.fileId))
-          .toList()
-        ..sort((a, b) => (b.size ?? 0).compareTo(a.size ?? 0));
-      
+      final largeFiles =
+          _cacheService
+              .getCachedFilesList()
+              .where((entry) => !importantFileIds.contains(entry.fileId))
+              .toList()
+            ..sort((a, b) => (b.size ?? 0).compareTo(a.size ?? 0));
+
       int currentSize = _cacheService.getCacheSize();
       for (final entry in largeFiles) {
         if (currentSize <= maxSizeBytes) break;
@@ -380,7 +433,7 @@ static FileManager? _instance;
         currentSize -= entry.size ?? 0;
       }
     }
-    
+
     debugPrint('FileManager: Очищення кешу завершено');
   }
 
@@ -388,14 +441,18 @@ static FileManager? _instance;
   Map<String, dynamic> getCacheStatistics() {
     return _cacheService.getCacheStatistics();
   }
-   Future<FileCacheEntry> getFileMetadata(String fileId) async {
-      var metadata = _cacheService.getFileMetadata(fileId);
+
+  Future<FileCacheEntry> getFileMetadata(String fileId) async {
+    var metadata = _cacheService.getFileMetadata(fileId);
+    if (metadata == null) {
+      metadata = await _metadataService.getFileMetadata(fileId);
       if (metadata == null) {
-        metadata = await _metadataService.getFileMetadata(fileId);
-        if (metadata == null) {
-          throw FileMetadataException('Не вдалося отримати метадані для файлу', fileId);
-        }
+        throw FileMetadataException(
+          'Не вдалося отримати метадані для файлу',
+          fileId,
+        );
       }
+    }
     return metadata;
   }
 
@@ -403,7 +460,10 @@ static FileManager? _instance;
   Future<void> shareFile(String fileId) async {
     final (bytes, name) = await _cacheService.getCachedFile(fileId);
     if (bytes == null || name == null) {
-      throw FileAccessException('Немає кешованого файлу для надсилання', fileId);
+      throw FileAccessException(
+        'Немає кешованого файлу для надсилання',
+        fileId,
+      );
     }
     await FileSharer().shareFile(bytes, name);
   }
@@ -414,15 +474,17 @@ static FileManager? _instance;
   }
 
   /// Перевірка наявності файлу в кеші
-  Future<bool> isCached(String fileId) async => await _cacheService.isCached(fileId);
+  Future<bool> isCached(String fileId) async =>
+      await _cacheService.isCached(fileId);
 
   /// Очищення кешу
   Future<void> clearCache() async => await _cacheService.clearCache();
 
   /// Видалення одного файлу з кешу
-  Future<void> removeFromCache(String fileId) async => await _cacheService.removeCachedFile(fileId);
+  Future<void> removeFromCache(String fileId) async =>
+      await _cacheService.removeCachedFile(fileId);
 
-   String? extractFileId(String url) {
+  String? extractFileId(String url) {
     final RegExp pattern = RegExp(
       r'd(?:/|rive/folders/|/file/d/|/open\?id=|/uc\?id=)([a-zA-Z0-9_-]{10,})',
     );
@@ -436,64 +498,71 @@ static FileManager? _instance;
   }
 
   Uint8List _injectUserDataIntoHtml(Uint8List htmlBytes) {
-  try {
-    // Конвертуємо bytes в string
-    String htmlContent = utf8.decode(htmlBytes);
-    
-    // Отримуємо дані користувача
-    final userProfile = Globals.profileManager.profile.toMap();
-    userProfile['unit'] = Globals.profileManager.currentGroupName;
+    try {
+      // Конвертуємо bytes в string
+      String htmlContent = utf8.decode(htmlBytes);
 
-    // 🔍 DEBUG: Логуємо дані користувача
-    debugPrint('🔍 HTML Injection Debug:');
-    debugPrint('  User Profile: $userProfile');
-    
-    // Формуємо повну назву посади для поля userFullName
-    String fullUserTitle = '';
-    final position = userProfile['position']?.toString() ?? '';
-    final unit = userProfile['unit']?.toString() ?? '';
-    final rank = userProfile['rank']?.toString() ?? '';
-    final firstName = userProfile['firstName']?.toString() ?? '';
-    final lastName = userProfile['lastName']?.toString() ?? '';
-    final fullName = '$firstName $lastName'.trim();
-    
-    // Формуємо як в прикладі: "сержант-інструктор ГСПП молодший сержант Войтович Євген"
-    List<String> titleParts = [];
-    if (position.isNotEmpty) titleParts.add(position);
-    if (unit.isNotEmpty) titleParts.add(unit);
-    if (rank.isNotEmpty) titleParts.add(rank);
-    if (fullName.isNotEmpty) titleParts.add(fullName);
-    fullUserTitle = titleParts.join(' ');
-    
-    // 🔍 DEBUG: Логуємо сформований титул
-    debugPrint('  Full User Title: "$fullUserTitle"');
-    debugPrint('  Position: "$position"');
-    debugPrint('  Unit: "$unit"');
-    debugPrint('  Rank: "$rank"');
-    debugPrint('  Full Name: "$fullName"');
-    
-    // Замінюємо плейсхолдери в тексті
-    final replacements = {
-      '{{USER_NAME}}': fullName,
-      '{{USER_EMAIL}}': userProfile['email']?.toString() ?? '',
-      '{{USER_RANK}}': rank,
-      '{{USER_POSITION}}': position,
-      '{{USER_UNIT}}': unit,
-      '{{USER_FULL_TITLE}}': fullUserTitle,
-      '{{CURRENT_DATE}}': DateTime.now().toLocal().toString().split(' ')[0],
-      '{{CURRENT_TIME}}': DateTime.now().toLocal().toString().split(' ')[1].split('.')[0],
-      '{{CURRENT_DATETIME}}': DateTime.now().toLocal().toString().split('.')[0],
-    };
+      // Отримуємо дані користувача
+      final userProfile = Globals.profileManager.profile.toMap();
+      userProfile['unit'] = Globals.profileManager.currentGroupName;
 
-    replacements.forEach((placeholder, value) {
-      if (htmlContent.contains(placeholder)) {
-        debugPrint('  ✅ Замінено $placeholder на "$value"');
-        htmlContent = htmlContent.replaceAll(placeholder, value);
-      }
-    });
+      // 🔍 DEBUG: Логуємо дані користувача
+      debugPrint('🔍 HTML Injection Debug:');
+      debugPrint('  User Profile: $userProfile');
 
-    // Додаємо JavaScript з розширеним дебагом
-    final jsScript = '''
+      // Формуємо повну назву посади для поля userFullName
+      String fullUserTitle = '';
+      final position = userProfile['position']?.toString() ?? '';
+      final unit = userProfile['unit']?.toString() ?? '';
+      final rank = userProfile['rank']?.toString() ?? '';
+      final firstName = userProfile['firstName']?.toString() ?? '';
+      final lastName = userProfile['lastName']?.toString() ?? '';
+      final fullName = '$firstName $lastName'.trim();
+
+      // Формуємо як в прикладі: "сержант-інструктор ГСПП молодший сержант Войтович Євген"
+      List<String> titleParts = [];
+      if (position.isNotEmpty) titleParts.add(position);
+      if (unit.isNotEmpty) titleParts.add(unit);
+      if (rank.isNotEmpty) titleParts.add(rank);
+      if (fullName.isNotEmpty) titleParts.add(fullName);
+      fullUserTitle = titleParts.join(' ');
+
+      // 🔍 DEBUG: Логуємо сформований титул
+      debugPrint('  Full User Title: "$fullUserTitle"');
+      debugPrint('  Position: "$position"');
+      debugPrint('  Unit: "$unit"');
+      debugPrint('  Rank: "$rank"');
+      debugPrint('  Full Name: "$fullName"');
+
+      // Замінюємо плейсхолдери в тексті
+      final replacements = {
+        '{{USER_NAME}}': fullName,
+        '{{USER_EMAIL}}': userProfile['email']?.toString() ?? '',
+        '{{USER_RANK}}': rank,
+        '{{USER_POSITION}}': position,
+        '{{USER_UNIT}}': unit,
+        '{{USER_FULL_TITLE}}': fullUserTitle,
+        '{{CURRENT_DATE}}': DateTime.now().toLocal().toString().split(' ')[0],
+        '{{CURRENT_TIME}}': DateTime.now()
+            .toLocal()
+            .toString()
+            .split(' ')[1]
+            .split('.')[0],
+        '{{CURRENT_DATETIME}}': DateTime.now().toLocal().toString().split(
+          '.',
+        )[0],
+      };
+
+      replacements.forEach((placeholder, value) {
+        if (htmlContent.contains(placeholder)) {
+          debugPrint('  ✅ Замінено $placeholder на "$value"');
+          htmlContent = htmlContent.replaceAll(placeholder, value);
+        }
+      });
+
+      // Додаємо JavaScript з розширеним дебагом
+      final jsScript =
+          '''
 <script>
 // 🔍 DEBUG MODE ВКЛЮЧЕНО
 console.log('🚀 HTML Injection Script завантажено');
@@ -734,32 +803,33 @@ console.log('🎉 JavaScript інжекція завершена! Викличт
 </script>
 ''';
 
-    // 🔍 DEBUG: Перевіряємо чи знайшли місце для вставки скрипта
-    if (htmlContent.contains('</head>')) {
-      debugPrint('  ✅ Вставляємо JavaScript перед </head>');
-      htmlContent = htmlContent.replaceFirst('</head>', '$jsScript</head>');
-    } else if (htmlContent.contains('<body>')) {
-      debugPrint('  ✅ Вставляємо JavaScript в початок <body>');
-      htmlContent = htmlContent.replaceFirst('<body>', '<body>$jsScript');
-    } else {
-      debugPrint('  ⚠️ Не знайдено </head> або <body>, вставляємо на початок файлу');
-      htmlContent = '$jsScript\n$htmlContent';
-    }
+      // 🔍 DEBUG: Перевіряємо чи знайшли місце для вставки скрипта
+      if (htmlContent.contains('</head>')) {
+        debugPrint('  ✅ Вставляємо JavaScript перед </head>');
+        htmlContent = htmlContent.replaceFirst('</head>', '$jsScript</head>');
+      } else if (htmlContent.contains('<body>')) {
+        debugPrint('  ✅ Вставляємо JavaScript в початок <body>');
+        htmlContent = htmlContent.replaceFirst('<body>', '<body>$jsScript');
+      } else {
+        debugPrint(
+          '  ⚠️ Не знайдено </head> або <body>, вставляємо на початок файлу',
+        );
+        htmlContent = '$jsScript\n$htmlContent';
+      }
 
-    // 🔍 DEBUG: Логуємо розмір результату
-    final resultBytes = utf8.encode(htmlContent);
-    debugPrint('  📊 Розмір оригінального HTML: ${htmlBytes.length} bytes');
-    debugPrint('  📊 Розмір після інжекції: ${resultBytes.length} bytes');
-    debugPrint('  📊 Додано: ${resultBytes.length - htmlBytes.length} bytes');
-    
-    return resultBytes;
-    
-  } catch (e) {
-    debugPrint('❌ FileManager: Помилка інжекції даних в HTML: $e');
-    // Повертаємо оригінальний файл при помилці
-    return htmlBytes;
+      // 🔍 DEBUG: Логуємо розмір результату
+      final resultBytes = utf8.encode(htmlContent);
+      debugPrint('  📊 Розмір оригінального HTML: ${htmlBytes.length} bytes');
+      debugPrint('  📊 Розмір після інжекції: ${resultBytes.length} bytes');
+      debugPrint('  📊 Додано: ${resultBytes.length - htmlBytes.length} bytes');
+
+      return resultBytes;
+    } catch (e) {
+      debugPrint('❌ FileManager: Помилка інжекції даних в HTML: $e');
+      // Повертаємо оригінальний файл при помилці
+      return htmlBytes;
+    }
   }
-}
 
   String? _getMimeType(String extension) {
     switch (extension.toLowerCase()) {

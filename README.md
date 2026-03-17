@@ -1,29 +1,88 @@
-# flutter_application_1
+# iTACS
 
-A new Flutter project.
+Flutter-застосунок для внутрішньої роботи навчальних груп GSPP: розклад, матеріали, інструменти, профілі користувачів, звіти та рольовий доступ через Firebase.
 
-## Getting Started
+## Що вміє проєкт
 
-This project is a starting point for a Flutter application.
+- авторизація через Google + Firebase Auth;
+- перевірка доступу до груп через Firestore;
+- календар занять та dashboard для інструкторів;
+- матеріали та інструменти з доступом до файлів Google Drive;
+- локальне кешування профілю, групи та файлів;
+- базова адмін-панель і генерація Excel-звітів.
 
-A few resources to get you started if this is your first Flutter project:
+## Стек
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+- Flutter / Dart
+- Firebase Auth, Firestore, Cloud Functions
+- Google Sign-In + Google Drive API scopes
+- Hive, SharedPreferences
+- Excel, Share Plus, Open Filex
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Швидкий старт
 
+1. Встановіть Flutter SDK і перевірте `flutter doctor`.
+2. Переконайтесь, що локально доступні Firebase-конфіги:
+   - `lib/services/firebase_options.dart`
+   - `android/app/google-services.json`
+   - відповідні Apple/Web налаштування, якщо потрібні
+3. Отримайте залежності:
 
-Certificate[1]:
-Owner: C=US, O=Android, CN=Android Debug
-Issuer: C=US, O=Android, CN=Android Debug
-Serial number: 1
-Valid from: Wed Jul 02 17:25:06 EEST 2025 until: Fri Jun 25 17:25:06 EEST 2055
-Certificate fingerprints:
-         SHA1: F5:61:32:38:83:82:A0:5D:BD:FE:8A:FA:9C:DE:01:40:45:18:3E:54
-         SHA256: E1:0E:5F:54:8E:83:FC:27:E5:AB:63:FB:15:BC:B7:05:1F:20:33:5A:34:83:28:80:72:1B:E6:AC:0E:2E:6A:E7
-Signature algorithm name: SHA256withRSA
-Subject Public Key Algorithm: 2048-bit RSA key
-Version: 1
+```bash
+flutter pub get
+```
+
+4. За потреби встановіть root Node-залежності для допоміжних скриптів:
+
+```bash
+npm install
+```
+
+5. Запустіть застосунок:
+
+```bash
+flutter run
+```
+
+## Основні команди
+
+```bash
+dart format lib test scripts
+flutter analyze
+flutter test
+flutter run -d chrome
+flutter run -d windows
+```
+
+## Структура
+
+- `lib/main.dart` - точка входу Flutter.
+- `lib/pages/auth_gate.dart` - кореневий session router.
+- `lib/services/app_session_controller.dart` - bootstrap, persisted auth, logout.
+- `lib/services/auth_service.dart` - Google/Firebase sign-in, silent restore, token access.
+- `lib/services/firestore_manager.dart` - групи, профілі, Firestore CRUD.
+- `lib/services/file_manager/` - кешування, завантаження та відкриття файлів.
+- `docs/` - setup, огляд архітектури та roadmap.
+- `scripts/` - допоміжні утиліти для міграцій і локалізації.
+
+## Quality Gates
+
+- `dart format` для змінених Dart-файлів.
+- `flutter analyze` без analyzer errors.
+- `flutter test` для session-routing baseline.
+- Оновлення документації при зміні auth-flow, структури сервісів або workflow.
+
+## Документація
+
+- [AGENTS.md](./AGENTS.md)
+- [CONTRIBUTING.md](./CONTRIBUTING.md)
+- [docs/SETUP.md](./docs/SETUP.md)
+- [docs/PROJECT_OVERVIEW.md](./docs/PROJECT_OVERVIEW.md)
+- [docs/ROADMAP.md](./docs/ROADMAP.md)
+- [CHANGELOG.md](./CHANGELOG.md)
+
+## Відомі обмеження
+
+- Кодова база має legacy lint debt, який зафіксований у roadmap.
+- `HomePage` і `FileManager` залишаються великими модулями і потребують подальшої декомпозиції.
+- Частина dev-скриптів підтримується як внутрішні утиліти і ще потребує нормалізації.

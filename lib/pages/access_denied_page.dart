@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
-import 'login_page.dart';
+
+import '../services/app_session_controller.dart';
 
 class AccessDeniedPage extends StatelessWidget {
-  const AccessDeniedPage({super.key});
+  const AccessDeniedPage({super.key, required this.sessionController});
+
+  final SessionController sessionController;
 
   @override
   Widget build(BuildContext context) {
@@ -29,15 +32,16 @@ class AccessDeniedPage extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const LoginPage()),
-                  );
+                onPressed: () async {
+                  await sessionController.signOut();
                 },
                 icon: const Icon(Icons.login),
                 label: const Text('Повернутись до входу'),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 12,
+                  ),
                   textStyle: const TextStyle(fontSize: 16),
                 ),
               ),

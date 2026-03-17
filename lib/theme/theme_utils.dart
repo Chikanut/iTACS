@@ -14,31 +14,31 @@ class ThemeUtils {
   static final Color file = AppTheme.fileColor;
   
   // 📝 Текстові стилі
-  static const TextStyle headlineStyle = TextStyle(
+  static TextStyle headlineStyle = TextStyle(
     color: AppTheme.textPrimary,
     fontSize: 24,
     fontWeight: FontWeight.bold,
   );
   
-  static const TextStyle titleStyle = TextStyle(
+  static TextStyle titleStyle = TextStyle(
     color: AppTheme.textPrimary,
     fontSize: 18,
     fontWeight: FontWeight.w600,
   );
   
-  static const TextStyle bodyStyle = TextStyle(
+  static TextStyle bodyStyle = TextStyle(
     color: AppTheme.textPrimary,
     fontSize: 16,
     fontWeight: FontWeight.normal,
   );
   
-  static const TextStyle captionStyle = TextStyle(
+  static TextStyle captionStyle = TextStyle(
     color: AppTheme.textSecondary,
     fontSize: 14,
     fontWeight: FontWeight.normal,
   );
   
-  static const TextStyle mutedStyle = TextStyle(
+  static TextStyle mutedStyle = TextStyle(
     color: AppTheme.textMuted,
     fontSize: 12,
     fontWeight: FontWeight.normal,

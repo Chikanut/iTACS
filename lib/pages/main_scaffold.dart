@@ -4,13 +4,15 @@ import 'calendar_page/calendar_page.dart';
 import 'materials_page/materials_page.dart';
 import 'profile_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'email_check_page.dart';
 import '../globals.dart';
+import '../services/app_session_controller.dart';
 import 'tools_page/tools_page.dart';
 import 'admin_page/admin_panel_page.dart';
 
 class MainScaffold extends StatefulWidget {
-  const MainScaffold({super.key});
+  const MainScaffold({super.key, required this.sessionController});
+
+  final SessionController sessionController;
 
   @override
   State<MainScaffold> createState() => _MainScaffoldState();
@@ -24,60 +26,71 @@ class _MainScaffoldState extends State<MainScaffold> {
   // 🚀 Динамічний масив сторінок залежно від ролі
   List<Widget> get _pages {
     final pages = <Widget>[];
-    
+
     if (Globals.profileManager.currentRole == 'admin') {
       pages.add(const AdminPanelPage());
     }
-    
+
     pages.addAll([
       const HomePage(),
       const CalendarPage(),
       const ToolsPage(),
       const MaterialsPage(),
     ]);
-    
+
     return pages;
   }
 
   // 🎯 Динамічні елементи навігації для мобільних
   List<BottomNavigationBarItem> get _navigationItems {
     final items = <BottomNavigationBarItem>[];
-    
+
     if (Globals.profileManager.currentRole == 'admin') {
-      items.add(const BottomNavigationBarItem(
-        icon: Icon(Icons.admin_panel_settings), 
-        label: 'Адмін-панель'
-      ));
+      items.add(
+        const BottomNavigationBarItem(
+          icon: Icon(Icons.admin_panel_settings),
+          label: 'Адмін-панель',
+        ),
+      );
     }
-    
+
     items.addAll([
       const BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Головна'),
-      const BottomNavigationBarItem(icon: Icon(Icons.calendar_month), label: 'Календар'),
-      const BottomNavigationBarItem(icon: Icon(Icons.build), label: 'Інструменти'),
-      const BottomNavigationBarItem(icon: Icon(Icons.article), label: 'Матеріали'),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.calendar_month),
+        label: 'Календар',
+      ),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.build),
+        label: 'Інструменти',
+      ),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.article),
+        label: 'Матеріали',
+      ),
     ]);
-    
+
     return items;
   }
 
   // 🎯 Динамічні елементи меню для широких екранів
   List<PopupMenuEntry<String>> get _menuItems {
     final items = <PopupMenuEntry<String>>[];
-    
+
     if (Globals.profileManager.currentRole == 'admin') {
-      items.add(const PopupMenuItem(
-        value: 'admin_panel', 
-        child: Text('Адмін-панель')
-      ));
+      items.add(
+        const PopupMenuItem(value: 'admin_panel', child: Text('Адмін-панель')),
+      );
     }
-    
+
     items.addAll([
       const PopupMenuItem(value: 'home', child: Text('Головна')),
       const PopupMenuItem(value: 'calendar', child: Text('Календар')),
       const PopupMenuItem(value: 'tools', child: Text('Інструменти')),
       const PopupMenuItem(value: 'materials', child: Text('Матеріали')),
+      const PopupMenuItem(value: 'logout', child: Text('Вийти')),
     ]);
-    
+
     return items;
   }
 
@@ -104,10 +117,10 @@ class _MainScaffoldState extends State<MainScaffold> {
   }
 
   // 🔄 Оновлена логіка навігації з урахуванням динамічних індексів
-  void _onMenuSelect(String value) {
+  Future<void> _onMenuSelect(String value) async {
     final isAdmin = Globals.profileManager.currentRole == 'admin';
     int newIndex = 0;
-    
+
     switch (value) {
       case 'admin_panel':
         newIndex = 0; // Завжди перший, якщо є
@@ -125,10 +138,10 @@ class _MainScaffoldState extends State<MainScaffold> {
         newIndex = isAdmin ? 4 : 3;
         break;
       case 'logout':
-        FirebaseAuth.instance.signOut();
+        await widget.sessionController.signOut();
         return;
     }
-    
+
     setState(() => _currentIndex = newIndex);
   }
 
@@ -138,7 +151,9 @@ class _MainScaffoldState extends State<MainScaffold> {
     if (_currentIndex > maxIndex) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         setState(() {
-          _currentIndex = Globals.profileManager.currentRole == 'admin' ? 1 : 0; // HomePage
+          _currentIndex = Globals.profileManager.currentRole == 'admin'
+              ? 1
+              : 0; // HomePage
         });
       });
     }
@@ -148,7 +163,8 @@ class _MainScaffoldState extends State<MainScaffold> {
   Widget build(BuildContext context) {
     final isMobile = isMobileLayout(context);
     final user = FirebaseAuth.instance.currentUser;
-    final initials = user?.displayName != null && user!.displayName!.contains(' ')
+    final initials =
+        user?.displayName != null && user!.displayName!.contains(' ')
         ? user.displayName!.split(' ').map((e) => e[0]).take(2).join()
         : user?.email?.substring(0, 2).toUpperCase() ?? '?';
 
@@ -162,13 +178,13 @@ class _MainScaffoldState extends State<MainScaffold> {
           children: [
             const SizedBox(width: 8),
             IconButton(
-              icon: CircleAvatar(
-                radius: 14,
-                child: Text(initials),
-              ),
+              icon: CircleAvatar(radius: 14, child: Text(initials)),
               onPressed: () => Navigator.push(
                 context,
-                MaterialPageRoute(builder: (_) => const ProfilePage()),
+                MaterialPageRoute(
+                  builder: (_) =>
+                      ProfilePage(sessionController: widget.sessionController),
+                ),
               ),
             ),
           ],
@@ -180,12 +196,15 @@ class _MainScaffoldState extends State<MainScaffold> {
                     PopupMenuButton<String>(
                       onSelected: (selectedGroupId) async {
                         final groupName = groupNames[selectedGroupId]!;
-                        final role = Globals.profileManager.getRoleInGroup(selectedGroupId);
-                        await Globals.profileManager.setCurrentGroup(selectedGroupId, groupName, role);
-                        if (!mounted) return;
-                        Navigator.of(context).pushReplacement(
-                          MaterialPageRoute(builder: (_) => const EmailCheckPage()),
+                        final role = Globals.profileManager.getRoleInGroup(
+                          selectedGroupId,
                         );
+                        await Globals.profileManager.setCurrentGroup(
+                          selectedGroupId,
+                          groupName,
+                          role,
+                        );
+                        await widget.sessionController.revalidate();
                       },
                       itemBuilder: (context) => groupNames.entries.map((entry) {
                         return PopupMenuItem<String>(
@@ -196,10 +215,14 @@ class _MainScaffoldState extends State<MainScaffold> {
                       child: Row(
                         children: [
                           Text(
-                            Globals.profileManager.currentGroupName ?? 'Оберіть групу',
+                            Globals.profileManager.currentGroupName ??
+                                'Оберіть групу',
                             style: const TextStyle(color: Colors.white),
                           ),
-                          const Icon(Icons.keyboard_arrow_down, color: Colors.white),
+                          const Icon(
+                            Icons.keyboard_arrow_down,
+                            color: Colors.white,
+                          ),
                         ],
                       ),
                     )
@@ -215,22 +238,29 @@ class _MainScaffoldState extends State<MainScaffold> {
           if (!isMobile)
             PopupMenuButton<String>(
               onSelected: _onMenuSelect,
-              itemBuilder: (_) => _menuItems, // 🎯 Використовуємо динамічне меню
+              itemBuilder: (_) =>
+                  _menuItems, // 🎯 Використовуємо динамічне меню
             ),
         ],
       ),
-      body: _pages.isNotEmpty && _currentIndex < _pages.length 
-          ? _pages[_currentIndex] 
-          : const Center(child: CircularProgressIndicator()), // 🛡️ Захист від помилок
+      body: _pages.isNotEmpty && _currentIndex < _pages.length
+          ? _pages[_currentIndex]
+          : const Center(
+              child: CircularProgressIndicator(),
+            ), // 🛡️ Захист від помилок
       bottomNavigationBar: isMobile
           ? BottomNavigationBar(
               backgroundColor: Colors.white,
               selectedItemColor: Colors.blue,
               unselectedItemColor: Colors.grey,
-              currentIndex: _currentIndex.clamp(0, _navigationItems.length - 1), // 🛡️ Безпечний індекс
+              currentIndex: _currentIndex.clamp(
+                0,
+                _navigationItems.length - 1,
+              ), // 🛡️ Безпечний індекс
               onTap: (index) => setState(() => _currentIndex = index),
               items: _navigationItems, // 🎯 Використовуємо динамічні елементи
-              type: BottomNavigationBarType.fixed, // 📱 Для стабільного відображення всіх елементів
+              type: BottomNavigationBarType
+                  .fixed, // 📱 Для стабільного відображення всіх елементів
             )
           : null,
     );

@@ -26,14 +26,19 @@ class CalendarService {
         return [];
       }
 
-      debugPrint('CalendarService: Завантаження занять для групи $currentGroupId від $startDate до $endDate');
+      debugPrint(
+        'CalendarService: Завантаження занять для групи $currentGroupId від $startDate до $endDate',
+      );
 
       // Запит до Firestore
       final querySnapshot = await _firestore
           .collection('lessons')
           .doc(currentGroupId)
           .collection('items')
-          .where('startTime', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where(
+            'startTime',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+          )
           .where('startTime', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
           .orderBy('startTime')
           .get();
@@ -62,14 +67,19 @@ class CalendarService {
         return [];
       }
 
-      debugPrint('CalendarService: Завантаження занять для групи $currentGroupId від $startDate до $endDate');
+      debugPrint(
+        'CalendarService: Завантаження занять для групи $currentGroupId від $startDate до $endDate',
+      );
 
       // Запит до Firestore
       final querySnapshot = await _firestore
           .collection('lessons')
           .doc(currentGroupId)
           .collection('items')
-          .where('startTime', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where(
+            'startTime',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+          )
           .where('startTime', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
           .where('instructorId', isEqualTo: instructorId)
           .orderBy('startTime')
@@ -91,11 +101,15 @@ class CalendarService {
   Future<List<LessonModel>> getLessonsForWeek(DateTime selectedDate) async {
     final startOfWeek = CalendarUtils.getStartOfWeek(selectedDate);
     final endOfWeek = CalendarUtils.getEndOfWeek(selectedDate);
-    
+
     debugPrint('📅 getLessonsForWeek:');
-    debugPrint('  Selected: ${selectedDate.day}.${selectedDate.month}.${selectedDate.year}');
-    debugPrint('  Week: ${startOfWeek.day}.${startOfWeek.month} - ${endOfWeek.day}.${endOfWeek.month}');
-    
+    debugPrint(
+      '  Selected: ${selectedDate.day}.${selectedDate.month}.${selectedDate.year}',
+    );
+    debugPrint(
+      '  Week: ${startOfWeek.day}.${startOfWeek.month} - ${endOfWeek.day}.${endOfWeek.month}',
+    );
+
     return await getLessonsForPeriod(
       startDate: startOfWeek,
       endDate: endOfWeek,
@@ -104,13 +118,14 @@ class CalendarService {
 
   /// Отримати заняття для дня
   Future<List<LessonModel>> getLessonsForDay(DateTime selectedDate) async {
-    final startOfDay = DateTime(selectedDate.year, selectedDate.month, selectedDate.day);
-    final endOfDay = startOfDay.add(const Duration(hours: 23, minutes: 59));
-    
-    return await getLessonsForPeriod(
-      startDate: startOfDay,
-      endDate: endOfDay,
+    final startOfDay = DateTime(
+      selectedDate.year,
+      selectedDate.month,
+      selectedDate.day,
     );
+    final endOfDay = startOfDay.add(const Duration(hours: 23, minutes: 59));
+
+    return await getLessonsForPeriod(startDate: startOfDay, endDate: endOfDay);
   }
 
   /// Створити нове заняття
@@ -134,7 +149,9 @@ class CalendarService {
         'groupId': currentGroupId,
         'groupName': lesson.groupName,
         'unit': lesson.unit,
-        'instructorName': lesson.instructorId.isEmpty ? 'Не призначено' : lesson.instructorName,
+        'instructorName': lesson.instructorId.isEmpty
+            ? 'Не призначено'
+            : lesson.instructorName,
         'instructorId': lesson.instructorId,
         'location': lesson.location,
         'maxParticipants': lesson.maxParticipants,
@@ -145,12 +162,14 @@ class CalendarService {
         'createdBy': currentUser.uid,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
-        'recurrence': lesson.recurrence != null ? {
-        'type': lesson.recurrence!.type,
-        'interval': lesson.recurrence!.interval,
-        'endDate': Timestamp.fromDate(lesson.recurrence!.endDate),
-        'trainingPeriod': lesson.trainingPeriod, 
-        } : null,
+        'recurrence': lesson.recurrence != null
+            ? {
+                'type': lesson.recurrence!.type,
+                'interval': lesson.recurrence!.interval,
+                'endDate': Timestamp.fromDate(lesson.recurrence!.endDate),
+                'trainingPeriod': lesson.trainingPeriod,
+              }
+            : null,
       };
 
       final docRef = await _firestore
@@ -168,7 +187,10 @@ class CalendarService {
   }
 
   /// Оновити заняття
-  Future<bool> updateLesson(String lessonId, Map<String, dynamic> updates) async {
+  Future<bool> updateLesson(
+    String lessonId,
+    Map<String, dynamic> updates,
+  ) async {
     try {
       final currentGroupId = Globals.profileManager.currentGroupId;
       if (currentGroupId == null) return false;
@@ -216,7 +238,7 @@ class CalendarService {
     try {
       final currentGroupId = Globals.profileManager.currentGroupId;
       final currentUser = Globals.firebaseAuth.currentUser;
-      
+
       if (currentGroupId == null || currentUser == null) return false;
 
       final lessonRef = _firestore
@@ -227,7 +249,7 @@ class CalendarService {
 
       await _firestore.runTransaction((transaction) async {
         final lessonDoc = await transaction.get(lessonRef);
-        
+
         if (!lessonDoc.exists) {
           throw Exception('Заняття не знайдено');
         }
@@ -266,7 +288,7 @@ class CalendarService {
     try {
       final currentGroupId = Globals.profileManager.currentGroupId;
       final currentUser = Globals.firebaseAuth.currentUser;
-      
+
       if (currentGroupId == null || currentUser == null) return false;
 
       final lessonRef = _firestore
@@ -277,7 +299,7 @@ class CalendarService {
 
       await _firestore.runTransaction((transaction) async {
         final lessonDoc = await transaction.get(lessonRef);
-        
+
         if (!lessonDoc.exists) {
           throw Exception('Заняття не знайдено');
         }
@@ -298,7 +320,9 @@ class CalendarService {
         });
       });
 
-      debugPrint('CalendarService: Успішно скасовано реєстрацію на заняття $lessonId');
+      debugPrint(
+        'CalendarService: Успішно скасовано реєстрацію на заняття $lessonId',
+      );
       return true;
     } catch (e) {
       debugPrint('CalendarService: Помилка скасування реєстрації: $e');
@@ -310,7 +334,7 @@ class CalendarService {
   bool isUserRegisteredForLesson(LessonModel lesson) {
     final currentUser = Globals.firebaseAuth.currentUser;
     if (currentUser == null) return false;
-    
+
     return lesson.participants.contains(currentUser.uid);
   }
 
@@ -330,7 +354,10 @@ class CalendarService {
           .collection('lessons')
           .doc(currentGroupId)
           .collection('items')
-          .where('startTime', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+          .where(
+            'startTime',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+          )
           .where('startTime', isLessThanOrEqualTo: Timestamp.fromDate(endDate));
 
       if (status != null) {
@@ -340,18 +367,25 @@ class CalendarService {
       final querySnapshot = await query.orderBy('startTime').get();
 
       var lessons = querySnapshot.docs
-          .map((doc) => LessonModel.fromFirestore(doc.data() as Map<String, dynamic>, doc.id))
+          .map(
+            (doc) => LessonModel.fromFirestore(
+              doc.data() as Map<String, dynamic>,
+              doc.id,
+            ),
+          )
           .toList();
 
       // Клієнтська фільтрація для tags та instructors
       if (tags != null && tags.isNotEmpty) {
-        lessons = lessons.where((lesson) =>
-            lesson.tags.any((tag) => tags.contains(tag))).toList();
+        lessons = lessons
+            .where((lesson) => lesson.tags.any((tag) => tags.contains(tag)))
+            .toList();
       }
 
       if (instructors != null && instructors.isNotEmpty) {
-        lessons = lessons.where((lesson) =>
-            instructors.contains(lesson.instructorId)).toList();
+        lessons = lessons
+            .where((lesson) => instructors.contains(lesson.instructorId))
+            .toList();
       }
 
       return lessons;
@@ -375,13 +409,18 @@ class CalendarService {
         .collection('lessons')
         .doc(currentGroupId)
         .collection('items')
-        .where('startTime', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+        .where(
+          'startTime',
+          isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+        )
         .where('startTime', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
         .orderBy('startTime')
         .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => LessonModel.fromFirestore(doc.data(), doc.id))
-            .toList());
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => LessonModel.fromFirestore(doc.data(), doc.id))
+              .toList(),
+        );
   }
 
   /// Отримати статистику занять
@@ -395,11 +434,20 @@ class CalendarService {
     );
 
     final totalLessons = lessons.length;
-    final completedLessons = lessons.where((l) => l.status == 'completed').length;
-    final scheduledLessons = lessons.where((l) => l.status == 'scheduled').length;
-    final cancelledLessons = lessons.where((l) => l.status == 'cancelled').length;
+    final completedLessons = lessons
+        .where((l) => l.status == 'completed')
+        .length;
+    final scheduledLessons = lessons
+        .where((l) => l.status == 'scheduled')
+        .length;
+    final cancelledLessons = lessons
+        .where((l) => l.status == 'cancelled')
+        .length;
 
-    final totalCapacity = lessons.fold<int>(0, (sum, lesson) => sum + lesson.maxParticipants);
+    final totalCapacity = lessons.fold<int>(
+      0,
+      (total, lesson) => total + lesson.maxParticipants,
+    );
 
     return {
       'totalLessons': totalLessons,
@@ -411,7 +459,7 @@ class CalendarService {
   }
 
   /// Взяти заняття на себе (як інструктор)
-Future<bool> takeLesson(String lessonId) async {
+  Future<bool> takeLesson(String lessonId) async {
     try {
       final currentUser = Globals.firebaseAuth.currentUser;
       if (currentUser == null) return false;
@@ -448,18 +496,18 @@ Future<bool> takeLesson(String lessonId) async {
   }
 
   /// Перевірити чи користувач веде це заняття
- bool isUserInstructorForLesson(LessonModel lesson) {
+  bool isUserInstructorForLesson(LessonModel lesson) {
     final currentUser = Globals.firebaseAuth.currentUser;
     if (currentUser == null) return false;
 
     // Перевіряємо і новий спосіб (UID), і старий (ім'я/email) для сумісності
     return lesson.instructorId == currentUser.uid ||
-           lesson.instructorName == currentUser.email ||
-           lesson.instructorName == Globals.profileManager.currentUserName;
+        lesson.instructorName == currentUser.email ||
+        lesson.instructorName == Globals.profileManager.currentUserName;
   }
 
   /// Перевірити чи заняття потребує інструктора
- bool doesLessonNeedInstructor(LessonModel lesson) {
+  bool doesLessonNeedInstructor(LessonModel lesson) {
     return lesson.instructorId.isEmpty;
   }
 }

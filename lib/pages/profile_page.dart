@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+
 import '../globals.dart';
-import 'login_page.dart';
 import '../services/profile_manager.dart';
+import '../services/app_session_controller.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  const ProfilePage({super.key, required this.sessionController});
+
+  final SessionController sessionController;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
@@ -47,14 +49,13 @@ class _ProfilePageState extends State<ProfilePage> {
       }
 
       final profile = Globals.profileManager.profile;
-      
+
       // Заповнюємо контролери
       _firstNameController.text = profile.firstName ?? '';
       _lastNameController.text = profile.lastName ?? '';
       _rankController.text = profile.rank ?? '';
       _positionController.text = profile.position ?? '';
       _phoneController.text = profile.phone ?? '';
-
     } catch (e) {
       if (mounted) {
         Globals.errorNotificationManager.showError(
@@ -84,7 +85,9 @@ class _ProfilePageState extends State<ProfilePage> {
         Globals.errorNotificationManager.showSuccess('Профіль збережено!');
         Navigator.pop(context);
       } else if (mounted) {
-        Globals.errorNotificationManager.showError('Помилка збереження профілю');
+        Globals.errorNotificationManager.showError(
+          'Помилка збереження профілю',
+        );
       }
     } catch (e) {
       if (mounted) {
@@ -122,18 +125,9 @@ class _ProfilePageState extends State<ProfilePage> {
       );
 
       if (shouldSignOut == true) {
-        // Очищуємо дані профілю
-        await Globals.profileManager.clearProfile();
-        
-        // Виходимо з Firebase
-        await FirebaseAuth.instance.signOut();
-        
-        if (mounted) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const LoginPage()),
-            (route) => false,
-          );
-        }
+        await widget.sessionController.signOut();
+        if (!mounted) return;
+        Navigator.of(context).popUntil((route) => route.isFirst);
       }
     } catch (e) {
       if (mounted) {
@@ -154,7 +148,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     final profile = Globals.profileManager.profile;
-    
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Профіль'),
@@ -174,19 +168,19 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             // Заголовок з ініціалами
             _buildProfileHeader(profile),
-            
+
             const SizedBox(height: 24),
-            
+
             // Форма редагування
             _buildEditForm(),
-            
+
             const SizedBox(height: 24),
-            
+
             // Інформація про групи
             _buildGroupsInfo(profile),
-            
+
             const SizedBox(height: 24),
-            
+
             // Кнопки дій
             _buildActionButtons(),
           ],
@@ -214,9 +208,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
             ),
-            
+
             const SizedBox(width: 16),
-            
+
             // Інформація
             Expanded(
               child: Column(
@@ -231,9 +225,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   if (profile.email != null)
                     Text(
                       profile.email!,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey[600],
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
                     ),
                   if (Globals.profileManager.currentGroupName != null)
                     Padding(
@@ -243,7 +237,9 @@ class _ProfilePageState extends State<ProfilePage> {
                           Globals.profileManager.currentGroupName!,
                           style: const TextStyle(fontSize: 12),
                         ),
-                        backgroundColor: Theme.of(context).primaryColor.withOpacity(0.1),
+                        backgroundColor: Theme.of(
+                          context,
+                        ).primaryColor.withOpacity(0.1),
                       ),
                     ),
                 ],
@@ -264,12 +260,12 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             Text(
               'Особиста інформація',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            
+
             TextField(
               controller: _firstNameController,
               decoration: const InputDecoration(
@@ -279,7 +275,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             const SizedBox(height: 16),
-            
+
             TextField(
               controller: _lastNameController,
               decoration: const InputDecoration(
@@ -289,7 +285,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             const SizedBox(height: 16),
-            
+
             TextField(
               controller: _rankController,
               decoration: const InputDecoration(
@@ -299,7 +295,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             const SizedBox(height: 16),
-            
+
             TextField(
               controller: _positionController,
               decoration: const InputDecoration(
@@ -309,7 +305,7 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             const SizedBox(height: 16),
-            
+
             TextField(
               controller: _phoneController,
               decoration: const InputDecoration(
@@ -336,25 +332,26 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             Text(
               'Навчальні групи',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            
+
             ...profile.groups.map((groupId) {
               final role = profile.rolesPerGroup[groupId] ?? 'viewer';
-              final isCurrentGroup = groupId == Globals.profileManager.currentGroupId;
-              
+              final isCurrentGroup =
+                  groupId == Globals.profileManager.currentGroupId;
+
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: isCurrentGroup 
+                  color: isCurrentGroup
                       ? Theme.of(context).primaryColor.withOpacity(0.1)
                       : Colors.grey.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(8),
-                  border: isCurrentGroup 
+                  border: isCurrentGroup
                       ? Border.all(color: Theme.of(context).primaryColor)
                       : null,
                 ),
@@ -367,30 +364,35 @@ class _ProfilePageState extends State<ProfilePage> {
                         size: 20,
                       ),
                     if (isCurrentGroup) const SizedBox(width: 8),
-                    
+
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             groupId,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: isCurrentGroup ? FontWeight.bold : null,
-                            ),
+                            style: Theme.of(context).textTheme.bodyMedium
+                                ?.copyWith(
+                                  fontWeight: isCurrentGroup
+                                      ? FontWeight.bold
+                                      : null,
+                                ),
                           ),
                           Text(
                             'Роль: $role',
-                            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey[600],
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: Colors.grey[600]),
                           ),
                         ],
                       ),
                     ),
-                    
+
                     if (isCurrentGroup)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Theme.of(context).primaryColor,
                           borderRadius: BorderRadius.circular(4),
@@ -422,7 +424,7 @@ class _ProfilePageState extends State<ProfilePage> {
           width: double.infinity,
           child: ElevatedButton.icon(
             onPressed: _isSaving ? null : _saveProfile,
-            icon: _isSaving 
+            icon: _isSaving
                 ? const SizedBox(
                     width: 16,
                     height: 16,
@@ -435,11 +437,11 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
         ),
-        
+
         const SizedBox(height: 16),
         const Divider(),
         const SizedBox(height: 16),
-        
+
         // Кнопка виходу
         SizedBox(
           width: double.infinity,

@@ -47,6 +47,7 @@ dependencies:
   # Системні інструменти
   js: ^0.6.7
   path_provider: ^2.1.2
+  path: ^1.9.0
   open_filex: ^4.3.2
   url_launcher: ^6.2.5
   http: ^1.2.1

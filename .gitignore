@@ -32,6 +32,13 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+/node_modules/
+/backup_*/
+/.firebase/
+/analysis_report_*.txt
+/flutter_project_map.txt
+/1024
+/'$fileId.$extension'
 
 # Symbolication related
 app.*.symbols

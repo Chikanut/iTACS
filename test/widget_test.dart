@@ -1,30 +1,135 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:flutter_application_1/main.dart';
+import 'package:flutter_application_1/pages/auth_gate.dart';
+import 'package:flutter_application_1/services/app_session_controller.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  group('AuthGate session routing', () {
+    testWidgets('shows login when there is no active session', (
+      WidgetTester tester,
+    ) async {
+      final controller = FakeSessionController(
+        initialScreen: SessionScreen.signedOut,
+      );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+      await tester.pumpWidget(buildHarness(controller));
+      await tester.pump();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+      expect(find.text('LOGIN'), findsOneWidget);
+    });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    testWidgets('opens home after bootstrap with a restored session', (
+      WidgetTester tester,
+    ) async {
+      final controller = FakeSessionController(
+        initialScreen: SessionScreen.loading,
+        onInitialize: (controller) async {
+          controller.setScreen(SessionScreen.authenticated);
+        },
+      );
+
+      await tester.pumpWidget(buildHarness(controller));
+      await tester.pump();
+
+      expect(find.text('HOME'), findsOneWidget);
+    });
+
+    testWidgets('shows access denied when validation fails', (
+      WidgetTester tester,
+    ) async {
+      final controller = FakeSessionController(
+        initialScreen: SessionScreen.loading,
+        onInitialize: (controller) async {
+          controller.setScreen(SessionScreen.accessDenied);
+        },
+      );
+
+      await tester.pumpWidget(buildHarness(controller));
+      await tester.pump();
+
+      expect(find.text('DENIED'), findsOneWidget);
+    });
+
+    testWidgets('returns to login after logout from the authenticated state', (
+      WidgetTester tester,
+    ) async {
+      final controller = FakeSessionController(
+        initialScreen: SessionScreen.authenticated,
+      );
+
+      await tester.pumpWidget(buildHarness(controller));
+      await tester.pump();
+
+      expect(find.text('HOME'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('logout-button')));
+      await tester.pump();
+
+      expect(find.text('LOGIN'), findsOneWidget);
+      expect(controller.signOutCalls, 1);
+    });
   });
+}
+
+Widget buildHarness(FakeSessionController controller) {
+  return MaterialApp(
+    home: AuthGate(
+      controller: controller,
+      loadingBuilder: (context, sessionController) =>
+          const Scaffold(body: Center(child: Text('LOADING'))),
+      loginBuilder: (context, sessionController) =>
+          const Scaffold(body: Center(child: Text('LOGIN'))),
+      homeBuilder: (context, sessionController) => Scaffold(
+        body: Center(
+          child: ElevatedButton(
+            key: const Key('logout-button'),
+            onPressed: sessionController.signOut,
+            child: const Text('HOME'),
+          ),
+        ),
+      ),
+      accessDeniedBuilder: (context, sessionController) =>
+          const Scaffold(body: Center(child: Text('DENIED'))),
+    ),
+  );
+}
+
+class FakeSessionController extends SessionController {
+  FakeSessionController({
+    required SessionScreen initialScreen,
+    this.onInitialize,
+  }) : _screen = initialScreen;
+
+  final Future<void> Function(FakeSessionController controller)? onInitialize;
+
+  SessionScreen _screen;
+  int signOutCalls = 0;
+
+  @override
+  SessionScreen get screen => _screen;
+
+  @override
+  Future<void> initialize() async {
+    if (onInitialize != null) {
+      await onInitialize!(this);
+    }
+  }
+
+  @override
+  Future<void> revalidate() async {}
+
+  @override
+  Future<void> signIn(BuildContext context) async {}
+
+  @override
+  Future<void> signOut() async {
+    signOutCalls += 1;
+    setScreen(SessionScreen.signedOut);
+  }
+
+  void setScreen(SessionScreen nextScreen) {
+    _screen = nextScreen;
+    notifyListeners();
+  }
 }
