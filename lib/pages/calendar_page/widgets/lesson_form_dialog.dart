@@ -1166,9 +1166,9 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
 
   String _resolvedInstructorId() {
     if (_canAssignInstructor()) {
-      return _selectedInstructorId;
+      return _normalizeInstructorAssignmentId(_selectedInstructorId);
     }
-    return widget.lesson?.instructorId ?? '';
+    return _normalizeInstructorAssignmentId(widget.lesson?.instructorId ?? '');
   }
 
   String _resolvedInstructorName() {
@@ -1193,5 +1193,13 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     }
     final email = ((member['email'] as String?) ?? '').trim();
     return email.isNotEmpty ? email : 'Без імені';
+  }
+
+  String _normalizeInstructorAssignmentId(String instructorId) {
+    final normalized = instructorId.trim();
+    if (normalized.contains('@')) {
+      return normalized.toLowerCase();
+    }
+    return normalized;
   }
 }

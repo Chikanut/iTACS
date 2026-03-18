@@ -59,6 +59,7 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
   Widget build(BuildContext context) {
     final currentGroupName =
         Globals.profileManager.currentGroupName ?? 'Поточна група';
+    final isCompactLayout = MediaQuery.of(context).size.width < 600;
 
     if (Globals.profileManager.currentGroupId == null) {
       return const Center(child: Text('Спочатку оберіть групу'));
@@ -67,36 +68,80 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              _InfoCard(
-                icon: Icons.groups_2,
-                title: 'Учасники',
-                value: '${_members.length}',
-                subtitle: currentGroupName,
-              ),
-              FilledButton.icon(
-                onPressed: _isCreatingMember ? null : _showAddMemberDialog,
-                icon: _isCreatingMember
-                    ? const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.person_add),
-                label: const Text('Додати людину'),
-              ),
-              IconButton(
-                tooltip: 'Оновити',
-                onPressed: _isLoading ? null : _loadMembers,
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
-          ),
+          padding: EdgeInsets.fromLTRB(16, isCompactLayout ? 12 : 16, 16, 8),
+          child: isCompactLayout
+              ? Row(
+                  children: [
+                    Expanded(
+                      child: _InfoCard(
+                        icon: Icons.groups_2,
+                        title: 'Учасники',
+                        value: '${_members.length}',
+                        subtitle: currentGroupName,
+                        compact: true,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: _isCreatingMember
+                            ? null
+                            : _showAddMemberDialog,
+                        icon: _isCreatingMember
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.person_add, size: 18),
+                        label: const Text('Додати'),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          minimumSize: const Size(0, 48),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Оновити',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: _isLoading ? null : _loadMembers,
+                      icon: const Icon(Icons.refresh),
+                    ),
+                  ],
+                )
+              : Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    _InfoCard(
+                      icon: Icons.groups_2,
+                      title: 'Учасники',
+                      value: '${_members.length}',
+                      subtitle: currentGroupName,
+                    ),
+                    FilledButton.icon(
+                      onPressed: _isCreatingMember
+                          ? null
+                          : _showAddMemberDialog,
+                      icon: _isCreatingMember
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.person_add),
+                      label: const Text('Додати людину'),
+                    ),
+                    IconButton(
+                      tooltip: 'Оновити',
+                      onPressed: _isLoading ? null : _loadMembers,
+                      icon: const Icon(Icons.refresh),
+                    ),
+                  ],
+                ),
         ),
         Expanded(
           child: _isLoading
@@ -253,6 +298,11 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
   Future<void> _showAddMemberDialog() async {
     final formKey = GlobalKey<FormState>();
     final emailController = TextEditingController();
+    final firstNameController = TextEditingController();
+    final lastNameController = TextEditingController();
+    final rankController = TextEditingController();
+    final positionController = TextEditingController();
+    final phoneController = TextEditingController();
     String selectedRole = 'viewer';
 
     final shouldSubmit = await showDialog<bool>(
@@ -266,6 +316,7 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
                 key: formKey,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     TextFormField(
                       controller: emailController,
@@ -288,6 +339,59 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
                         }
                         return null;
                       },
+                    ),
+                    const SizedBox(height: 16),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        'Базові дані (необов\'язково)',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: firstNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Ім\'я',
+                        border: OutlineInputBorder(),
+                      ),
+                      textCapitalization: TextCapitalization.words,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: lastNameController,
+                      decoration: const InputDecoration(
+                        labelText: 'Прізвище',
+                        border: OutlineInputBorder(),
+                      ),
+                      textCapitalization: TextCapitalization.words,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: rankController,
+                      decoration: const InputDecoration(
+                        labelText: 'Звання',
+                        border: OutlineInputBorder(),
+                      ),
+                      textCapitalization: TextCapitalization.words,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: positionController,
+                      decoration: const InputDecoration(
+                        labelText: 'Посада',
+                        border: OutlineInputBorder(),
+                      ),
+                      textCapitalization: TextCapitalization.sentences,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: phoneController,
+                      decoration: const InputDecoration(
+                        labelText: 'Телефон',
+                        border: OutlineInputBorder(),
+                      ),
+                      keyboardType: TextInputType.phone,
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<String>(
@@ -335,12 +439,22 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
 
     if (shouldSubmit != true || !mounted) {
       emailController.dispose();
+      firstNameController.dispose();
+      lastNameController.dispose();
+      rankController.dispose();
+      positionController.dispose();
+      phoneController.dispose();
       return;
     }
 
     final currentGroupId = Globals.profileManager.currentGroupId;
     if (currentGroupId == null) {
       emailController.dispose();
+      firstNameController.dispose();
+      lastNameController.dispose();
+      rankController.dispose();
+      positionController.dispose();
+      phoneController.dispose();
       return;
     }
 
@@ -350,6 +464,11 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
         groupId: currentGroupId,
         email: emailController.text.trim(),
         role: selectedRole,
+        firstName: firstNameController.text,
+        lastName: lastNameController.text,
+        rank: rankController.text,
+        position: positionController.text,
+        phone: phoneController.text,
       );
       await _loadMembers();
       if (!mounted) return;
@@ -369,6 +488,11 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
       );
     } finally {
       emailController.dispose();
+      firstNameController.dispose();
+      lastNameController.dispose();
+      rankController.dispose();
+      positionController.dispose();
+      phoneController.dispose();
       if (mounted) {
         setState(() => _isCreatingMember = false);
       }
@@ -501,50 +625,95 @@ class _InfoCard extends StatelessWidget {
   final String title;
   final String value;
   final String subtitle;
+  final bool compact;
 
   const _InfoCard({
     required this.icon,
     required this.title,
     required this.value,
     required this.subtitle,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 12 : 16,
+        vertical: compact ? 10 : 16,
+      ),
       decoration: BoxDecoration(
         color: AppTheme.surfaceRaised,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppTheme.borderSubtle),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: AppTheme.infoStatus.border),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-              ),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+      child: compact
+          ? Row(
+              children: [
+                Icon(icon, size: 18, color: AppTheme.infoStatus.border),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppTheme.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$value • $subtitle',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Text(
-                subtitle,
-                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-              ),
-            ],
-          ),
-        ],
-      ),
+              ],
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: AppTheme.infoStatus.border),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                    Text(
+                      value,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 }

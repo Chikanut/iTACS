@@ -30,6 +30,9 @@ class _AdminPanelPageState extends State<AdminPanelPage>
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompactMobile = screenWidth < 600;
+
     // Перевіряємо права адміністратора
     final currentRole = Globals.profileManager.currentRole;
     if (currentRole != 'admin') {
@@ -62,30 +65,68 @@ class _AdminPanelPageState extends State<AdminPanelPage>
 
     return Scaffold(
       appBar: AppBar(
+        toolbarHeight: isCompactMobile ? 56 : null,
         title: Row(
           children: [
             Icon(
               Icons.admin_panel_settings,
+              size: isCompactMobile ? 20 : 24,
               color: Theme.of(context).colorScheme.onPrimary,
             ),
-            const SizedBox(width: 8),
-            const Text('Адмін-панель'),
+            SizedBox(width: isCompactMobile ? 6 : 8),
+            Text(
+              'Адмін-панель',
+              style: TextStyle(fontSize: isCompactMobile ? 22 : null),
+            ),
           ],
         ),
         backgroundColor: Theme.of(context).primaryColor,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
         bottom: TabBar(
           controller: _tabController,
+          tabAlignment: TabAlignment.fill,
           indicatorColor: Theme.of(context).colorScheme.onPrimary,
           labelColor: Theme.of(context).colorScheme.onPrimary,
+          indicatorWeight: isCompactMobile ? 2.5 : 3,
+          labelStyle: TextStyle(
+            fontSize: isCompactMobile ? 12 : 14,
+            fontWeight: FontWeight.w600,
+          ),
+          unselectedLabelStyle: TextStyle(
+            fontSize: isCompactMobile ? 12 : 14,
+            fontWeight: FontWeight.w500,
+          ),
+          labelPadding: EdgeInsets.symmetric(
+            horizontal: isCompactMobile ? 6 : 12,
+          ),
           unselectedLabelColor: Theme.of(
             context,
           ).colorScheme.onPrimary.withOpacity(0.7),
-          tabs: const [
-            Tab(icon: Icon(Icons.grid_view), text: 'Відсутності'),
-            Tab(icon: Icon(Icons.group), text: 'Учасники'),
-            Tab(icon: Icon(Icons.campaign), text: 'Сповіщення'),
-            Tab(icon: Icon(Icons.description), text: 'Шаблони'),
+          tabs: [
+            Tab(
+              height: isCompactMobile ? 56 : null,
+              iconMargin: EdgeInsets.only(bottom: isCompactMobile ? 4 : 6),
+              icon: Icon(Icons.grid_view, size: isCompactMobile ? 20 : 24),
+              text: 'Відсутності',
+            ),
+            Tab(
+              height: isCompactMobile ? 56 : null,
+              iconMargin: EdgeInsets.only(bottom: isCompactMobile ? 4 : 6),
+              icon: Icon(Icons.group, size: isCompactMobile ? 20 : 24),
+              text: 'Учасники',
+            ),
+            Tab(
+              height: isCompactMobile ? 56 : null,
+              iconMargin: EdgeInsets.only(bottom: isCompactMobile ? 4 : 6),
+              icon: Icon(Icons.campaign, size: isCompactMobile ? 20 : 24),
+              text: 'Сповіщення',
+            ),
+            Tab(
+              height: isCompactMobile ? 56 : null,
+              iconMargin: EdgeInsets.only(bottom: isCompactMobile ? 4 : 6),
+              icon: Icon(Icons.description, size: isCompactMobile ? 20 : 24),
+              text: 'Шаблони',
+            ),
           ],
         ),
       ),

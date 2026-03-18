@@ -240,8 +240,8 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
               ),
             ],
             rows: _instructors.map((instructor) {
-              final instructorName = instructor['fullName'] as String;
-              final instructorId = instructor['uid'] as String;
+              final instructorName = _memberDisplayName(instructor);
+              final instructorId = _memberAssignmentId(instructor);
 
               return DataRow(
                 cells: [
@@ -320,8 +320,8 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
       margin: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: _instructors.map((instructor) {
-          final instructorName = instructor['fullName'] as String;
-          final instructorId = instructor['uid'] as String;
+          final instructorName = _memberDisplayName(instructor);
+          final instructorId = _memberAssignmentId(instructor);
 
           return Card(
             margin: const EdgeInsets.only(bottom: 12),
@@ -674,6 +674,10 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
 
     for (final lesson in lessons) {
       if (lesson.instructorId.isEmpty) continue;
+      final normalizedInstructorId = _normalizeAssignmentId(
+        lesson.instructorId,
+      );
+      if (normalizedInstructorId.isEmpty) continue;
 
       final lessonDate = DateTime(
         lesson.startTime.year,
@@ -681,12 +685,37 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
         lesson.startTime.day,
       );
 
-      _lessonsGrid.putIfAbsent(lesson.instructorId, () => {});
-      _lessonsGrid[lesson.instructorId]!.putIfAbsent(lessonDate, () => []);
-      _lessonsGrid[lesson.instructorId]![lessonDate]!.add(
+      _lessonsGrid.putIfAbsent(normalizedInstructorId, () => {});
+      _lessonsGrid[normalizedInstructorId]!.putIfAbsent(lessonDate, () => []);
+      _lessonsGrid[normalizedInstructorId]![lessonDate]!.add(
         lesson,
       ); // 🎯 Додаємо весь об'єкт заняття
     }
+  }
+
+  String _memberAssignmentId(Map<String, dynamic> member) {
+    final uid = ((member['uid'] as String?) ?? '').trim();
+    if (uid.isNotEmpty) {
+      return _normalizeAssignmentId(uid);
+    }
+    return _normalizeAssignmentId((member['email'] as String?) ?? '');
+  }
+
+  String _memberDisplayName(Map<String, dynamic> member) {
+    final fullName = ((member['fullName'] as String?) ?? '').trim();
+    if (fullName.isNotEmpty) {
+      return fullName;
+    }
+    final email = ((member['email'] as String?) ?? '').trim();
+    return email.isNotEmpty ? email : 'Без імені';
+  }
+
+  String _normalizeAssignmentId(String value) {
+    final normalized = value.trim();
+    if (normalized.contains('@')) {
+      return normalized.toLowerCase();
+    }
+    return normalized;
   }
 
   void _showLessonDetails(

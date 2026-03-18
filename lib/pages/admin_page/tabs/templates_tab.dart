@@ -47,32 +47,68 @@ class _TemplatesTabState extends State<TemplatesTab> {
 
   @override
   Widget build(BuildContext context) {
+    final isCompactLayout = MediaQuery.of(context).size.width < 600;
+
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              _TemplateStatCard(
-                icon: Icons.description_outlined,
-                title: 'Шаблони',
-                value: '${_templates.length}',
-                subtitle: 'Для поточної групи',
-              ),
-              FilledButton.icon(
-                onPressed: _isSaving ? null : () => _openTemplateDialog(),
-                icon: const Icon(Icons.add),
-                label: const Text('Новий шаблон'),
-              ),
-              IconButton(
-                tooltip: 'Оновити',
-                onPressed: _isLoading ? null : _loadTemplates,
-                icon: const Icon(Icons.refresh),
-              ),
-            ],
-          ),
+          padding: EdgeInsets.fromLTRB(16, isCompactLayout ? 12 : 16, 16, 8),
+          child: isCompactLayout
+              ? Row(
+                  children: [
+                    Expanded(
+                      child: _TemplateStatCard(
+                        icon: Icons.description_outlined,
+                        title: 'Шаблони',
+                        value: '${_templates.length}',
+                        subtitle: 'Для поточної групи',
+                        compact: true,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: _isSaving
+                            ? null
+                            : () => _openTemplateDialog(),
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Новий'),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          minimumSize: const Size(0, 48),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Оновити',
+                      visualDensity: VisualDensity.compact,
+                      onPressed: _isLoading ? null : _loadTemplates,
+                      icon: const Icon(Icons.refresh),
+                    ),
+                  ],
+                )
+              : Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    _TemplateStatCard(
+                      icon: Icons.description_outlined,
+                      title: 'Шаблони',
+                      value: '${_templates.length}',
+                      subtitle: 'Для поточної групи',
+                    ),
+                    FilledButton.icon(
+                      onPressed: _isSaving ? null : () => _openTemplateDialog(),
+                      icon: const Icon(Icons.add),
+                      label: const Text('Новий шаблон'),
+                    ),
+                    IconButton(
+                      tooltip: 'Оновити',
+                      onPressed: _isLoading ? null : _loadTemplates,
+                      icon: const Icon(Icons.refresh),
+                    ),
+                  ],
+                ),
         ),
         Expanded(
           child: _isLoading
@@ -701,43 +737,73 @@ class _TemplateStatCard extends StatelessWidget {
   final String title;
   final String value;
   final String subtitle;
+  final bool compact;
 
   const _TemplateStatCard({
     required this.icon,
     required this.title,
     required this.value,
     required this.subtitle,
+    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.symmetric(
+        horizontal: compact ? 12 : 16,
+        vertical: compact ? 10 : 16,
+      ),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: const TextStyle(fontSize: 12)),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
+      child: compact
+          ? Row(
+              children: [
+                Icon(icon, size: 18),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: const TextStyle(fontSize: 12)),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$value • $subtitle',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Text(subtitle, style: const TextStyle(fontSize: 12)),
-            ],
-          ),
-        ],
-      ),
+              ],
+            )
+          : Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontSize: 12)),
+                    Text(
+                      value,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    Text(subtitle, style: const TextStyle(fontSize: 12)),
+                  ],
+                ),
+              ],
+            ),
     );
   }
 }

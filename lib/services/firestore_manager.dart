@@ -158,6 +158,19 @@ class FirestoreManager {
           role = roleValue['role'] as String? ?? 'viewer';
         }
 
+        final memberData = roleValue is Map<String, dynamic>
+            ? roleValue
+            : const <String, dynamic>{};
+        final fallbackFirstName = (memberData['firstName'] as String?) ?? '';
+        final fallbackLastName = (memberData['lastName'] as String?) ?? '';
+        final fallbackRank = (memberData['rank'] as String?) ?? '';
+        final fallbackPosition = (memberData['position'] as String?) ?? '';
+        final fallbackPhone = (memberData['phone'] as String?) ?? '';
+        final fallbackFullName =
+            '$fallbackFirstName $fallbackLastName'.trim().isNotEmpty
+            ? '$fallbackFirstName $fallbackLastName'.trim()
+            : email.split('@').first;
+
         try {
           // Шукаємо користувача в колекції users за email
           final userSnapshot = await _firestore
@@ -177,13 +190,17 @@ class FirestoreManager {
               'role': role,
               'fullName':
                   userData['fullName'] ??
-                  userData['firstName'] ??
-                  email.split('@').first,
-              'firstName': userData['firstName'] ?? '',
-              'lastName': userData['lastName'] ?? '',
-              'rank': userData['rank'] ?? '',
-              'position': userData['position'] ?? '',
-              'phone': userData['phone'] ?? '',
+                      '${(userData['firstName'] ?? fallbackFirstName).toString()} ${(userData['lastName'] ?? fallbackLastName).toString()}'
+                          .trim()
+                          .isNotEmpty
+                  ? '${(userData['firstName'] ?? fallbackFirstName).toString()} ${(userData['lastName'] ?? fallbackLastName).toString()}'
+                        .trim()
+                  : fallbackFullName,
+              'firstName': userData['firstName'] ?? fallbackFirstName,
+              'lastName': userData['lastName'] ?? fallbackLastName,
+              'rank': userData['rank'] ?? fallbackRank,
+              'position': userData['position'] ?? fallbackPosition,
+              'phone': userData['phone'] ?? fallbackPhone,
             });
           } else {
             // Якщо профіль користувача не знайдено, використовуємо базові дані
@@ -192,12 +209,12 @@ class FirestoreManager {
               'uid': '', // Без UID, якщо профіль не знайдено
               'email': email,
               'role': role,
-              'fullName': email.split('@').first,
-              'firstName': '',
-              'lastName': '',
-              'rank': '',
-              'position': '',
-              'phone': '',
+              'fullName': fallbackFullName,
+              'firstName': fallbackFirstName,
+              'lastName': fallbackLastName,
+              'rank': fallbackRank,
+              'position': fallbackPosition,
+              'phone': fallbackPhone,
             });
           }
         } catch (e) {
@@ -209,12 +226,12 @@ class FirestoreManager {
             'uid': '',
             'email': email,
             'role': role,
-            'fullName': email.split('@').first,
-            'firstName': '',
-            'lastName': '',
-            'rank': '',
-            'position': '',
-            'phone': '',
+            'fullName': fallbackFullName,
+            'firstName': fallbackFirstName,
+            'lastName': fallbackLastName,
+            'rank': fallbackRank,
+            'position': fallbackPosition,
+            'phone': fallbackPhone,
           });
         }
       }
@@ -237,10 +254,17 @@ class FirestoreManager {
   /// Отримати email користувача за його UID (через зворотний пошук)
   Future<String?> getUserEmailByUid(String groupId, String uid) async {
     try {
-      if (uid.isEmpty) return null;
+      final normalizedUid = uid.trim();
+      if (normalizedUid.isEmpty) return null;
+      if (normalizedUid.contains('@')) {
+        return normalizedUid.toLowerCase();
+      }
 
       // Шукаємо користувача в users за UID (document ID)
-      final userDoc = await _firestore.collection('users').doc(uid).get();
+      final userDoc = await _firestore
+          .collection('users')
+          .doc(normalizedUid)
+          .get();
 
       if (userDoc.exists) {
         final userData = userDoc.data() as Map<String, dynamic>;
@@ -276,6 +300,11 @@ class FirestoreManager {
     required String groupId,
     required String email,
     String role = 'viewer',
+    String? firstName,
+    String? lastName,
+    String? rank,
+    String? position,
+    String? phone,
   }) async {
     final normalizedEmail = email.trim().toLowerCase();
     if (normalizedEmail.isEmpty) {
@@ -303,14 +332,40 @@ class FirestoreManager {
       memberUid = userSnapshot.docs.first.id;
     }
 
-    final memberPayload = <String, dynamic>{'role': role};
+    final memberPayload = existingMember is Map<String, dynamic>
+        ? Map<String, dynamic>.from(existingMember)
+        : <String, dynamic>{};
+
+    memberPayload['role'] = role;
     if (memberUid != null && memberUid.isNotEmpty) {
       memberPayload['uid'] = memberUid;
     }
 
+    void setOptionalField(String key, String? value) {
+      if (value == null) {
+        return;
+      }
+      memberPayload[key] = value.trim();
+    }
+
+    setOptionalField('firstName', firstName);
+    setOptionalField('lastName', lastName);
+    setOptionalField('rank', rank);
+    setOptionalField('position', position);
+    setOptionalField('phone', phone);
+
     await groupRef.set({
       'members': {normalizedEmail: memberPayload},
     }, SetOptions(merge: true));
+
+    await _upsertPendingUserProfile(
+      email: normalizedEmail,
+      firstName: firstName,
+      lastName: lastName,
+      rank: rank,
+      position: position,
+      phone: phone,
+    );
   }
 
   Future<void> updateGroupMemberRole({
@@ -568,31 +623,7 @@ class FirestoreManager {
 
     final uid = user.uid;
     final email = user.email!.toLowerCase();
-
-    final docRef = _firestore.collection('users').doc(uid);
-    final docSnap = await docRef.get();
-
-    if (docSnap.exists) {
-      final data = docSnap.data();
-      return data;
-    }
-
-    // Якщо немає — створюємо заглушку
-    final groups = await getUserGroups(email);
-
-    final newData = {
-      'email': email,
-      'groups': groups,
-      'firstName': '',
-      'lastName': '',
-      'rank': '',
-      'position': '',
-      'phone': '',
-      'lastLogin': FieldValue.serverTimestamp(),
-    };
-
-    await docRef.set(newData);
-    return newData;
+    return await _ensureUserDocForAuthenticatedUser(uid: uid, email: email);
   }
 
   Future<bool> ensureUserProfileSynced() async {
@@ -609,27 +640,7 @@ class FirestoreManager {
     final isAllowed = groups.isNotEmpty;
     if (!isAllowed) return false;
 
-    final docRef = _firestore.collection('users').doc(uid);
-    final existingDoc = await docRef.get();
-
-    final baseData = {
-      'email': email,
-      'groups': groups,
-      'lastLogin': FieldValue.serverTimestamp(),
-    };
-
-    if (existingDoc.exists) {
-      await docRef.update(baseData);
-    } else {
-      await docRef.set({
-        ...baseData,
-        'firstName': '',
-        'lastName': '',
-        'rank': '',
-        'position': '',
-        'phone': '',
-      });
-    }
+    await _ensureUserDocForAuthenticatedUser(uid: uid, email: email);
 
     return true;
   }
@@ -684,6 +695,103 @@ class FirestoreManager {
       debugPrint('❌ Помилка оновлення UID в групах: $e');
       // Не кидаємо помилку, щоб не блокувати вхід
     }
+  }
+
+  Future<void> _upsertPendingUserProfile({
+    required String email,
+    String? firstName,
+    String? lastName,
+    String? rank,
+    String? position,
+    String? phone,
+  }) async {
+    final existingDoc = await _findUserDocByEmail(email);
+    final targetDocRef =
+        existingDoc?.reference ?? _firestore.collection('users').doc(email);
+    final existingData = existingDoc?.data() ?? {};
+    final groups = await getUserGroups(email);
+
+    await targetDocRef.set({
+      'email': email,
+      'groups': groups,
+      'firstName': _pickProfileValue(firstName, existingData['firstName']),
+      'lastName': _pickProfileValue(lastName, existingData['lastName']),
+      'rank': _pickProfileValue(rank, existingData['rank']),
+      'position': _pickProfileValue(position, existingData['position']),
+      'phone': _pickProfileValue(phone, existingData['phone']),
+      'profileSeedSource': 'group_member_add',
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  }
+
+  Future<Map<String, dynamic>> _ensureUserDocForAuthenticatedUser({
+    required String uid,
+    required String email,
+  }) async {
+    final docRef = _firestore.collection('users').doc(uid);
+    final docSnap = await docRef.get();
+    final groups = await getUserGroups(email);
+
+    if (docSnap.exists) {
+      await docRef.set({
+        'email': email,
+        'groups': groups,
+        'lastLogin': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
+      final refreshedDoc = await docRef.get();
+      return refreshedDoc.data() ?? {};
+    }
+
+    final pendingDoc = await _findUserDocByEmail(email);
+    final pendingData = pendingDoc?.data() ?? {};
+
+    await docRef.set({
+      'email': email,
+      'groups': groups,
+      'firstName': (pendingData['firstName'] as String?) ?? '',
+      'lastName': (pendingData['lastName'] as String?) ?? '',
+      'rank': (pendingData['rank'] as String?) ?? '',
+      'position': (pendingData['position'] as String?) ?? '',
+      'phone': (pendingData['phone'] as String?) ?? '',
+      'lastLogin': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    if (pendingDoc != null && pendingDoc.id != uid) {
+      await pendingDoc.reference.delete();
+    }
+
+    await updateUserUidInGroups(email, uid);
+
+    final refreshedDoc = await docRef.get();
+    return refreshedDoc.data() ?? {};
+  }
+
+  Future<QueryDocumentSnapshot<Map<String, dynamic>>?> _findUserDocByEmail(
+    String email,
+  ) async {
+    final normalizedEmail = email.trim().toLowerCase();
+    final snapshot = await _firestore
+        .collection('users')
+        .where('email', isEqualTo: normalizedEmail)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) {
+      return null;
+    }
+
+    return snapshot.docs.first;
+  }
+
+  String _pickProfileValue(dynamic candidate, dynamic existing) {
+    final candidateText = (candidate as String?)?.trim();
+    if (candidateText != null && candidateText.isNotEmpty) {
+      return candidateText;
+    }
+
+    final existingText = (existing as String?)?.trim();
+    return existingText ?? '';
   }
 
   Future<Map<String, String>> getGroupNamesForUser(String email) async {

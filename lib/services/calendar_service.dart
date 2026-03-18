@@ -486,8 +486,11 @@ class CalendarService {
     required String instructorName,
   }) async {
     try {
+      final normalizedInstructorId = _normalizeInstructorAssignmentId(
+        instructorId,
+      );
       return await updateLesson(lessonId, {
-        'instructorId': instructorId,
+        'instructorId': normalizedInstructorId,
         'instructorName': instructorName.trim().isEmpty
             ? 'Не призначено'
             : instructorName.trim(),
@@ -536,5 +539,13 @@ class CalendarService {
   /// Перевірити чи заняття потребує інструктора
   bool doesLessonNeedInstructor(LessonModel lesson) {
     return lesson.instructorId.isEmpty;
+  }
+
+  String _normalizeInstructorAssignmentId(String instructorId) {
+    final normalized = instructorId.trim();
+    if (normalized.contains('@')) {
+      return normalized.toLowerCase();
+    }
+    return normalized;
   }
 }

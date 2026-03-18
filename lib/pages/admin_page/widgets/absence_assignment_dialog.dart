@@ -333,10 +333,13 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
       final currentGroupId = Globals.profileManager.currentGroupId;
       if (currentGroupId == null) throw Exception('Група не обрана');
 
-      final instructorEmail = await Globals.firestoreManager.getUserEmailByUid(
-        currentGroupId,
-        widget.instructorId,
-      );
+      final normalizedInstructorId = widget.instructorId.trim();
+      final instructorEmail = normalizedInstructorId.contains('@')
+          ? normalizedInstructorId.toLowerCase()
+          : await Globals.firestoreManager.getUserEmailByUid(
+              currentGroupId,
+              normalizedInstructorId,
+            );
 
       if (instructorEmail == null) {
         throw Exception('Не вдалося знайти email інструктора');
@@ -358,7 +361,7 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
       );
 
       final success = await Globals.absencesService.assignAbsence(
-        instructorId: widget.instructorId,
+        instructorId: normalizedInstructorId,
         instructorName: widget.instructorName,
         instructorEmail: instructorEmail,
         type: _selectedType,
