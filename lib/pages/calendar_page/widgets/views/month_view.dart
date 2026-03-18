@@ -29,12 +29,8 @@ class MonthView extends StatelessWidget {
   Widget build(BuildContext context) {
     final monthStart = CalendarUtils.getStartOfMonth(selectedDate);
     final monthEnd = CalendarUtils.getEndOfMonth(selectedDate);
-
-    // Отримуємо всі дні місяця
-    final daysInMonth = <DateTime>[];
-    for (int i = 0; i < monthEnd.day; i++) {
-      daysInMonth.add(monthStart.add(Duration(days: i)));
-    }
+    final monthGridDays = _buildMonthGridDays(monthStart, monthEnd);
+    final daysInMonth = monthGridDays.whereType<DateTime>().toList();
 
     return RefreshIndicator(
       onRefresh: onRefresh,
@@ -47,7 +43,7 @@ class MonthView extends StatelessWidget {
             const SizedBox(height: 20),
 
             // Календарна сітка
-            _buildCalendarGrid(context, daysInMonth),
+            _buildCalendarGrid(context, monthGridDays),
 
             const SizedBox(height: 20),
 
@@ -78,7 +74,10 @@ class MonthView extends StatelessWidget {
     );
   }
 
-  Widget _buildCalendarGrid(BuildContext context, List<DateTime> daysInMonth) {
+  Widget _buildCalendarGrid(
+    BuildContext context,
+    List<DateTime?> monthGridDays,
+  ) {
     return LayoutBuilder(
       builder: (context, constraints) {
         // Розраховуємо оптимальну висоту клітинки
@@ -103,7 +102,7 @@ class MonthView extends StatelessWidget {
         }
 
         // Розраховуємо кількість рядків
-        final weekRows = (daysInMonth.length / 7).ceil();
+        final weekRows = (monthGridDays.length / 7).ceil();
         final totalRows = weekRows + 1; // +1 для заголовків
         final totalHeight = totalRows * cellHeight;
 
@@ -124,20 +123,41 @@ class MonthView extends StatelessWidget {
               mainAxisSpacing: 0,
               mainAxisExtent: cellHeight,
             ),
-            itemCount: 7 + daysInMonth.length,
+            itemCount: 7 + monthGridDays.length,
             itemBuilder: (context, index) {
               if (index < 7) {
                 return _buildDayHeader(index);
               }
 
               final dayIndex = index - 7;
-              final day = daysInMonth[dayIndex];
+              final day = monthGridDays[dayIndex];
+
+              if (day == null) {
+                return _buildEmptyDayCell();
+              }
+
               return _buildDayCell(context, day, cellHeight);
             },
           ),
         );
       },
     );
+  }
+
+  List<DateTime?> _buildMonthGridDays(DateTime monthStart, DateTime monthEnd) {
+    final leadingEmptyDays = monthStart.weekday - DateTime.monday;
+    final trailingEmptyDays = DateTime.sunday - monthEnd.weekday;
+    final monthGridDays = <DateTime?>[];
+
+    monthGridDays.addAll(List<DateTime?>.filled(leadingEmptyDays, null));
+
+    for (int i = 0; i < monthEnd.day; i++) {
+      monthGridDays.add(monthStart.add(Duration(days: i)));
+    }
+
+    monthGridDays.addAll(List<DateTime?>.filled(trailingEmptyDays, null));
+
+    return monthGridDays;
   }
 
   Widget _buildDayHeader(int index) {
@@ -320,6 +340,15 @@ class MonthView extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyDayCell() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceOverlay,
+        border: Border.all(color: AppTheme.borderSubtle),
       ),
     );
   }
