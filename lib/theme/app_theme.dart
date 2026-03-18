@@ -1,6 +1,25 @@
 import 'package:flutter/material.dart';
 
+enum AppStatusTone { neutral, info, success, warning, danger, accent, weekend }
+
+@immutable
+class AppStatusColors {
+  final Color background;
+  final Color border;
+  final Color foreground;
+  final Color badge;
+
+  const AppStatusColors({
+    required this.background,
+    required this.border,
+    required this.foreground,
+    required this.badge,
+  });
+}
+
 class AppTheme {
+  static const String appVersion = '1.8.0';
+
   // Додатковий акцентний синій колір
   static const Color accentBlue = Color(
     0xFF2563EB,
@@ -76,6 +95,9 @@ class AppTheme {
   static Color get backgroundDark => greyScale.shade900; // Темний фон
   static Color get surfaceDark => greyScale.shade800; // Темна поверхня
   static Color get cardDark => greyScale.shade700; // Темні картки
+  static const Color surfaceRaised = Color(0xFF243247);
+  static const Color surfaceOverlay = Color(0xFF192538);
+  static const Color borderSubtle = Color(0xFF46556C);
 
   // 📝 Текстові кольори (використовуючи greyScale)
   static Color get textPrimary => greyScale.shade50; // Основний текст
@@ -87,6 +109,86 @@ class AppTheme {
   static Color get fileColor => primaryBlue.shade600; // Файли
   static Color get selectedDay =>
       secondaryGreen.shade600; // Вибраний день в календарі
+
+  static const AppStatusColors neutralStatus = AppStatusColors(
+    background: Color(0xFF253246),
+    border: Color(0xFF516178),
+    foreground: Color(0xFFF8FAFC),
+    badge: Color(0xFFCBD5E1),
+  );
+
+  static const AppStatusColors infoStatus = AppStatusColors(
+    background: Color(0xFF17314F),
+    border: Color(0xFF4B8BFF),
+    foreground: Color(0xFFE2EEFF),
+    badge: Color(0xFF93C5FD),
+  );
+
+  static const AppStatusColors successStatus = AppStatusColors(
+    background: Color(0xFF18362E),
+    border: Color(0xFF34D399),
+    foreground: Color(0xFFDCFCE7),
+    badge: Color(0xFF6EE7B7),
+  );
+
+  static const AppStatusColors warningStatus = AppStatusColors(
+    background: Color(0xFF493416),
+    border: Color(0xFFF59E0B),
+    foreground: Color(0xFFFFE7C2),
+    badge: Color(0xFFFCD34D),
+  );
+
+  static const AppStatusColors dangerStatus = AppStatusColors(
+    background: Color(0xFF4A202A),
+    border: Color(0xFFF87171),
+    foreground: Color(0xFFFFE0E6),
+    badge: Color(0xFFFCA5A5),
+  );
+
+  static const AppStatusColors accentStatus = AppStatusColors(
+    background: Color(0xFF372753),
+    border: Color(0xFFC084FC),
+    foreground: Color(0xFFF4E8FF),
+    badge: Color(0xFFD8B4FE),
+  );
+
+  static const AppStatusColors weekendStatus = AppStatusColors(
+    background: Color(0xFF5B1F31),
+    border: Color(0xFF8E314B),
+    foreground: Color(0xFFFFE0E8),
+    badge: Color(0xFFF9A8D4),
+  );
+
+  static AppStatusColors statusColors(AppStatusTone tone) {
+    switch (tone) {
+      case AppStatusTone.info:
+        return infoStatus;
+      case AppStatusTone.success:
+        return successStatus;
+      case AppStatusTone.warning:
+        return warningStatus;
+      case AppStatusTone.danger:
+        return dangerStatus;
+      case AppStatusTone.accent:
+        return accentStatus;
+      case AppStatusTone.weekend:
+        return weekendStatus;
+      case AppStatusTone.neutral:
+        return neutralStatus;
+    }
+  }
+
+  static BoxDecoration statusDecoration(
+    AppStatusTone tone, {
+    double radius = 12,
+  }) {
+    final colors = statusColors(tone);
+    return BoxDecoration(
+      color: colors.background,
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: colors.border.withOpacity(0.75)),
+    );
+  }
 
   // 🎯 Створення ColorScheme
   static ColorScheme get _colorScheme => ColorScheme.dark(
@@ -105,7 +207,7 @@ class AppTheme {
     onSurfaceVariant: textSecondary, // Сірий текст (описи, підписи)
     error: dangerRed, // Червоний для помилок
     onError: textPrimary,
-    outline: const Color(0xFF475569), // Кольір рамок і роздільників
+    outline: borderSubtle, // Кольір рамок і роздільників
     shadow: const Color(0x1A000000),
   );
 
@@ -113,6 +215,39 @@ class AppTheme {
   static ThemeData get darkTheme => ThemeData(
     useMaterial3: true,
     colorScheme: _colorScheme,
+    scaffoldBackgroundColor: backgroundDark,
+    canvasColor: backgroundDark,
+    cardColor: cardDark,
+    splashColor: primaryBlue.shade400.withOpacity(0.12),
+    highlightColor: primaryBlue.shade400.withOpacity(0.06),
+    textTheme: ThemeData.dark().textTheme
+        .apply(bodyColor: textPrimary, displayColor: textPrimary)
+        .copyWith(
+          titleLarge: const TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+          titleMedium: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: textPrimary,
+          ),
+          titleSmall: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: textSecondary,
+          ),
+          bodyLarge: TextStyle(fontSize: 16, color: textPrimary),
+          bodyMedium: TextStyle(fontSize: 14, color: textPrimary),
+          bodySmall: TextStyle(fontSize: 12, color: textSecondary),
+          labelLarge: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: textPrimary,
+          ),
+        ),
+    iconTheme: IconThemeData(color: textSecondary),
 
     // 📱 AppBar стиль
     appBarTheme: AppBarTheme(
@@ -132,7 +267,11 @@ class AppTheme {
       color: cardDark,
       elevation: 2,
       shadowColor: Colors.black.withOpacity(0.1),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: borderSubtle),
+      ),
+      margin: EdgeInsets.zero,
     ),
 
     // 🔘 Elevated Button стиль
@@ -147,18 +286,34 @@ class AppTheme {
       ),
     ),
 
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        backgroundColor: primaryBlue.shade600,
+        foregroundColor: textPrimary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    ),
+
     // 🔲 Text Button стиль
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
-        foregroundColor: primaryBlue.shade500,
+        foregroundColor: primaryBlue.shade300,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    ),
+
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        foregroundColor: textPrimary,
+        side: BorderSide(color: greyScale.shade600),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     ),
 
     // 📝 Input Decoration стиль
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: surfaceDark,
+      fillColor: surfaceOverlay,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(8),
         borderSide: BorderSide(color: greyScale.shade600),
@@ -179,17 +334,52 @@ class AppTheme {
       hintStyle: TextStyle(color: textMuted),
     ),
 
+    chipTheme: ChipThemeData(
+      backgroundColor: surfaceOverlay,
+      selectedColor: primaryBlue.shade700.withOpacity(0.2),
+      secondarySelectedColor: primaryBlue.shade700.withOpacity(0.2),
+      disabledColor: greyScale.shade700,
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: borderSubtle),
+      ),
+      labelStyle: TextStyle(color: textPrimary, fontWeight: FontWeight.w600),
+      secondaryLabelStyle: TextStyle(
+        color: textPrimary,
+        fontWeight: FontWeight.w600,
+      ),
+      brightness: Brightness.dark,
+    ),
+
+    dialogTheme: DialogThemeData(
+      backgroundColor: surfaceRaised,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      titleTextStyle: TextStyle(
+        color: textPrimary,
+        fontSize: 18,
+        fontWeight: FontWeight.w700,
+      ),
+      contentTextStyle: TextStyle(color: textSecondary, fontSize: 14),
+    ),
+
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: surfaceRaised,
+      contentTextStyle: TextStyle(color: textPrimary),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ),
+
+    dividerColor: borderSubtle,
+
     // 🧭 Bottom Navigation стиль
     bottomNavigationBarTheme: BottomNavigationBarThemeData(
-      backgroundColor: surfaceDark,
+      backgroundColor: surfaceOverlay,
       selectedItemColor: secondaryGreen.shade500,
       unselectedItemColor: textMuted,
       type: BottomNavigationBarType.fixed,
       elevation: 8,
     ),
-
-    // 📊 Scaffold стиль
-    scaffoldBackgroundColor: backgroundDark,
 
     // 📱 Lista Tile стиль
     listTileTheme: ListTileThemeData(
@@ -197,8 +387,17 @@ class AppTheme {
       iconColor: textSecondary,
     ),
 
+    tabBarTheme: TabBarThemeData(
+      labelColor: textPrimary,
+      unselectedLabelColor: textSecondary,
+      indicator: UnderlineTabIndicator(
+        borderSide: BorderSide(color: secondaryGreen.shade400, width: 3),
+      ),
+      dividerColor: Colors.transparent,
+    ),
+
     // ⚪ Divider стиль
-    dividerTheme: DividerThemeData(color: greyScale.shade600, thickness: 0.5),
+    dividerTheme: const DividerThemeData(color: borderSubtle, thickness: 0.5),
   );
 
   // 🌟 Світла тема (якщо буде потреба в майбутньому)
@@ -236,6 +435,7 @@ extension AppColors on BuildContext {
   Color get textPrimary => AppTheme.textPrimary;
   Color get textSecondary => AppTheme.textSecondary;
   Color get textMuted => AppTheme.textMuted;
+  AppStatusColors status(AppStatusTone tone) => AppTheme.statusColors(tone);
 }
 
 // 🎨 Extension для швидкого доступу до shade без context

@@ -1,11 +1,11 @@
 {
-    "name": "flutter_application_1",
-    "short_name": "flutter_application_1",
+    "name": "iTACS",
+    "short_name": "iTACS",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0F172A",
+    "theme_color": "#1E3A8A",
+    "description": "Внутрішня платформа GSPP для розкладу, календаря занять, матеріалів і координації навчальних груп.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

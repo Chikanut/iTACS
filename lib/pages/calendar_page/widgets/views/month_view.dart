@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'dart:math' as math;
 import '../../../../models/lesson_model.dart';
+import '../../../../theme/app_theme.dart';
 import '../../calendar_utils.dart';
 
 class MonthView extends StatelessWidget {
@@ -70,7 +71,7 @@ class MonthView extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             _getMonthSummary(),
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
           ),
         ],
       ),
@@ -109,7 +110,8 @@ class MonthView extends StatelessWidget {
         return Container(
           height: totalHeight,
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
+            color: AppTheme.surfaceOverlay,
+            border: Border.all(color: AppTheme.borderSubtle),
             borderRadius: BorderRadius.circular(8),
           ),
           child: GridView.builder(
@@ -149,11 +151,11 @@ class MonthView extends StatelessWidget {
           alignment: Alignment.center,
           padding: EdgeInsets.symmetric(vertical: isSmall ? 4 : 8),
           decoration: BoxDecoration(
-            color: Colors.grey.shade100,
+            color: AppTheme.surfaceRaised,
             border: Border(
-              bottom: BorderSide(color: Colors.grey.shade300),
+              bottom: const BorderSide(color: AppTheme.borderSubtle),
               right: index < 6
-                  ? BorderSide(color: Colors.grey.shade300)
+                  ? const BorderSide(color: AppTheme.borderSubtle)
                   : BorderSide.none,
             ),
           ),
@@ -161,7 +163,9 @@ class MonthView extends StatelessWidget {
             dayNames[index],
             style: TextStyle(
               fontWeight: FontWeight.bold,
-              color: Colors.grey.shade600,
+              color: index >= 5
+                  ? AppTheme.weekendStatus.badge
+                  : AppTheme.textSecondary,
               fontSize: isSmall ? 10 : 12,
             ),
           ),
@@ -173,6 +177,8 @@ class MonthView extends StatelessWidget {
   Widget _buildDayCell(BuildContext context, DateTime day, double cellHeight) {
     final lessonsForDay = getLessonsForSpecificDate(day);
     final isToday = CalendarUtils.isToday(day);
+    final isWeekend =
+        day.weekday == DateTime.saturday || day.weekday == DateTime.sunday;
     final isSelected =
         day.year == selectedDate.year &&
         day.month == selectedDate.month &&
@@ -186,13 +192,17 @@ class MonthView extends StatelessWidget {
       onTap: () => onDateSelected?.call(day),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isSelected
+              ? AppTheme.successStatus.background
+              : isWeekend
+              ? AppTheme.surfaceOverlay
+              : AppTheme.surfaceRaised,
           border: Border.all(
             color: isSelected
-                ? Colors.green
+                ? AppTheme.successStatus.border
                 : isToday
-                ? Theme.of(context).primaryColor
-                : Colors.grey.shade300,
+                ? AppTheme.infoStatus.border
+                : AppTheme.borderSubtle,
             width: (isToday || isSelected) ? 2 : 1,
           ),
           borderRadius: (isToday || isSelected)
@@ -221,10 +231,12 @@ class MonthView extends StatelessWidget {
                           ? FontWeight.bold
                           : FontWeight.normal,
                       color: isSelected
-                          ? Colors.green
+                          ? AppTheme.successStatus.foreground
                           : isToday
-                          ? Theme.of(context).primaryColor
-                          : Colors.black,
+                          ? AppTheme.infoStatus.border
+                          : isWeekend
+                          ? AppTheme.weekendStatus.badge
+                          : AppTheme.textPrimary,
                     ),
                   ),
                   if (lessonsForDay.isNotEmpty)
@@ -234,13 +246,13 @@ class MonthView extends StatelessWidget {
                         vertical: 1,
                       ),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor,
+                        color: AppTheme.infoStatus.border,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
                         lessonsForDay.length.toString(),
                         style: TextStyle(
-                          color: Colors.white,
+                          color: Theme.of(context).colorScheme.onPrimary,
                           fontSize: isTinyCell ? 6 : 8,
                           fontWeight: FontWeight.bold,
                         ),
@@ -267,7 +279,7 @@ class MonthView extends StatelessWidget {
                             vertical: 1,
                           ),
                           decoration: BoxDecoration(
-                            color: readinessStatus.color.withAlpha(100),
+                            color: readinessStatus.color.withOpacity(0.24),
                             borderRadius: BorderRadius.circular(2),
                           ),
                           child: Text(
@@ -275,7 +287,7 @@ class MonthView extends StatelessWidget {
                             style: TextStyle(
                               fontSize: isSmallCell ? 6 : 7,
                               fontWeight: FontWeight.w500,
-                              color: Colors.black87,
+                              color: AppTheme.textPrimary,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -287,7 +299,7 @@ class MonthView extends StatelessWidget {
                           '+${lessonsForDay.length - (isSmallCell ? 2 : 3)} ще',
                           style: TextStyle(
                             fontSize: isSmallCell ? 5 : 6,
-                            color: Colors.grey.shade600,
+                            color: AppTheme.textSecondary,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
@@ -300,7 +312,7 @@ class MonthView extends StatelessWidget {
                   width: 4,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor,
+                    color: AppTheme.infoStatus.border,
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -332,9 +344,9 @@ class MonthView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: AppTheme.surfaceOverlay,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -388,12 +400,10 @@ class MonthView extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor.withOpacity(0.1),
+                        color: AppTheme.infoStatus.background,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: Theme.of(
-                            context,
-                          ).primaryColor.withOpacity(0.3),
+                          color: AppTheme.infoStatus.border.withOpacity(0.6),
                         ),
                       ),
                       child: Text(
@@ -401,7 +411,7 @@ class MonthView extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: Theme.of(context).primaryColor,
+                          color: AppTheme.infoStatus.foreground,
                         ),
                       ),
                     ),
@@ -424,9 +434,9 @@ class MonthView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.surfaceRaised,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.borderSubtle),
       ),
       child: Column(
         children: [
@@ -439,7 +449,7 @@ class MonthView extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             title,
-            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
             textAlign: TextAlign.center,
           ),
         ],

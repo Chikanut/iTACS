@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../globals.dart';
 import '../../../models/instructor_absence.dart';
 import '../../../models/lesson_model.dart';
+import '../../../theme/app_theme.dart';
 import '../widgets/absence_assignment_dialog.dart';
 
 class AbsencesGridTab extends StatefulWidget {
@@ -47,7 +48,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Помилка завантаження даних: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.dangerStatus.border,
           ),
         );
       }
@@ -183,7 +184,8 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade300),
+        color: AppTheme.surfaceOverlay,
+        border: Border.all(color: AppTheme.borderSubtle),
         borderRadius: BorderRadius.circular(8),
       ),
       child: SingleChildScrollView(
@@ -227,8 +229,8 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                           style: TextStyle(
                             fontSize: 10,
                             color: _isWeekend(day)
-                                ? Colors.red
-                                : Colors.grey.shade600,
+                                ? AppTheme.weekendStatus.badge
+                                : AppTheme.textSecondary,
                           ),
                         ),
                       ],
@@ -277,7 +279,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                             borderRadius: BorderRadius.circular(4),
                             border: absence != null || lessons.isNotEmpty
                                 ? Border.all(
-                                    color: Colors.grey.shade400,
+                                    color: AppTheme.borderSubtle,
                                     width: 1,
                                   )
                                 : null,
@@ -370,7 +372,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
               _showCellMenu(context, day, instructorId, instructorName),
           child: Container(
             decoration: BoxDecoration(
-              border: Border.all(color: Colors.grey.shade300),
+              border: Border.all(color: AppTheme.borderSubtle),
               borderRadius: BorderRadius.circular(4),
               color: _getCellBackgroundColor(absence, lessons.isNotEmpty, day),
             ),
@@ -382,7 +384,9 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w500,
-                    color: _isWeekend(day) ? Colors.red : Colors.black87,
+                    color: _isWeekend(day)
+                        ? AppTheme.weekendStatus.foreground
+                        : AppTheme.textPrimary,
                   ),
                 ),
                 if (absence != null || lessons.isNotEmpty)
@@ -410,7 +414,6 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
 
   // 🎨 Допоміжні методи (залишаються без змін)
   List<DateTime> _getDaysInMonth(DateTime month) {
-    final firstDay = DateTime(month.year, month.month, 1);
     final lastDay = DateTime(month.year, month.month + 1, 0);
 
     return List.generate(
@@ -431,27 +434,27 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
     if (absence != null) {
       switch (absence.status) {
         case AbsenceStatus.pending:
-          return Colors.orange.shade100;
+          return AppTheme.warningStatus.background;
         case AbsenceStatus.active:
           return absence.type == AbsenceType.sickLeave
-              ? Colors.red.shade100
-              : Colors.yellow.shade100;
+              ? AppTheme.dangerStatus.background
+              : AppTheme.warningStatus.background;
         case AbsenceStatus.cancelled:
-          return Colors.grey.shade100;
+          return AppTheme.neutralStatus.background;
         case AbsenceStatus.completed:
-          return Colors.green.shade100;
+          return AppTheme.successStatus.background;
       }
     }
 
     if (hasLessons) {
-      return Colors.green.shade50;
+      return AppTheme.successStatus.background.withOpacity(0.8);
     }
 
     if (_isWeekend(day)) {
-      return Colors.grey.shade50;
+      return AppTheme.weekendStatus.background;
     }
 
-    return Colors.transparent;
+    return AppTheme.surfaceRaised;
   }
 
   Color _getCellTextColor(
@@ -462,23 +465,25 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
     if (absence != null) {
       switch (absence.status) {
         case AbsenceStatus.pending:
-          return Colors.orange.shade800;
+          return AppTheme.warningStatus.foreground;
         case AbsenceStatus.active:
           return absence.type == AbsenceType.sickLeave
-              ? Colors.red.shade800
-              : Colors.amber.shade800;
+              ? AppTheme.dangerStatus.foreground
+              : AppTheme.warningStatus.foreground;
         case AbsenceStatus.cancelled:
-          return Colors.grey.shade600;
+          return AppTheme.textSecondary;
         case AbsenceStatus.completed:
-          return Colors.green.shade600;
+          return AppTheme.successStatus.foreground;
       }
     }
 
     if (hasLessons) {
-      return Colors.green.shade800;
+      return AppTheme.successStatus.foreground;
     }
 
-    return _isWeekend(day) ? Colors.red.shade600 : Colors.black87;
+    return _isWeekend(day)
+        ? AppTheme.weekendStatus.foreground
+        : AppTheme.textPrimary;
   }
 
   String _getCellDisplayText(InstructorAbsence? absence, bool hasLessons) {
@@ -519,7 +524,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
             // 🎯 ЗАНЯТТЯ - ПОКАЗУЄМО СПОЧАТКУ
             if (lessons.isNotEmpty) ...[
               ListTile(
-                leading: Icon(Icons.school, color: Colors.blue.shade700),
+                leading: Icon(Icons.school, color: AppTheme.infoStatus.border),
                 title: Text('Заняття (${lessons.length})'),
                 subtitle: Text(lessons.map((l) => l.title).join(', ')),
                 trailing: const Icon(Icons.arrow_forward_ios),
@@ -554,7 +559,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                         icon: const Icon(Icons.check),
                         label: const Text('Підтвердити'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.green,
+                          backgroundColor: AppTheme.successStatus.border,
                         ),
                       ),
                     ),
@@ -568,7 +573,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                         icon: const Icon(Icons.close),
                         label: const Text('Відхилити'),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.red,
+                          backgroundColor: AppTheme.dangerStatus.border,
                         ),
                       ),
                     ),
@@ -586,7 +591,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                     icon: const Icon(Icons.cancel_schedule_send),
                     label: const Text('Скасувати відсутність'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.orange,
+                      backgroundColor: AppTheme.warningStatus.border,
                     ),
                   ),
                 ),
@@ -708,7 +713,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
             ),
             Text(
               'Інструктор: $instructorName',
-              style: const TextStyle(fontSize: 16, color: Colors.grey),
+              style: TextStyle(fontSize: 16, color: AppTheme.textSecondary),
             ),
             const SizedBox(height: 16),
             Flexible(
@@ -722,7 +727,9 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                     child: ListTile(
                       leading: Icon(
                         lesson.isPast ? Icons.check_circle : Icons.schedule,
-                        color: lesson.isPast ? Colors.green : Colors.orange,
+                        color: lesson.isPast
+                            ? AppTheme.successStatus.border
+                            : AppTheme.warningStatus.border,
                       ),
                       title: Text(lesson.title),
                       subtitle: Column(
@@ -738,7 +745,10 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                         ],
                       ),
                       trailing: lesson.isPast
-                          ? const Icon(Icons.done, color: Colors.green)
+                          ? Icon(
+                              Icons.done,
+                              color: AppTheme.successStatus.border,
+                            )
                           : null,
                       onTap: () {
                         Navigator.pop(context);
@@ -814,7 +824,10 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                 padding: const EdgeInsets.all(16),
                 child: Row(
                   children: [
-                    Icon(Icons.check_circle, color: Colors.green.shade600),
+                    Icon(
+                      Icons.check_circle,
+                      color: AppTheme.successStatus.border,
+                    ),
                     const SizedBox(width: 12),
                     const Text('Нема активних відсутностей'),
                   ],
@@ -828,7 +841,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
 
   Widget _buildPendingRequestsCard() {
     return Card(
-      color: Colors.orange.shade50,
+      color: AppTheme.warningStatus.background,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -836,13 +849,16 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
           children: [
             Row(
               children: [
-                Icon(Icons.pending_actions, color: Colors.orange.shade700),
+                Icon(
+                  Icons.pending_actions,
+                  color: AppTheme.warningStatus.border,
+                ),
                 const SizedBox(width: 8),
                 Text(
                   'Запити що очікують (${_pendingRequests.length})',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.orange.shade700,
+                    color: AppTheme.warningStatus.foreground,
                   ),
                 ),
               ],
@@ -859,7 +875,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
 
   Widget _buildCurrentAbsencesCard() {
     return Card(
-      color: Colors.red.shade50,
+      color: AppTheme.dangerStatus.background,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -867,13 +883,13 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
           children: [
             Row(
               children: [
-                Icon(Icons.person_off, color: Colors.red.shade700),
+                Icon(Icons.person_off, color: AppTheme.dangerStatus.border),
                 const SizedBox(width: 8),
                 Text(
                   'Поточні відсутності (${_currentAbsences.length})',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.red.shade700,
+                    color: AppTheme.dangerStatus.foreground,
                   ),
                 ),
               ],
@@ -890,7 +906,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
 
   Widget _buildUpcomingAbsencesCard() {
     return Card(
-      color: Colors.purple.shade50,
+      color: AppTheme.accentStatus.background,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -898,13 +914,13 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
           children: [
             Row(
               children: [
-                Icon(Icons.schedule, color: Colors.purple.shade700),
+                Icon(Icons.schedule, color: AppTheme.accentStatus.border),
                 const SizedBox(width: 8),
                 Text(
                   'Наближаючі відсутності (${_upcomingAbsences.length})',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Colors.purple.shade700,
+                    color: AppTheme.accentStatus.foreground,
                   ),
                 ),
               ],
@@ -927,9 +943,9 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.surfaceRaised,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -951,12 +967,16 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade100,
+                    color: AppTheme.infoStatus.background,
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: const Text(
+                  child: Text(
                     'Адмін',
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: AppTheme.infoStatus.foreground,
+                    ),
                   ),
                 ),
             ],
@@ -964,13 +984,13 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
           const SizedBox(height: 4),
           Text(
             '${DateFormat('dd.MM.yyyy').format(absence.startDate)} - ${DateFormat('dd.MM.yyyy').format(absence.endDate)}',
-            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
           ),
           if (absence.reason?.isNotEmpty == true) ...[
             const SizedBox(height: 4),
             Text(
               'Причина: ${absence.reason}',
-              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
             ),
           ],
           if (showActions) ...[
@@ -983,7 +1003,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                     icon: const Icon(Icons.check, size: 16),
                     label: const Text('Підтвердити'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
+                      backgroundColor: AppTheme.successStatus.border,
                       minimumSize: const Size(0, 32),
                     ),
                   ),
@@ -995,7 +1015,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                     icon: const Icon(Icons.close, size: 16),
                     label: const Text('Відхилити'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
+                      backgroundColor: AppTheme.dangerStatus.border,
                       minimumSize: const Size(0, 32),
                     ),
                   ),
@@ -1010,7 +1030,10 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                 onPressed: () => _cancelAbsence(absence),
                 icon: const Icon(Icons.cancel_schedule_send, size: 16),
                 label: const Text('Скасувати відсутність'),
-                style: OutlinedButton.styleFrom(foregroundColor: Colors.orange),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.warningStatus.border,
+                  side: BorderSide(color: AppTheme.warningStatus.border),
+                ),
               ),
             ),
           ],
@@ -1041,9 +1064,9 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
       _loadData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Запит підтверджено'),
-            backgroundColor: Colors.green,
+            backgroundColor: AppTheme.successStatus.border,
           ),
         );
       }
@@ -1052,7 +1075,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Помилка: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.dangerStatus.border,
           ),
         );
       }
@@ -1065,9 +1088,9 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
       _loadData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Запит відхилено'),
-            backgroundColor: Colors.orange,
+            backgroundColor: AppTheme.warningStatus.border,
           ),
         );
       }
@@ -1076,7 +1099,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Помилка: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.dangerStatus.border,
           ),
         );
       }
@@ -1089,9 +1112,9 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
       _loadData();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Text('Відсутність скасовано'),
-            backgroundColor: Colors.orange,
+            backgroundColor: AppTheme.warningStatus.border,
           ),
         );
       }
@@ -1100,7 +1123,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Помилка: ${e.toString()}'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppTheme.dangerStatus.border,
           ),
         );
       }

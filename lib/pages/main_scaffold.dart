@@ -173,12 +173,19 @@ class _MainScaffoldState extends State<MainScaffold> {
 
     return Scaffold(
       appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        foregroundColor: Theme.of(context).colorScheme.onSurface,
         leading: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             const SizedBox(width: 8),
             IconButton(
-              icon: CircleAvatar(radius: 14, child: Text(initials)),
+              icon: CircleAvatar(
+                radius: 14,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                child: Text(initials),
+              ),
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
@@ -217,11 +224,13 @@ class _MainScaffoldState extends State<MainScaffold> {
                           Text(
                             Globals.profileManager.currentGroupName ??
                                 'Оберіть групу',
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
+                            ),
                           ),
-                          const Icon(
+                          Icon(
                             Icons.keyboard_arrow_down,
-                            color: Colors.white,
+                            color: Theme.of(context).colorScheme.onSurface,
                           ),
                         ],
                       ),
@@ -229,7 +238,9 @@ class _MainScaffoldState extends State<MainScaffold> {
                   else
                     Text(
                       Globals.profileManager.currentGroupName ?? '',
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                     ),
                 ],
               )
@@ -250,9 +261,15 @@ class _MainScaffoldState extends State<MainScaffold> {
             ), // 🛡️ Захист від помилок
       bottomNavigationBar: isMobile
           ? BottomNavigationBar(
-              backgroundColor: Colors.white,
-              selectedItemColor: Colors.blue,
-              unselectedItemColor: Colors.grey,
+              backgroundColor: Theme.of(
+                context,
+              ).bottomNavigationBarTheme.backgroundColor,
+              selectedItemColor: Theme.of(
+                context,
+              ).bottomNavigationBarTheme.selectedItemColor,
+              unselectedItemColor: Theme.of(
+                context,
+              ).bottomNavigationBarTheme.unselectedItemColor,
               currentIndex: _currentIndex.clamp(
                 0,
                 _navigationItems.length - 1,

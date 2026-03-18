@@ -3,7 +3,7 @@
     android:versionCode="1"
     android:versionName="1.0.0">
     <application
-        android:label="temp_app"
+        android:label="iTACS"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

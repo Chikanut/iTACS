@@ -12,7 +12,7 @@ import '../services/reports/quick_report_dialog.dart';
 import '../models/instructor_absence.dart';
 import '../models/group_notification.dart';
 import '../widgets/absence_request_dialog.dart';
-import 'admin_page/admin_panel_page.dart';
+import '../theme/app_theme.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -154,7 +154,7 @@ class _HomePageState extends State<HomePage> {
       greeting = 'Доброго вечора';
     }
 
-    greeting += ' v 1.5.3 ';
+    greeting += ' v ${AppTheme.appVersion} ';
 
     final userName =
         Globals.profileManager.currentUserName ??
@@ -195,9 +195,6 @@ class _HomePageState extends State<HomePage> {
     final upcomingLessons = [..._feed.currentLessons];
 
     // Додаємо завтрашні заняття користувача
-    final tomorrow = DateTime.now().add(const Duration(days: 1));
-    final currentUser = Globals.profileManager.profile.email;
-
     // Тут потрібно буде додати метод для отримання завтрашніх занять користувача
     // Поки що використовуємо існуючі дані
 
@@ -241,6 +238,10 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildAbsencesCard() {
+    final warningColors = AppTheme.statusColors(AppStatusTone.warning);
+    final infoColors = AppTheme.statusColors(AppStatusTone.info);
+    final successColors = AppTheme.statusColors(AppStatusTone.success);
+
     final pendingRequests = _userAbsences
         .where((a) => a.status == AbsenceStatus.pending)
         .toList();
@@ -283,10 +284,9 @@ class _HomePageState extends State<HomePage> {
             if (pendingRequests.isNotEmpty) ...[
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.orange.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.orange.shade200),
+                decoration: AppTheme.statusDecoration(
+                  AppStatusTone.warning,
+                  radius: 12,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,7 +295,7 @@ class _HomePageState extends State<HomePage> {
                       children: [
                         Icon(
                           Icons.schedule,
-                          color: Colors.orange.shade600,
+                          color: warningColors.border,
                           size: 16,
                         ),
                         const SizedBox(width: 4),
@@ -303,7 +303,7 @@ class _HomePageState extends State<HomePage> {
                           '🙋‍♂️ Мої запити:',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: Colors.orange.shade700,
+                            color: warningColors.foreground,
                           ),
                         ),
                       ],
@@ -322,23 +322,22 @@ class _HomePageState extends State<HomePage> {
             if (activeAbsences.isNotEmpty) ...[
               Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.blue.shade200),
+                decoration: AppTheme.statusDecoration(
+                  AppStatusTone.info,
+                  radius: 12,
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.info, color: Colors.blue.shade600, size: 16),
+                        Icon(Icons.info, color: infoColors.border, size: 16),
                         const SizedBox(width: 4),
                         Text(
                           '👮‍♂️ Активні відсутності:',
                           style: TextStyle(
                             fontWeight: FontWeight.w600,
-                            color: Colors.blue.shade700,
+                            color: infoColors.foreground,
                           ),
                         ),
                       ],
@@ -354,19 +353,21 @@ class _HomePageState extends State<HomePage> {
               // Якщо немає жодних відсутностей
               Container(
                 padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.green.shade50,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.green.shade200),
+                decoration: AppTheme.statusDecoration(
+                  AppStatusTone.success,
+                  radius: 12,
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.check_circle, color: Colors.green.shade600),
+                    Icon(Icons.check_circle, color: successColors.border),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         'Наразі відсутності не зареєстровано',
-                        style: TextStyle(fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w500,
+                          color: successColors.foreground,
+                        ),
                       ),
                     ),
                   ],
@@ -409,22 +410,22 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildNotificationItem(GroupNotification notification) {
+    final notificationColor = _notificationColor(notification.type);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _notificationColor(notification.type).withOpacity(0.08),
+        color: notificationColor.background,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: _notificationColor(notification.type).withOpacity(0.25),
-        ),
+        border: Border.all(color: notificationColor.border.withOpacity(0.75)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
             _notificationIcon(notification.type),
-            color: _notificationColor(notification.type),
+            color: notificationColor.border,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -433,17 +434,23 @@ class _HomePageState extends State<HomePage> {
               children: [
                 Text(
                   notification.title,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
+                    color: notificationColor.foreground,
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(notification.message),
+                Text(
+                  notification.message,
+                  style: TextStyle(color: notificationColor.foreground),
+                ),
                 const SizedBox(height: 6),
                 Text(
                   'Активне до ${DateFormat('dd.MM.yyyy HH:mm').format(notification.expiresAt)}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: notificationColor.badge,
+                  ),
                 ),
               ],
             ),
@@ -472,16 +479,16 @@ class _HomePageState extends State<HomePage> {
           if (absence.isAdminAssignment)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Colors.blue.shade100,
-                borderRadius: BorderRadius.circular(4),
+              decoration: AppTheme.statusDecoration(
+                AppStatusTone.info,
+                radius: 6,
               ),
               child: Text(
                 'Адмін',
                 style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
-                  color: Colors.blue.shade700,
+                  color: AppTheme.infoStatus.foreground,
                 ),
               ),
             ),
@@ -513,16 +520,16 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Color _notificationColor(GroupNotificationType type) {
+  AppStatusColors _notificationColor(GroupNotificationType type) {
     switch (type) {
       case GroupNotificationType.announcement:
-        return Colors.blue;
+        return AppTheme.statusColors(AppStatusTone.info);
       case GroupNotificationType.absenceApproved:
-        return Colors.green;
+        return AppTheme.statusColors(AppStatusTone.success);
       case GroupNotificationType.absenceRejected:
-        return Colors.red;
+        return AppTheme.statusColors(AppStatusTone.danger);
       case GroupNotificationType.absenceCancelled:
-        return Colors.orange;
+        return AppTheme.statusColors(AppStatusTone.warning);
     }
   }
 
@@ -615,7 +622,7 @@ class _TomorrowWithoutInstructorCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: Colors.orange.shade50,
+      color: AppTheme.warningStatus.background,
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -623,13 +630,13 @@ class _TomorrowWithoutInstructorCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.warning_amber, color: Colors.orange.shade700),
+                Icon(Icons.warning_amber, color: AppTheme.warningStatus.border),
                 const SizedBox(width: 8),
                 Text(
                   'Завтра без викладача ($tomorrowFormatted)',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
-                    color: Colors.orange.shade700,
+                    color: AppTheme.warningStatus.foreground,
                   ),
                 ),
               ],
@@ -639,7 +646,7 @@ class _TomorrowWithoutInstructorCard extends StatelessWidget {
               (lesson) => _EnhancedLessonListTile(
                 lesson: lesson,
                 showWarning: true,
-                titleColor: Colors.black, // Чорний колір для назви
+                titleColor: AppTheme.warningStatus.foreground,
                 onLessonUpdated:
                     onLessonUpdated, // Передаємо колбек для оновлення
               ),
@@ -1020,7 +1027,7 @@ class _LastUpdatedCard extends StatelessWidget {
           'Оновлено: ${DateFormat('dd.MM.yyyy HH:mm').format(lastUpdated!)}',
           style: Theme.of(
             context,
-          ).textTheme.bodySmall?.copyWith(color: Colors.grey),
+          ).textTheme.bodySmall?.copyWith(color: AppTheme.textMuted),
         ),
       ),
     );
@@ -1044,7 +1051,6 @@ class _EnhancedLessonListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Отримуємо статус заняття
-    final progressStatus = LessonStatusUtils.getProgressStatus(lesson);
     final readinessStatus = LessonStatusUtils.getReadinessStatus(lesson);
 
     // Визначаємо колір фону на основі статусу
@@ -1150,9 +1156,9 @@ class _EnhancedLessonListTile extends StatelessWidget {
                   if (lesson.location.isNotEmpty)
                     Text(
                       lesson.location,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppTheme.textSecondary,
+                      ),
                     ),
                   // Додаємо статус заняття
                   Text(
@@ -1168,7 +1174,11 @@ class _EnhancedLessonListTile extends StatelessWidget {
 
             // Попередження або іконка статусу
             if (showWarning)
-              Icon(Icons.warning, color: Colors.orange[700], size: 20)
+              Icon(
+                Icons.warning,
+                color: AppTheme.warningStatus.border,
+                size: 20,
+              )
             else
               Icon(
                 readinessStatus.icon,

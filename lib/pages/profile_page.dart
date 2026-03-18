@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../globals.dart';
 import '../services/profile_manager.dart';
 import '../services/app_session_controller.dart';
+import '../theme/app_theme.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key, required this.sessionController});
@@ -117,7 +118,9 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.dangerStatus.border,
+              ),
               child: const Text('Вийти'),
             ),
           ],
@@ -198,11 +201,11 @@ class _ProfilePageState extends State<ProfilePage> {
             // Аватар з ініціалами
             CircleAvatar(
               radius: 30,
-              backgroundColor: Theme.of(context).primaryColor,
+              backgroundColor: Theme.of(context).colorScheme.primary,
               child: Text(
                 profile.initials,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onPrimary,
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
                 ),
@@ -225,9 +228,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   if (profile.email != null)
                     Text(
                       profile.email!,
-                      style: Theme.of(
-                        context,
-                      ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: AppTheme.textSecondary,
+                      ),
                     ),
                   if (Globals.profileManager.currentGroupName != null)
                     Padding(
@@ -237,9 +240,8 @@ class _ProfilePageState extends State<ProfilePage> {
                           Globals.profileManager.currentGroupName!,
                           style: const TextStyle(fontSize: 12),
                         ),
-                        backgroundColor: Theme.of(
-                          context,
-                        ).primaryColor.withOpacity(0.1),
+                        backgroundColor: AppTheme.infoStatus.background,
+                        side: BorderSide(color: AppTheme.infoStatus.border),
                       ),
                     ),
                 ],
@@ -348,19 +350,21 @@ class _ProfilePageState extends State<ProfilePage> {
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: isCurrentGroup
-                      ? Theme.of(context).primaryColor.withOpacity(0.1)
-                      : Colors.grey.withOpacity(0.1),
+                      ? AppTheme.infoStatus.background
+                      : AppTheme.neutralStatus.background,
                   borderRadius: BorderRadius.circular(8),
-                  border: isCurrentGroup
-                      ? Border.all(color: Theme.of(context).primaryColor)
-                      : null,
+                  border: Border.all(
+                    color: isCurrentGroup
+                        ? AppTheme.infoStatus.border
+                        : AppTheme.neutralStatus.border,
+                  ),
                 ),
                 child: Row(
                   children: [
                     if (isCurrentGroup)
                       Icon(
                         Icons.check_circle,
-                        color: Theme.of(context).primaryColor,
+                        color: AppTheme.infoStatus.border,
                         size: 20,
                       ),
                     if (isCurrentGroup) const SizedBox(width: 8),
@@ -381,7 +385,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           Text(
                             'Роль: $role',
                             style: Theme.of(context).textTheme.bodySmall
-                                ?.copyWith(color: Colors.grey[600]),
+                                ?.copyWith(color: AppTheme.textSecondary),
                           ),
                         ],
                       ),
@@ -394,13 +398,13 @@ class _ProfilePageState extends State<ProfilePage> {
                           vertical: 4,
                         ),
                         decoration: BoxDecoration(
-                          color: Theme.of(context).primaryColor,
+                          color: AppTheme.infoStatus.border,
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Text(
+                        child: Text(
                           'Поточна',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: Theme.of(context).colorScheme.onPrimary,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                           ),
@@ -450,8 +454,8 @@ class _ProfilePageState extends State<ProfilePage> {
             icon: const Icon(Icons.logout),
             label: const Text('Вийти з акаунту'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
+              backgroundColor: AppTheme.dangerStatus.border,
+              foregroundColor: AppTheme.dangerStatus.foreground,
               padding: const EdgeInsets.symmetric(vertical: 12),
             ),
           ),

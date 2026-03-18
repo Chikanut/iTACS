@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../globals.dart';
+import '../../../theme/app_theme.dart';
 
 class GroupMembersTab extends StatefulWidget {
   const GroupMembersTab({super.key});
@@ -160,8 +161,12 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
                             ),
                           ),
                           if (isCurrentUser)
-                            const Chip(
-                              label: Text('Ви'),
+                            Chip(
+                              label: const Text('Ви'),
+                              backgroundColor: AppTheme.infoStatus.background,
+                              side: BorderSide(
+                                color: AppTheme.infoStatus.border,
+                              ),
                               visualDensity: VisualDensity.compact,
                             ),
                         ],
@@ -169,7 +174,7 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
                       const SizedBox(height: 4),
                       Text(
                         subtitleParts.join(' • '),
-                        style: TextStyle(color: Colors.grey.shade700),
+                        style: TextStyle(color: AppTheme.textSecondary),
                       ),
                     ],
                   ),
@@ -220,7 +225,10 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
                         : const Icon(Icons.delete_outline),
                     label: const Text('Видалити'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
+                      foregroundColor: AppTheme.dangerStatus.border,
+                      side: BorderSide(
+                        color: AppTheme.dangerStatus.border.withOpacity(0.7),
+                      ),
                     ),
                   ),
                 ),
@@ -232,7 +240,7 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   'Власний доступ змінюється поза цією вкладкою, щоб не втратити адмін-права випадково.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                 ),
               ),
             ],
@@ -346,9 +354,9 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
       await _loadMembers();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Людину додано до групи'),
-          backgroundColor: Colors.green,
+          backgroundColor: AppTheme.successStatus.border,
         ),
       );
     } catch (e) {
@@ -356,7 +364,7 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Не вдалося додати людину: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppTheme.dangerStatus.border,
         ),
       );
     } finally {
@@ -381,9 +389,9 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
       await _loadMembers();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Роль оновлено'),
-          backgroundColor: Colors.green,
+          backgroundColor: AppTheme.successStatus.border,
         ),
       );
     } catch (e) {
@@ -391,7 +399,7 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Не вдалося оновити роль: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppTheme.dangerStatus.border,
         ),
       );
     } finally {
@@ -422,7 +430,9 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: Colors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.dangerStatus.border,
+            ),
             child: const Text('Видалити'),
           ),
         ],
@@ -443,9 +453,9 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
       await _loadMembers();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content: Text('Людину видалено з групи'),
-          backgroundColor: Colors.green,
+          backgroundColor: AppTheme.successStatus.border,
         ),
       );
     } catch (e) {
@@ -453,7 +463,7 @@ class _GroupMembersTabState extends State<GroupMembersTab> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Не вдалося видалити людину: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppTheme.dangerStatus.border,
         ),
       );
     } finally {
@@ -504,18 +514,22 @@ class _InfoCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: AppTheme.surfaceRaised,
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.borderSubtle),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon),
+          Icon(icon, color: AppTheme.infoStatus.border),
           const SizedBox(width: 12),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: const TextStyle(fontSize: 12)),
+              Text(
+                title,
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+              ),
               Text(
                 value,
                 style: const TextStyle(
@@ -523,7 +537,10 @@ class _InfoCard extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              Text(subtitle, style: const TextStyle(fontSize: 12)),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
+              ),
             ],
           ),
         ],
@@ -543,7 +560,7 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.group_off, size: 64, color: Colors.grey.shade500),
+            Icon(Icons.group_off, size: 64, color: AppTheme.textMuted),
             const SizedBox(height: 16),
             const Text(
               'У групі поки немає учасників',
@@ -552,7 +569,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Додайте першу людину через кнопку вище.',
-              style: TextStyle(color: Colors.grey.shade700),
+              style: TextStyle(color: AppTheme.textSecondary),
               textAlign: TextAlign.center,
             ),
           ],
