@@ -107,7 +107,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
               height: isCompactMobile ? 56 : null,
               iconMargin: EdgeInsets.only(bottom: isCompactMobile ? 4 : 6),
               icon: Icon(Icons.grid_view, size: isCompactMobile ? 20 : 24),
-              text: 'Відсутності',
+              text: 'Статус',
             ),
             Tab(
               height: isCompactMobile ? 56 : null,

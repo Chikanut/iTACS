@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../globals.dart';
 import '../services/dashboard_service.dart';
 import '../models/lesson_model.dart';
@@ -154,8 +155,6 @@ class _HomePageState extends State<HomePage> {
       greeting = 'Доброго вечора';
     }
 
-    greeting += ' v ${AppTheme.appVersion} ';
-
     final userName =
         Globals.profileManager.currentUserName ??
         user?.displayName ??
@@ -261,7 +260,7 @@ class _HomePageState extends State<HomePage> {
                 Icon(Icons.event_busy, color: Theme.of(context).primaryColor),
                 const SizedBox(width: 8),
                 const Text(
-                  'Мої відсутності',
+                  'Мої запити',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const Spacer(),
@@ -1013,6 +1012,7 @@ class _ReportButton extends StatelessWidget {
 /// Картка з часом останнього оновлення
 class _LastUpdatedCard extends StatelessWidget {
   final DateTime? lastUpdated;
+  static final Uri _githubUri = Uri.parse('https://github.com/Chikanut');
 
   const _LastUpdatedCard({this.lastUpdated});
 
@@ -1022,13 +1022,46 @@ class _LastUpdatedCard extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Center(
-        child: Text(
-          'Оновлено: ${DateFormat('dd.MM.yyyy HH:mm').format(lastUpdated!)}',
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: AppTheme.textMuted),
-        ),
+      child: Column(
+        children: [
+          Text(
+            'Оновлено: ${DateFormat('dd.MM.yyyy HH:mm').format(lastUpdated!)}',
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: AppTheme.textMuted),
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            alignment: WrapAlignment.center,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 8,
+            runSpacing: 4,
+            children: [
+              Text(
+                'Версія ${AppTheme.appVersion}',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppTheme.textMuted),
+              ),
+              Text(
+                'Розробник: Войтович Євген',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: AppTheme.textMuted),
+              ),
+              InkWell(
+                onTap: () => launchUrl(_githubUri),
+                child: Text(
+                  'GitHub',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).primaryColor,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

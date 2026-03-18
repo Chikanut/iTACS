@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../theme/app_theme.dart';
 
 class QuickReportDialog extends StatefulWidget {
   final String reportTitle;
@@ -62,17 +63,17 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
             // Радіо кнопки для стандартних періодів
             _buildPeriodOption(
               value: 'week',
-              title: 'Останній тиждень',
+              title: 'Календарний тиждень',
               subtitle: _getDateRangeText('week'),
             ),
             _buildPeriodOption(
               value: 'month',
-              title: 'Останній місяць',
+              title: 'Календарний місяць',
               subtitle: _getDateRangeText('month'),
             ),
             _buildPeriodOption(
               value: 'quarter',
-              title: 'Останній квартал',
+              title: 'Календарний квартал',
               subtitle: _getDateRangeText('quarter'),
             ),
             _buildPeriodOption(
@@ -148,8 +149,8 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        border: Border.all(color: Colors.grey.shade300),
+        color: AppTheme.surfaceOverlay,
+        border: Border.all(color: AppTheme.borderSubtle),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -160,11 +161,12 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Початкова дата:',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
+                        color: AppTheme.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -180,6 +182,7 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 32),
                         padding: const EdgeInsets.symmetric(horizontal: 8),
+                        foregroundColor: AppTheme.textPrimary,
                       ),
                     ),
                   ],
@@ -190,11 +193,12 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Кінцева дата:',
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
+                        color: AppTheme.textPrimary,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -210,6 +214,7 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
                       style: OutlinedButton.styleFrom(
                         minimumSize: const Size(double.infinity, 32),
                         padding: const EdgeInsets.symmetric(horizontal: 8),
+                        foregroundColor: AppTheme.textPrimary,
                       ),
                     ),
                   ],
@@ -263,28 +268,21 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         minimumSize: Size.zero,
         textStyle: const TextStyle(fontSize: 11),
+        foregroundColor: AppTheme.textPrimary,
       ),
       child: Text(label),
     );
   }
 
   String _getDateRangeText(String period) {
-    final now = DateTime.now();
     final formatter = DateFormat('dd.MM.yyyy');
+    final range = _resolvePeriodRange(period);
 
-    switch (period) {
-      case 'week':
-        final startDate = now.subtract(const Duration(days: 7));
-        return '${formatter.format(startDate)} - ${formatter.format(now)}';
-      case 'month':
-        final startDate = DateTime(now.year, now.month - 1, now.day);
-        return '${formatter.format(startDate)} - ${formatter.format(now)}';
-      case 'quarter':
-        final startDate = now.subtract(const Duration(days: 90));
-        return '${formatter.format(startDate)} - ${formatter.format(now)}';
-      default:
-        return '';
+    if (range == null) {
+      return '';
     }
+
+    return '${_getCalendarPeriodLabel(period, range.$1)}: ${formatter.format(range.$1)} - ${formatter.format(range.$2)}';
   }
 
   Future<void> _selectCustomStartDate() async {
@@ -334,32 +332,61 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
   }
 
   void _onGenerate() {
-    final now = DateTime.now();
-    DateTime startDate, endDate;
+    final range = selectedPeriod == 'custom'
+        ? (customStartDate!, customEndDate!)
+        : _resolvePeriodRange(selectedPeriod);
 
-    switch (selectedPeriod) {
-      case 'week':
-        startDate = now.subtract(const Duration(days: 7));
-        endDate = now;
-        break;
-      case 'month':
-        startDate = DateTime(now.year, now.month - 1, now.day);
-        endDate = now;
-        break;
-      case 'quarter':
-        startDate = now.subtract(const Duration(days: 90));
-        endDate = now;
-        break;
-      case 'custom':
-        startDate = customStartDate!;
-        endDate = customEndDate!;
-        break;
-      default:
-        return;
+    if (range == null) {
+      return;
     }
 
     Navigator.pop(context);
-    widget.onGenerate(startDate, endDate);
+    widget.onGenerate(range.$1, range.$2);
+  }
+
+  (DateTime, DateTime)? _resolvePeriodRange(String period) {
+    final now = DateTime.now();
+
+    switch (period) {
+      case 'week':
+        final startDate = DateTime(
+          now.year,
+          now.month,
+          now.day,
+        ).subtract(Duration(days: now.weekday - 1));
+        return (startDate, startDate.add(const Duration(days: 6)));
+      case 'month':
+        return (
+          DateTime(now.year, now.month, 1),
+          DateTime(now.year, now.month + 1, 0),
+        );
+      case 'quarter':
+        final quarterStartMonth = ((now.month - 1) ~/ 3) * 3 + 1;
+        return (
+          DateTime(now.year, quarterStartMonth, 1),
+          DateTime(now.year, quarterStartMonth + 3, 0),
+        );
+      default:
+        return null;
+    }
+  }
+
+  String _getCalendarPeriodLabel(String period, DateTime startDate) {
+    switch (period) {
+      case 'week':
+        final weekNumber =
+            ((startDate.difference(DateTime(startDate.year, 1, 1)).inDays) ~/
+                7) +
+            1;
+        return 'Календарний тиждень №$weekNumber';
+      case 'month':
+        return 'Календарний місяць ${DateFormat('MMMM', 'uk').format(startDate)}';
+      case 'quarter':
+        final quarterNumber = ((startDate.month - 1) ~/ 3) + 1;
+        return 'Календарний квартал Q$quarterNumber';
+      default:
+        return '';
+    }
   }
 }
 

@@ -6,6 +6,7 @@ import '../../../globals.dart';
 import '../../../models/instructor_absence.dart';
 import '../../../models/lesson_model.dart';
 import '../../../theme/app_theme.dart';
+import '../../calendar_page/widgets/lesson_details_dialog.dart';
 import '../widgets/absence_assignment_dialog.dart';
 
 class AbsencesGridTab extends StatefulWidget {
@@ -724,6 +725,11 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
     String instructorName,
     DateTime date,
   ) {
+    if (lessons.length == 1) {
+      _openLessonDetailsDialog(lessons.first);
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -781,7 +787,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                           : null,
                       onTap: () {
                         Navigator.pop(context);
-                        // Тут можна додати навігацію до деталей заняття
+                        _openLessonDetailsDialog(lesson);
                       },
                     ),
                   );
@@ -791,6 +797,14 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
           ],
         ),
       ),
+    );
+  }
+
+  void _openLessonDetailsDialog(LessonModel lesson) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) =>
+          LessonDetailsDialog(lesson: lesson, onUpdated: _loadData),
     );
   }
 

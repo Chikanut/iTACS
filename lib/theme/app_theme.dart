@@ -18,7 +18,7 @@ class AppStatusColors {
 }
 
 class AppTheme {
-  static const String appVersion = '1.8.0';
+  static const String appVersion = '1.8.3';
 
   // Додатковий акцентний синій колір
   static const Color accentBlue = Color(

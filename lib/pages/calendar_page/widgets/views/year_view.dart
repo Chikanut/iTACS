@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../../../../models/lesson_model.dart';
+import '../../../../theme/app_theme.dart';
 import '../../calendar_utils.dart';
 
 class YearView extends StatelessWidget {
@@ -61,7 +62,7 @@ class YearView extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             _getYearSummary(yearLessons),
-            style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
           ),
         ],
       ),
@@ -131,12 +132,12 @@ class YearView extends StatelessWidget {
           onTap: () => onDateSelected?.call(monthDate),
           child: Container(
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppTheme.surfaceRaised,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: isCurrentMonth
-                    ? Theme.of(context).primaryColor
-                    : Colors.grey.shade300,
+                    ? AppTheme.infoStatus.border
+                    : AppTheme.borderSubtle,
                 width: isCurrentMonth ? 2 : 1,
               ),
               boxShadow: [
@@ -164,8 +165,8 @@ class YearView extends StatelessWidget {
                       fontSize: isNarrow ? 14 : 16,
                       fontWeight: FontWeight.bold,
                       color: isCurrentMonth
-                          ? Theme.of(context).primaryColor
-                          : Colors.black,
+                          ? AppTheme.infoStatus.badge
+                          : AppTheme.textPrimary,
                     ),
                   ),
                   SizedBox(height: isNarrow ? 4 : 8),
@@ -178,13 +179,13 @@ class YearView extends StatelessWidget {
                         vertical: isNarrow ? 4 : 6,
                       ),
                       decoration: BoxDecoration(
-                        color: Theme.of(context).primaryColor,
+                        color: AppTheme.infoStatus.border,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
                         '${monthLessons.length} занять',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: AppTheme.textPrimary,
                           fontSize: isNarrow ? 10 : 12,
                           fontWeight: FontWeight.w500,
                         ),
@@ -198,7 +199,7 @@ class YearView extends StatelessWidget {
                     Text(
                       'Немає занять',
                       style: TextStyle(
-                        color: Colors.grey.shade500,
+                        color: AppTheme.textMuted,
                         fontSize: isNarrow ? 10 : 12,
                       ),
                     ),
@@ -233,14 +234,17 @@ class YearView extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 2),
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.grey.shade100,
+                color: AppTheme.infoStatus.background,
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppTheme.infoStatus.border.withOpacity(0.5),
+                ),
               ),
               child: Text(
                 '${entry.key} (${entry.value})',
                 style: TextStyle(
                   fontSize: 9,
-                  color: Colors.grey.shade700,
+                  color: AppTheme.infoStatus.foreground,
                   fontWeight: FontWeight.w500,
                 ),
                 textAlign: TextAlign.center,
@@ -281,16 +285,20 @@ class YearView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: AppTheme.surfaceOverlay,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.borderSubtle),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Статистика $year року',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textPrimary,
+            ),
           ),
           const SizedBox(height: 16),
 
@@ -370,14 +378,10 @@ class YearView extends StatelessWidget {
                           vertical: 6,
                         ),
                         decoration: BoxDecoration(
-                          color: Theme.of(
-                            context,
-                          ).primaryColor.withOpacity(0.1),
+                          color: AppTheme.infoStatus.background,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: Theme.of(
-                              context,
-                            ).primaryColor.withOpacity(0.3),
+                            color: AppTheme.infoStatus.border.withOpacity(0.6),
                           ),
                         ),
                         child: Text(
@@ -385,7 +389,7 @@ class YearView extends StatelessWidget {
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
-                            color: Theme.of(context).primaryColor,
+                            color: AppTheme.infoStatus.foreground,
                           ),
                         ),
                       ),
@@ -409,9 +413,9 @@ class YearView extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.surfaceRaised,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.borderSubtle),
       ),
       child: Column(
         children: [
@@ -419,12 +423,16 @@ class YearView extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppTheme.textPrimary,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
             title,
-            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+            style: TextStyle(fontSize: 10, color: AppTheme.textSecondary),
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,

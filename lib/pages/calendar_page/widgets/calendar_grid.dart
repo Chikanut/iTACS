@@ -2,8 +2,10 @@
 
 import 'package:flutter/material.dart';
 import '../models/calendar_view_type.dart';
+import '../models/calendar_filters.dart';
 import '../../../models/lesson_model.dart';
 import '../../../services/calendar_service.dart';
+import '../../../globals.dart';
 import '../calendar_utils.dart';
 import 'views/mobile_day_view.dart';
 import 'views/mobile_week_view.dart';
@@ -15,6 +17,7 @@ class CalendarGrid extends StatefulWidget {
   final CalendarViewType viewType;
   final DateTime selectedDate;
   final List<String>? filteredGroups;
+  final CalendarFilters filters;
   final Function(LessonModel)? onLessonTap;
   final Function(DateTime)? onDateSelected;
 
@@ -22,6 +25,7 @@ class CalendarGrid extends StatefulWidget {
     super.key,
     required this.viewType,
     required this.selectedDate,
+    this.filters = CalendarFilters.empty,
     this.filteredGroups,
     this.onLessonTap,
     this.onDateSelected,
@@ -48,7 +52,8 @@ class _CalendarGridState extends State<CalendarGrid> {
   void didUpdateWidget(CalendarGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.selectedDate != widget.selectedDate ||
-        oldWidget.viewType != widget.viewType) {
+        oldWidget.viewType != widget.viewType ||
+        oldWidget.filters != widget.filters) {
       _loadLessons();
     }
   }
@@ -90,6 +95,8 @@ class _CalendarGridState extends State<CalendarGrid> {
           break;
       }
 
+      lessons = _applyFilters(lessons);
+
       if (mounted) {
         setState(() {
           _lessons = lessons;
@@ -112,6 +119,59 @@ class _CalendarGridState extends State<CalendarGrid> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  List<LessonModel> _applyFilters(List<LessonModel> lessons) {
+    final filters = widget.filters;
+    if (!filters.hasActiveFilters) {
+      return lessons;
+    }
+
+    final currentUserId = Globals.profileManager.currentUserId?.trim() ?? '';
+    final currentUserEmail =
+        Globals.profileManager.currentUserEmail?.trim().toLowerCase() ?? '';
+    final currentUserName = Globals.profileManager.currentUserName.trim();
+
+    return lessons.where((lesson) {
+      if (filters.showMineOnly) {
+        final instructorId = lesson.instructorId.trim();
+        final instructorName = lesson.instructorName.trim();
+        final matchesCurrentUser =
+            (currentUserId.isNotEmpty && instructorId == currentUserId) ||
+            (currentUserEmail.isNotEmpty &&
+                instructorId.toLowerCase() == currentUserEmail) ||
+            (currentUserName.isNotEmpty && instructorName == currentUserName);
+        if (!matchesCurrentUser) {
+          return false;
+        }
+      }
+
+      if (filters.userIds.isNotEmpty &&
+          !_matchesSelectedUser(filters.userIds, lesson.instructorId.trim())) {
+        return false;
+      }
+
+      if (filters.templateTitles.isNotEmpty &&
+          !filters.templateTitles.contains(lesson.title.trim())) {
+        return false;
+      }
+
+      return true;
+    }).toList();
+  }
+
+  bool _matchesSelectedUser(Set<String> selectedUsers, String instructorId) {
+    for (final selectedUser in selectedUsers) {
+      final variants = selectedUser
+          .split('|')
+          .map((value) => value.trim().toLowerCase())
+          .where((value) => value.isNotEmpty);
+      if (variants.contains(instructorId.trim().toLowerCase())) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   // Методи для отримання занять по датах

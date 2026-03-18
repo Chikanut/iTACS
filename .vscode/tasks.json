@@ -18,6 +18,12 @@
       "problemMatcher": []
     },
     {
+      "label": "BuildWeb",
+      "type": "shell",
+      "command": "flutter build web",
+      "problemMatcher": []
+    },
+    {
       "label": "DeployFunctionsBlaze",
       "type": "shell",
       "command": "firebase deploy --only functions",

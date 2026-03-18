@@ -189,7 +189,6 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   }
 
   void _loadUserDefaults() {
-    // TODO: Завантажити дефолтні значення з профілю користувача
     final currentGroup = Globals.profileManager.currentGroupName;
     if (currentGroup != null) {
       _unitController.text = currentGroup;
