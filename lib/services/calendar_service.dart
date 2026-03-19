@@ -8,6 +8,20 @@ import '../pages/calendar_page/calendar_utils.dart';
 
 class CalendarService {
   static final CalendarService _instance = CalendarService._internal();
+  static const Set<String> _acknowledgementResetFields = {
+    'startTime',
+    'endTime',
+    'location',
+    'unit',
+    'trainingPeriod',
+    'description',
+    'tags',
+    'instructorId',
+    'instructorName',
+    'instructorIds',
+    'instructorNames',
+  };
+
   factory CalendarService() => _instance;
   CalendarService._internal();
 
@@ -149,6 +163,8 @@ class CalendarService {
         'createdBy': currentUser.uid,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
+        'acknowledgementResetAt': FieldValue.serverTimestamp(),
+        'instructorAcknowledgements': <String, dynamic>{},
         'trainingPeriod': lesson.trainingPeriod,
         'recurrence': lesson.recurrence != null
             ? {
@@ -173,9 +189,9 @@ class CalendarService {
     }
   }
 
-  Future<LessonModel?> getLessonById(String lessonId) async {
+  Future<LessonModel?> getLessonById(String lessonId, {String? groupId}) async {
     try {
-      final currentGroupId = Globals.profileManager.currentGroupId;
+      final currentGroupId = groupId ?? Globals.profileManager.currentGroupId;
       if (currentGroupId == null) return null;
 
       final lessonDoc = await _firestore
@@ -206,6 +222,9 @@ class CalendarService {
       final currentGroupId = Globals.profileManager.currentGroupId;
       if (currentGroupId == null) return false;
 
+      if (_shouldResetAcknowledgements(updates.keys)) {
+        updates['acknowledgementResetAt'] = FieldValue.serverTimestamp();
+      }
       updates['updatedAt'] = FieldValue.serverTimestamp();
 
       await _firestore
@@ -643,16 +662,115 @@ class CalendarService {
         lesson.hasInstructorName(currentUserName);
   }
 
+  String? getCurrentUserPrimaryAssignmentId() {
+    final currentUser = Globals.firebaseAuth.currentUser;
+    if (currentUser == null) return null;
+
+    final normalizedUid = _normalizeInstructorAssignmentId(currentUser.uid);
+    if (normalizedUid.isNotEmpty) {
+      return normalizedUid;
+    }
+
+    final normalizedEmail = _normalizeInstructorAssignmentId(
+      currentUser.email ?? '',
+    );
+    return normalizedEmail.isNotEmpty ? normalizedEmail : null;
+  }
+
+  List<String> getCurrentUserAssignmentCandidates() {
+    final currentUser = Globals.firebaseAuth.currentUser;
+    if (currentUser == null) return const [];
+
+    final candidates = <String>[];
+    final normalizedUid = _normalizeInstructorAssignmentId(currentUser.uid);
+    if (normalizedUid.isNotEmpty) {
+      candidates.add(normalizedUid);
+    }
+
+    final normalizedEmail = _normalizeInstructorAssignmentId(
+      currentUser.email ?? '',
+    );
+    if (normalizedEmail.isNotEmpty && !candidates.contains(normalizedEmail)) {
+      candidates.add(normalizedEmail);
+    }
+
+    return candidates;
+  }
+
+  String? getCurrentUserAssignmentIdForLesson(LessonModel lesson) {
+    for (final candidate in getCurrentUserAssignmentCandidates()) {
+      if (lesson.hasInstructorId(candidate)) {
+        return candidate;
+      }
+    }
+    return null;
+  }
+
+  bool isLessonCreatedByCurrentUser(LessonModel lesson) {
+    final currentUser = Globals.firebaseAuth.currentUser;
+    return currentUser != null && lesson.createdBy.trim() == currentUser.uid;
+  }
+
+  Future<bool> acknowledgeLesson(String lessonId) async {
+    try {
+      final currentGroupId = Globals.profileManager.currentGroupId;
+      final currentUser = Globals.firebaseAuth.currentUser;
+      if (currentGroupId == null || currentUser == null) return false;
+
+      final lesson = await getLessonById(lessonId);
+      if (lesson == null) return false;
+
+      final assignmentId = getCurrentUserAssignmentIdForLesson(lesson);
+      if (assignmentId == null || !lesson.hasInstructorId(assignmentId)) {
+        return false;
+      }
+
+      final updatedAcknowledgements = lesson.instructorAcknowledgements.map(
+        (key, value) => MapEntry(key, value.toFirestore()),
+      );
+      final acknowledgedByName = Globals.profileManager.currentUserName.trim();
+      final fallbackName = currentUser.email?.trim() ?? 'Викладач';
+
+      updatedAcknowledgements[assignmentId] = LessonAcknowledgementRecord(
+        acknowledgedAt: DateTime.now(),
+        acknowledgedByUid: currentUser.uid,
+        acknowledgedByName: acknowledgedByName.isNotEmpty
+            ? acknowledgedByName
+            : fallbackName,
+      ).toFirestore();
+
+      final updates = <String, dynamic>{
+        'instructorAcknowledgements': updatedAcknowledgements,
+      };
+
+      if (lesson.acknowledgementResetAt == null) {
+        updates['acknowledgementResetAt'] = Timestamp.fromDate(
+          lesson.effectiveAcknowledgementResetAt,
+        );
+      }
+
+      return await updateLesson(lessonId, updates);
+    } catch (e) {
+      debugPrint('CalendarService: Помилка підтвердження ознайомлення: $e');
+      return false;
+    }
+  }
+
   /// Перевірити чи заняття потребує інструктора
   bool doesLessonNeedInstructor(LessonModel lesson) {
     return !lesson.hasInstructors;
   }
 
-  String _normalizeInstructorAssignmentId(String instructorId) {
-    final normalized = instructorId.trim();
-    if (normalized.contains('@')) {
-      return normalized.toLowerCase();
+  bool _shouldResetAcknowledgements(Iterable<String> fields) {
+    for (final field in fields) {
+      if (_acknowledgementResetFields.contains(field)) {
+        return true;
+      }
     }
-    return normalized;
+    return false;
+  }
+
+  String _normalizeInstructorAssignmentId(String instructorId) {
+    return LessonModel.normalizeInstructorAssignmentId(instructorId);
   }
 }

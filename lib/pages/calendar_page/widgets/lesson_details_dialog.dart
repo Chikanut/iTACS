@@ -24,17 +24,19 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   bool _isRegistered = false;
   bool _isLoadingInstructors = false;
   List<Map<String, dynamic>> _availableInstructors = [];
+  late LessonModel _lesson;
 
   @override
   void initState() {
     super.initState();
-    _isRegistered = _calendarService.isUserRegisteredForLesson(widget.lesson);
+    _lesson = widget.lesson;
+    _isRegistered = _calendarService.isUserRegisteredForLesson(_lesson);
     _loadAssignableInstructors();
   }
 
   @override
   Widget build(BuildContext context) {
-    final lesson = widget.lesson;
+    final lesson = _lesson;
     final status = LessonStatusUtils.getProgressStatus(lesson);
 
     return Dialog(
@@ -163,7 +165,12 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                     // Учасники
                     _buildParticipantsSection(lesson),
 
-                    const SizedBox(height: 16),
+                    if (_shouldShowCurrentUserAcknowledgementSection(
+                      lesson,
+                    )) ...[
+                      const SizedBox(height: 16),
+                      _buildCurrentUserAcknowledgementSection(lesson),
+                    ],
 
                     // Теги
                     if (lesson.tags.isNotEmpty) ...[
@@ -196,6 +203,11 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
 
                     // Статус
                     _buildStatusSection(lesson, status),
+
+                    if (_canAssignOthers() && lesson.hasInstructors) ...[
+                      const SizedBox(height: 16),
+                      _buildInstructorAcknowledgementsSection(lesson),
+                    ],
                   ],
                 ),
               ),
@@ -399,15 +411,193 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
     );
   }
 
+  Widget _buildCurrentUserAcknowledgementSection(LessonModel lesson) {
+    final assignmentId = _calendarService.getCurrentUserAssignmentIdForLesson(
+      lesson,
+    );
+    final status = assignmentId != null
+        ? LessonStatusUtils.getAcknowledgementStatusForInstructor(
+            lesson,
+            instructorAssignmentId: assignmentId,
+            instructorIdentityCandidates: _calendarService
+                .getCurrentUserAssignmentCandidates(),
+          )
+        : LessonAcknowledgementStatus.notRequired;
+    final progressStatus = LessonStatusUtils.getProgressStatus(lesson);
+    final record = assignmentId != null
+        ? LessonStatusUtils.getAcknowledgementRecordForInstructor(
+            lesson,
+            instructorAssignmentId: assignmentId,
+            instructorIdentityCandidates: _calendarService
+                .getCurrentUserAssignmentCandidates(),
+          )
+        : null;
+    final subtitle = assignmentId != null
+        ? LessonStatusUtils.getAcknowledgementStatusText(
+            lesson,
+            instructorAssignmentId: assignmentId,
+            instructorIdentityCandidates: _calendarService
+                .getCurrentUserAssignmentCandidates(),
+            acknowledgedAtFormatter: DateFormat('dd.MM.yyyy HH:mm'),
+          )
+        : status.label;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: status.color.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: status.color.withOpacity(0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(status.icon, color: status.color, size: 20),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Мій статус ознайомлення',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: status.color,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInstructorAcknowledgementsSection(LessonModel lesson) {
+    final dateFormatter = DateFormat('dd.MM.yyyy HH:mm');
+    final assignments = lesson.instructorAssignmentsById.entries.toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Ознайомлення викладачів',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        ...assignments.map((entry) {
+          final identityCandidates = _identityCandidatesForInstructor(
+            entry.key,
+          );
+          final status =
+              LessonStatusUtils.getAcknowledgementStatusForInstructor(
+                lesson,
+                instructorAssignmentId: entry.key,
+                instructorIdentityCandidates: identityCandidates,
+              );
+          final record =
+              LessonStatusUtils.getAcknowledgementRecordForInstructor(
+                lesson,
+                instructorAssignmentId: entry.key,
+                instructorIdentityCandidates: identityCandidates,
+              );
+          final subtitle = LessonStatusUtils.getAcknowledgementStatusText(
+            lesson,
+            instructorAssignmentId: entry.key,
+            instructorIdentityCandidates: identityCandidates,
+            acknowledgedAtFormatter: dateFormatter,
+          );
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: status.color.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: status.color.withOpacity(0.25)),
+            ),
+            child: Row(
+              children: [
+                Icon(status.icon, color: status.color, size: 18),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        entry.value,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: status.color,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        }),
+      ],
+    );
+  }
+
   Widget _buildActionButtons(LessonModel lesson) {
     final canEdit = _canEditLesson();
     final needsInstructor = _calendarService.doesLessonNeedInstructor(lesson);
     final isUserInstructor = _calendarService.isUserInstructorForLesson(lesson);
     final canTakeLesson = _canTakeLesson(); // Перевірка ролі editor/admin
     final canAssignOthers = _canAssignOthers();
+    final currentAssignmentId = _calendarService
+        .getCurrentUserAssignmentIdForLesson(lesson);
+    final acknowledgementStatus = currentAssignmentId != null
+        ? LessonStatusUtils.getAcknowledgementStatusForInstructor(
+            lesson,
+            instructorAssignmentId: currentAssignmentId,
+            instructorIdentityCandidates: _calendarService
+                .getCurrentUserAssignmentCandidates(),
+          )
+        : LessonAcknowledgementStatus.notRequired;
 
     return Column(
       children: [
+        if (isUserInstructor &&
+            LessonStatusUtils.getProgressStatus(lesson) !=
+                LessonProgressStatus.completed &&
+            (acknowledgementStatus == LessonAcknowledgementStatus.pending ||
+                acknowledgementStatus ==
+                    LessonAcknowledgementStatus.urgent)) ...[
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: _isLoading ? null : _acknowledgeLesson,
+              icon: _isLoading
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.visibility, size: 16),
+              label: const Text('Ознайомитись'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: acknowledgementStatus.color,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+        ],
+
         // Кнопки для викладачів
         if (canTakeLesson) ...[
           if (!isUserInstructor)
@@ -570,7 +760,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
     setState(() => _isLoading = true);
 
     try {
-      final success = await _calendarService.takeLesson(widget.lesson.id);
+      final success = await _calendarService.takeLesson(_lesson.id);
       if (success && mounted) {
         // 👈 Закриваємо діалог і оновлюємо календар
         Navigator.of(context).pop();
@@ -581,9 +771,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(
-                  'Ви взяли заняття "${widget.lesson.title}" на себе',
-                ),
+                content: Text('Ви взяли заняття "${_lesson.title}" на себе'),
                 backgroundColor: Colors.green,
               ),
             );
@@ -605,7 +793,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
     setState(() => _isLoading = true);
 
     try {
-      final success = await _calendarService.releaseLesson(widget.lesson.id);
+      final success = await _calendarService.releaseLesson(_lesson.id);
       if (success && mounted) {
         // 👈 Закриваємо діалог і оновлюємо календар
         Navigator.of(context).pop();
@@ -615,9 +803,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(
-                  'Ви відмовились від заняття "${widget.lesson.title}"',
-                ),
+                content: Text('Ви відмовились від заняття "${_lesson.title}"'),
                 backgroundColor: Colors.orange,
               ),
             );
@@ -642,7 +828,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
     if (!mounted) return;
 
     final availableOptions = _availableInstructorOptions();
-    final selectedInstructorIds = {...widget.lesson.instructorIds};
+    final selectedInstructorIds = {..._lesson.instructorIds};
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -704,7 +890,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
           .toList();
 
       final success = await _calendarService.assignLessonInstructors(
-        widget.lesson.id,
+        _lesson.id,
         instructorIds: selectedInstructorIds.toList(),
         instructorNames: selectedNames,
       );
@@ -718,8 +904,8 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
               SnackBar(
                 content: Text(
                   selectedInstructorIds.isEmpty
-                      ? 'Для заняття "${widget.lesson.title}" очищено список викладачів'
-                      : 'Для заняття "${widget.lesson.title}" оновлено список викладачів',
+                      ? 'Для заняття "${_lesson.title}" очищено список викладачів'
+                      : 'Для заняття "${_lesson.title}" оновлено список викладачів',
                 ),
                 backgroundColor: Colors.green,
               ),
@@ -748,7 +934,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
 
     try {
       final success = await _calendarService.unassignLessonInstructor(
-        widget.lesson.id,
+        _lesson.id,
       );
 
       if (success && mounted) {
@@ -758,9 +944,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text(
-                  'Викладача з заняття "${widget.lesson.title}" знято',
-                ),
+                content: Text('Викладача з заняття "${_lesson.title}" знято'),
                 backgroundColor: Colors.orange,
               ),
             );
@@ -803,11 +987,11 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
       context: context,
       builder: (context) => LessonFormDialog(
         initialDate: DateTime(
-          widget.lesson.startTime.year,
-          widget.lesson.startTime.month,
-          widget.lesson.startTime.day,
+          _lesson.startTime.year,
+          _lesson.startTime.month,
+          _lesson.startTime.day,
         ),
-        initialStartTime: TimeOfDay.fromDateTime(widget.lesson.startTime),
+        initialStartTime: TimeOfDay.fromDateTime(_lesson.startTime),
         onSaved: () {
           widget.onUpdated?.call();
         },
@@ -821,23 +1005,21 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
 
     return currentRole == 'admin' ||
         currentRole == 'editor' ||
-        widget.lesson.createdBy == currentUser?.uid;
+        _lesson.createdBy == currentUser?.uid;
   }
 
   Future<void> _registerForLesson() async {
     setState(() => _isLoading = true);
 
     try {
-      final success = await _calendarService.registerForLesson(
-        widget.lesson.id,
-      );
+      final success = await _calendarService.registerForLesson(_lesson.id);
       if (success && mounted) {
         setState(() => _isRegistered = true);
         widget.onUpdated?.call();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Успішно зареєстровано на заняття "${widget.lesson.title}"',
+              'Успішно зареєстровано на заняття "${_lesson.title}"',
             ),
             backgroundColor: Colors.green,
           ),
@@ -861,17 +1043,13 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
     setState(() => _isLoading = true);
 
     try {
-      final success = await _calendarService.unregisterFromLesson(
-        widget.lesson.id,
-      );
+      final success = await _calendarService.unregisterFromLesson(_lesson.id);
       if (success && mounted) {
         setState(() => _isRegistered = false);
         widget.onUpdated?.call();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Реєстрацію на заняття "${widget.lesson.title}" скасовано',
-            ),
+            content: Text('Реєстрацію на заняття "${_lesson.title}" скасовано'),
             backgroundColor: Colors.orange,
           ),
         );
@@ -895,7 +1073,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
     showDialog(
       context: context,
       builder: (context) => LessonFormDialog(
-        lesson: widget.lesson, // 👈 передаємо заняття для редагування
+        lesson: _lesson, // 👈 передаємо заняття для редагування
         onSaved: () {
           widget.onUpdated?.call(); // 👈 оновлюємо календар
         },
@@ -909,24 +1087,24 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
       context: context,
       builder: (context) => LessonFormDialog(
         initialDate: DateTime(
-          widget.lesson.startTime.year,
-          widget.lesson.startTime.month,
-          widget.lesson.startTime.day + 7,
+          _lesson.startTime.year,
+          _lesson.startTime.month,
+          _lesson.startTime.day + 7,
         ),
-        initialStartTime: TimeOfDay.fromDateTime(widget.lesson.startTime),
+        initialStartTime: TimeOfDay.fromDateTime(_lesson.startTime),
         templateData: {
           // 👈 ДОДАТИ дані для автозаповнення
-          'title': widget.lesson.title,
-          'description': widget.lesson.description,
-          'location': widget.lesson.location,
-          'unit': widget.lesson.unit,
-          'instructorId': widget.lesson.instructorId,
-          'instructorName': widget.lesson.instructorName,
-          'instructorIds': widget.lesson.instructorIds,
-          'instructorNames': widget.lesson.instructorNames,
-          'tags': widget.lesson.tags,
-          'durationMinutes': widget.lesson.endTime
-              .difference(widget.lesson.startTime)
+          'title': _lesson.title,
+          'description': _lesson.description,
+          'location': _lesson.location,
+          'unit': _lesson.unit,
+          'instructorId': _lesson.instructorId,
+          'instructorName': _lesson.instructorName,
+          'instructorIds': _lesson.instructorIds,
+          'instructorNames': _lesson.instructorNames,
+          'tags': _lesson.tags,
+          'durationMinutes': _lesson.endTime
+              .difference(_lesson.startTime)
               .inMinutes,
         },
         onSaved: () {
@@ -942,7 +1120,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
       builder: (context) => AlertDialog(
         title: const Text('Видалити заняття'),
         content: Text(
-          'Ви впевнені, що хочете видалити заняття "${widget.lesson.title}"?',
+          'Ви впевнені, що хочете видалити заняття "${_lesson.title}"?',
         ),
         actions: [
           TextButton(
@@ -972,9 +1150,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                 ),
               );
 
-              final success = await _calendarService.deleteLesson(
-                widget.lesson.id,
-              );
+              final success = await _calendarService.deleteLesson(_lesson.id);
 
               if (success && mounted) {
                 // 👈 Оновлюємо календар
@@ -984,7 +1160,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                 ScaffoldMessenger.of(context).hideCurrentSnackBar();
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
-                    content: Text('Заняття "${widget.lesson.title}" видалено'),
+                    content: Text('Заняття "${_lesson.title}" видалено'),
                     backgroundColor: Colors.green,
                     duration: const Duration(seconds: 3),
                   ),
@@ -1029,12 +1205,12 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   Map<String, String> _availableInstructorOptions() {
     final options = <String, String>{};
 
-    for (var i = 0; i < widget.lesson.instructorIds.length; i++) {
-      final id = widget.lesson.instructorIds[i];
+    for (var i = 0; i < _lesson.instructorIds.length; i++) {
+      final id = _lesson.instructorIds[i];
       if (id.isEmpty) continue;
-      final name = i < widget.lesson.instructorNames.length
-          ? widget.lesson.instructorNames[i]
-          : widget.lesson.instructorName;
+      final name = i < _lesson.instructorNames.length
+          ? _lesson.instructorNames[i]
+          : _lesson.instructorName;
       options[id] = name.isNotEmpty ? name : id;
     }
 
@@ -1048,5 +1224,77 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
     }
 
     return options;
+  }
+
+  Future<void> _acknowledgeLesson() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final success = await _calendarService.acknowledgeLesson(_lesson.id);
+      if (!success) {
+        throw Exception('Не вдалося зберегти підтвердження');
+      }
+
+      final refreshedLesson = await _calendarService.getLessonById(_lesson.id);
+      if (mounted) {
+        setState(() {
+          if (refreshedLesson != null) {
+            _lesson = refreshedLesson;
+          }
+        });
+        widget.onUpdated?.call();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ознайомлення з заняттям підтверджено'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Помилка підтвердження: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  List<String> _identityCandidatesForInstructor(String assignmentId) {
+    final candidates = <String>[assignmentId];
+
+    for (final member in _availableInstructors) {
+      final memberAssignmentId = _memberAssignmentId(member);
+      if (memberAssignmentId != assignmentId) continue;
+
+      final email = ((member['email'] as String?) ?? '').trim();
+      if (email.isNotEmpty) {
+        candidates.add(email);
+      }
+    }
+
+    return candidates;
+  }
+
+  bool _shouldShowCurrentUserAcknowledgementSection(LessonModel lesson) {
+    final assignmentId = _calendarService.getCurrentUserAssignmentIdForLesson(
+      lesson,
+    );
+    if (assignmentId == null) return false;
+
+    final status = LessonStatusUtils.getAcknowledgementStatusForInstructor(
+      lesson,
+      instructorAssignmentId: assignmentId,
+      instructorIdentityCandidates: _calendarService
+          .getCurrentUserAssignmentCandidates(),
+    );
+
+    return status != LessonAcknowledgementStatus.notRequired;
   }
 }

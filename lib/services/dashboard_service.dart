@@ -33,14 +33,16 @@ class UserStats {
 }
 
 class DashboardFeed {
-  final List<LessonModel> currentLessons;
+  final LessonModel? nextLesson;
+  final List<LessonModel> lessonsRequiringAcknowledgement;
   final List<LessonModel> todayWithoutInstructor;
   final List<LessonModel> tomorrowWithoutInstructor;
   final UserStats userStats;
   final DateTime lastUpdated;
 
   const DashboardFeed({
-    required this.currentLessons,
+    required this.nextLesson,
+    required this.lessonsRequiringAcknowledgement,
     required this.todayWithoutInstructor,
     required this.tomorrowWithoutInstructor,
     required this.userStats,
@@ -48,7 +50,8 @@ class DashboardFeed {
   });
 
   static final empty = DashboardFeed(
-    currentLessons: const [],
+    nextLesson: null,
+    lessonsRequiringAcknowledgement: const [],
     todayWithoutInstructor: const [],
     tomorrowWithoutInstructor: const [],
     userStats: UserStats.empty,
@@ -65,19 +68,17 @@ class DashboardService {
   DashboardFeed? _cachedFeed;
   DateTime? _lastCacheTime;
 
-  /// Отримати поточні заняття користувача (сьогодні)
-  Future<List<LessonModel>> getCurrentUserLessons() async {
+  /// Отримати найближчі заняття користувача в межах наступного місяця
+  Future<List<LessonModel>> getCurrentUserUpcomingLessons() async {
     try {
-      final currentUser = Globals.firebaseAuth.currentUser;
-      if (currentUser == null) return [];
+      if (Globals.firebaseAuth.currentUser == null) return [];
 
-      final today = DateTime.now();
-      final tomorrow = today.add(const Duration(days: 1));
-      final startOfDay = DateTime(today.year, today.month, today.day);
-      final endOfDay = DateTime(
-        tomorrow.year,
-        tomorrow.month,
-        tomorrow.day,
+      final now = DateTime.now();
+      final startOfDay = DateTime(now.year, now.month, now.day);
+      final endOfRange = DateTime(
+        now.year,
+        now.month,
+        now.day + 31,
         23,
         59,
         59,
@@ -88,19 +89,47 @@ class DashboardService {
 
       final lessons = await Globals.calendarService.getLessonsForPeriod(
         startDate: startOfDay,
-        endDate: endOfDay,
+        endDate: endOfRange,
         groupId: currentGroupId,
       );
 
       return lessons
-          .where(Globals.calendarService.isUserInstructorForLesson)
-          .toList();
+          .where(
+            (lesson) =>
+                Globals.calendarService.isUserInstructorForLesson(lesson) &&
+                lesson.endTime.isAfter(now),
+          )
+          .toList()
+        ..sort((a, b) => a.startTime.compareTo(b.startTime));
     } catch (e) {
       if (kDebugMode) {
         print('Помилка отримання поточних занять: $e');
       }
       return [];
     }
+  }
+
+  Future<List<LessonModel>> getLessonsRequiringAcknowledgement(
+    List<LessonModel> upcomingLessons,
+  ) async {
+    final assignmentId = upcomingLessons.isEmpty
+        ? null
+        : Globals.calendarService.getCurrentUserPrimaryAssignmentId();
+    if (assignmentId == null) return [];
+
+    final identityCandidates = Globals.calendarService
+        .getCurrentUserAssignmentCandidates();
+
+    return upcomingLessons.where((lesson) {
+      final status = LessonStatusUtils.getAcknowledgementStatusForInstructor(
+        lesson,
+        instructorAssignmentId: assignmentId,
+        instructorIdentityCandidates: identityCandidates,
+      );
+
+      return status == LessonAcknowledgementStatus.pending ||
+          status == LessonAcknowledgementStatus.urgent;
+    }).toList()..sort((a, b) => a.startTime.compareTo(b.startTime));
   }
 
   /// Отримати заняття без викладача на певну дату
@@ -237,14 +266,22 @@ class DashboardService {
 
       // Паралельно отримуємо всі дані
       final results = await Future.wait([
-        getCurrentUserLessons(),
+        getCurrentUserUpcomingLessons(),
         getLessonsWithoutInstructor(today),
         getLessonsWithoutInstructor(tomorrow),
         getUserStatistics(StatsPeriod.month),
       ]);
 
+      final upcomingLessons = results[0] as List<LessonModel>;
+      final nextLesson = upcomingLessons.isNotEmpty
+          ? upcomingLessons.first
+          : null;
+      final lessonsRequiringAcknowledgement =
+          await getLessonsRequiringAcknowledgement(upcomingLessons);
+
       final feed = DashboardFeed(
-        currentLessons: results[0] as List<LessonModel>,
+        nextLesson: nextLesson,
+        lessonsRequiringAcknowledgement: lessonsRequiringAcknowledgement,
         todayWithoutInstructor: results[1] as List<LessonModel>,
         tomorrowWithoutInstructor: results[2] as List<LessonModel>,
         userStats: results[3] as UserStats,

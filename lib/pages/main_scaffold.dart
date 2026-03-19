@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'calendar_page/calendar_page.dart';
@@ -6,8 +8,10 @@ import 'profile_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../globals.dart';
 import '../services/app_session_controller.dart';
+import '../services/push_notifications_service.dart';
 import 'tools_page/tools_page.dart';
 import 'admin_page/admin_panel_page.dart';
+import 'calendar_page/widgets/lesson_details_dialog.dart';
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key, required this.sessionController});
@@ -22,6 +26,7 @@ class _MainScaffoldState extends State<MainScaffold> {
   int _currentIndex = 0;
   Map<String, String> groupNames = {};
   bool _groupsLoaded = false;
+  bool _isHandlingPushNavigation = false;
 
   // 🚀 Динамічний масив сторінок залежно від ролі
   List<Widget> get _pages {
@@ -102,7 +107,17 @@ class _MainScaffoldState extends State<MainScaffold> {
   @override
   void initState() {
     super.initState();
+    Globals.pushNotificationsService.addListener(_handlePushNavigationChanged);
     _initGroups();
+    unawaited(_initializePushNotifications());
+  }
+
+  @override
+  void dispose() {
+    Globals.pushNotificationsService.removeListener(
+      _handlePushNavigationChanged,
+    );
+    super.dispose();
   }
 
   Future<void> _initGroups() async {
@@ -113,7 +128,157 @@ class _MainScaffoldState extends State<MainScaffold> {
     groupNames = await Globals.firestoreManager.getGroupNamesForUser(email);
     await Globals.profileManager.loadSavedGroupWithFallback(groupNames);
 
-    if (mounted) setState(() => _groupsLoaded = true);
+    if (mounted) {
+      setState(() => _groupsLoaded = true);
+    }
+
+    await _handlePendingPushNavigation();
+  }
+
+  Future<void> _initializePushNotifications() async {
+    await Globals.pushNotificationsService.initialize();
+    await _handlePendingPushNavigation();
+  }
+
+  void _handlePushNavigationChanged() {
+    unawaited(_handlePendingPushNavigation());
+  }
+
+  int get _homeTabIndex =>
+      Globals.profileManager.currentRole == 'admin' ? 1 : 0;
+
+  Future<void> _handlePendingPushNavigation() async {
+    if (!mounted || !_groupsLoaded || _isHandlingPushNavigation) {
+      return;
+    }
+
+    final request = Globals.pushNotificationsService.pendingNavigationRequest;
+    if (request == null) {
+      return;
+    }
+
+    _isHandlingPushNavigation = true;
+    try {
+      if (request.groupId != null &&
+          request.groupId != Globals.profileManager.currentGroupId) {
+        await _switchToNotificationGroup(request.groupId!);
+        return;
+      }
+
+      Globals.pushNotificationsService.clearPendingNavigationRequest();
+
+      if (request.kind == PushNavigationKind.lesson &&
+          request.lessonId != null) {
+        await _openLessonFromNotification(request);
+        return;
+      }
+
+      _openGroupNotification(request);
+    } finally {
+      _isHandlingPushNavigation = false;
+    }
+  }
+
+  Future<void> _switchToNotificationGroup(String groupId) async {
+    if (groupNames[groupId] == null) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user?.email != null) {
+        groupNames = await Globals.firestoreManager.getGroupNamesForUser(
+          user!.email!,
+        );
+      }
+    }
+
+    final groupName = groupNames[groupId];
+    if (groupName == null) {
+      Globals.pushNotificationsService.clearPendingNavigationRequest();
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Не вдалося відкрити сповіщення для вибраної групи'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    await Globals.profileManager.setCurrentGroup(
+      groupId,
+      groupName,
+      Globals.profileManager.getRoleInGroup(groupId),
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    await widget.sessionController.revalidate();
+  }
+
+  void _openGroupNotification(PushNavigationRequest request) {
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _currentIndex = _homeTabIndex);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      final message = request.body.trim().isNotEmpty
+          ? '${request.title}\n${request.body}'
+          : request.title;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.blue),
+      );
+    });
+  }
+
+  Future<void> _openLessonFromNotification(
+    PushNavigationRequest request,
+  ) async {
+    if (!mounted || request.lessonId == null) {
+      return;
+    }
+
+    setState(() => _currentIndex = _homeTabIndex);
+
+    final lesson = await Globals.calendarService.getLessonById(
+      request.lessonId!,
+      groupId: request.groupId,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    if (lesson == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Заняття зі сповіщення не знайдено'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => LessonDetailsDialog(
+        lesson: lesson,
+        onUpdated: () {
+          if (mounted) {
+            setState(() {});
+          }
+        },
+      ),
+    );
   }
 
   // 🔄 Оновлена логіка навігації з урахуванням динамічних індексів

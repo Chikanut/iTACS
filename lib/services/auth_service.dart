@@ -187,6 +187,7 @@ class AuthService {
 
   Future<void> signOut() async {
     try {
+      await Globals.pushNotificationsService.handleSignOut();
       await _googleSignInWithDrive.signOut();
       await Globals.firebaseAuth.signOut();
       await Globals.profileManager.clearProfile();

@@ -190,28 +190,33 @@ class _HomePageState extends State<HomePage> {
 
   /// Контент ленти
   Widget _buildFeedContent() {
-    // Поточні та завтрашні заняття разом
-    final upcomingLessons = [..._feed.currentLessons];
-
-    // Додаємо завтрашні заняття користувача
-    // Тут потрібно буде додати метод для отримання завтрашніх занять користувача
-    // Поки що використовуємо існуючі дані
-
-    // Сортуємо по даті та часу
-    upcomingLessons.sort((a, b) {
-      final dateCompare = a.startTime.compareTo(b.startTime);
-      return dateCompare;
-    });
+    final nextLesson = _feed.nextLesson;
+    final acknowledgementLessons =
+        _feed.lessonsRequiringAcknowledgement
+            .where((lesson) => lesson.id != nextLesson?.id)
+            .toList()
+          ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
     return SliverList(
       delegate: SliverChildListDelegate([
         const SizedBox(height: 16),
         if (_notifications.isNotEmpty) _buildNotificationsCard(),
         _buildAbsencesCard(),
-        // Поточні та завтрашні заняття
-        if (upcomingLessons.isNotEmpty)
+        if (nextLesson != null)
           _UpcomingLessonsCard(
-            lessons: upcomingLessons,
+            title: 'Наступне заняття',
+            icon: Icons.schedule,
+            lessons: [nextLesson],
+            showAcknowledgementBadge: true,
+            onLessonUpdated: _refreshFeed,
+          ),
+
+        if (acknowledgementLessons.isNotEmpty)
+          _UpcomingLessonsCard(
+            title: 'Потрібно ознайомитись',
+            icon: Icons.visibility_outlined,
+            lessons: acknowledgementLessons,
+            showAcknowledgementBadge: true,
             onLessonUpdated: _refreshFeed,
           ),
 
@@ -563,11 +568,20 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-/// Картка майбутніх занять (поточні + завтрашні)
+/// Картка найближчих занять викладача
 class _UpcomingLessonsCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
   final List<LessonModel> lessons;
+  final bool showAcknowledgementBadge;
   final VoidCallback? onLessonUpdated;
-  const _UpcomingLessonsCard({required this.lessons, this.onLessonUpdated});
+  const _UpcomingLessonsCard({
+    required this.title,
+    required this.icon,
+    required this.lessons,
+    this.showAcknowledgementBadge = false,
+    this.onLessonUpdated,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -580,10 +594,10 @@ class _UpcomingLessonsCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.schedule, color: Theme.of(context).primaryColor),
+                Icon(icon, color: Theme.of(context).primaryColor),
                 const SizedBox(width: 8),
                 Text(
-                  'Ваші найближчі заняття',
+                  title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
@@ -594,6 +608,7 @@ class _UpcomingLessonsCard extends StatelessWidget {
             ...lessons.map(
               (lesson) => _EnhancedLessonListTile(
                 lesson: lesson,
+                showAcknowledgementBadge: showAcknowledgementBadge,
                 onLessonUpdated: onLessonUpdated,
               ),
             ),
@@ -1071,12 +1086,14 @@ class _LastUpdatedCard extends StatelessWidget {
 class _EnhancedLessonListTile extends StatelessWidget {
   final LessonModel lesson;
   final bool showWarning;
+  final bool showAcknowledgementBadge;
   final Color? titleColor;
   final VoidCallback? onLessonUpdated;
 
   const _EnhancedLessonListTile({
     required this.lesson,
     this.showWarning = false,
+    this.showAcknowledgementBadge = false,
     this.titleColor,
     required this.onLessonUpdated,
   });
@@ -1113,6 +1130,20 @@ class _EnhancedLessonListTile extends StatelessWidget {
     final isTomorrow =
         DateFormat('dd.MM.yyyy').format(lesson.startTime) ==
         DateFormat('dd.MM.yyyy').format(now.add(const Duration(days: 1)));
+    final currentAssignmentId = Globals.calendarService
+        .getCurrentUserAssignmentIdForLesson(lesson);
+    final acknowledgementStatus = currentAssignmentId != null
+        ? LessonStatusUtils.getAcknowledgementStatusForInstructor(
+            lesson,
+            instructorAssignmentId: currentAssignmentId,
+            instructorIdentityCandidates: Globals.calendarService
+                .getCurrentUserAssignmentCandidates(),
+          )
+        : LessonAcknowledgementStatus.notRequired;
+    final shouldShowAcknowledgementBadge =
+        showAcknowledgementBadge &&
+        (acknowledgementStatus == LessonAcknowledgementStatus.pending ||
+            acknowledgementStatus == LessonAcknowledgementStatus.urgent);
 
     String datePrefix = '';
     if (isToday) {
@@ -1201,6 +1232,31 @@ class _EnhancedLessonListTile extends StatelessWidget {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
+                  if (shouldShowAcknowledgementBadge)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: acknowledgementStatus.color.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(
+                            color: acknowledgementStatus.color.withOpacity(0.3),
+                          ),
+                        ),
+                        child: Text(
+                          'Потрібне підтвердження',
+                          style: Theme.of(context).textTheme.bodySmall
+                              ?.copyWith(
+                                color: acknowledgementStatus.color,
+                                fontWeight: FontWeight.w600,
+                              ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

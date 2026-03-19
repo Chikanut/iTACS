@@ -62,6 +62,14 @@ firebase deploy --only firestore:rules
 - VS Code task `DeployFirebase` збирає web-версію та деплоїть `hosting` і `firestore:rules`.
 - VS Code task `DeployFunctionsBlaze` лишено окремо, бо деплой `functions` потребує Blaze plan.
 
+## Push-сповіщення
+
+- Android push побудовано на `firebase_messaging` + `flutter_local_notifications`.
+- Клієнт зберігає FCM token у `users/{uid}/devices/{token}` і очищає його під час logout.
+- Групові та персональні Firestore-сповіщення з `groups/{groupId}/notifications` автоматично дублюються push-сповіщеннями через Firebase Functions.
+- Призначення нового заняття або повторне ознайомлення після змін у занятті також шлеться через Firebase Functions.
+- Для деплою Functions потрібен Blaze plan, але сам FCM лишається no-cost.
+
 ## Структура
 
 - `lib/main.dart` - точка входу Flutter.

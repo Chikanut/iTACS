@@ -20,6 +20,8 @@ enum LessonReadinessStatus {
   completedNotReady, // Завершено (але є проблеми з даними)
 }
 
+enum LessonAcknowledgementStatus { notRequired, pending, acknowledged, urgent }
+
 extension LessonProgressStatusExtension on LessonProgressStatus {
   String get label {
     switch (this) {
@@ -118,6 +120,47 @@ extension LessonReadinessStatusExtension on LessonReadinessStatus {
         return 'Заняття завершено, всі дані для звітності заповнені';
       case LessonReadinessStatus.completedNotReady:
         return 'Заняття завершено, але потрібно заповнити дані для звітності';
+    }
+  }
+}
+
+extension LessonAcknowledgementStatusExtension on LessonAcknowledgementStatus {
+  Color get color {
+    switch (this) {
+      case LessonAcknowledgementStatus.notRequired:
+        return Colors.grey;
+      case LessonAcknowledgementStatus.pending:
+        return Colors.orange;
+      case LessonAcknowledgementStatus.acknowledged:
+        return Colors.green;
+      case LessonAcknowledgementStatus.urgent:
+        return Colors.red;
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case LessonAcknowledgementStatus.notRequired:
+        return Icons.remove_circle_outline;
+      case LessonAcknowledgementStatus.pending:
+        return Icons.visibility_outlined;
+      case LessonAcknowledgementStatus.acknowledged:
+        return Icons.check_circle;
+      case LessonAcknowledgementStatus.urgent:
+        return Icons.priority_high;
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case LessonAcknowledgementStatus.notRequired:
+        return 'Ознайомлення не потрібне';
+      case LessonAcknowledgementStatus.pending:
+        return 'Потрібно ознайомитись';
+      case LessonAcknowledgementStatus.acknowledged:
+        return 'Ознайомлено';
+      case LessonAcknowledgementStatus.urgent:
+        return 'Терміново ознайомитись';
     }
   }
 }
@@ -330,6 +373,154 @@ class LessonStatusUtils {
     final now = DateTime.now();
     return now.isAfter(startDate) &&
         now.isBefore(endDate.add(const Duration(days: 1)));
+  }
+
+  static String? resolveInstructorAssignmentId(
+    LessonModel lesson,
+    Iterable<String> candidateIds,
+  ) {
+    for (final candidate in candidateIds) {
+      final normalizedCandidate = LessonModel.normalizeInstructorAssignmentId(
+        candidate,
+      );
+      if (normalizedCandidate.isNotEmpty &&
+          lesson.hasInstructorId(normalizedCandidate)) {
+        return normalizedCandidate;
+      }
+    }
+    return null;
+  }
+
+  static bool requiresAcknowledgementForInstructor(
+    LessonModel lesson, {
+    required String instructorAssignmentId,
+    Iterable<String> instructorIdentityCandidates = const [],
+  }) {
+    final resolvedAssignmentId = resolveInstructorAssignmentId(lesson, [
+      instructorAssignmentId,
+      ...instructorIdentityCandidates,
+    ]);
+    if (resolvedAssignmentId == null) {
+      return false;
+    }
+
+    final creatorCandidates = <String>{
+      LessonModel.normalizeInstructorAssignmentId(instructorAssignmentId),
+      ...instructorIdentityCandidates.map(
+        LessonModel.normalizeInstructorAssignmentId,
+      ),
+    }..removeWhere((value) => value.isEmpty);
+
+    return !creatorCandidates.contains(
+      LessonModel.normalizeInstructorAssignmentId(lesson.createdBy),
+    );
+  }
+
+  static LessonAcknowledgementRecord? getAcknowledgementRecordForInstructor(
+    LessonModel lesson, {
+    required String instructorAssignmentId,
+    Iterable<String> instructorIdentityCandidates = const [],
+  }) {
+    final resolvedAssignmentId = resolveInstructorAssignmentId(lesson, [
+      instructorAssignmentId,
+      ...instructorIdentityCandidates,
+    ]);
+    if (resolvedAssignmentId == null) {
+      return null;
+    }
+    return lesson.acknowledgementFor(resolvedAssignmentId);
+  }
+
+  static bool isAcknowledgementUrgent(LessonModel lesson) {
+    if (getProgressStatus(lesson) == LessonProgressStatus.completed) {
+      return false;
+    }
+
+    final now = DateTime.now();
+    final startOfToday = DateTime(now.year, now.month, now.day);
+    final startOfDayAfterTomorrow = DateTime(now.year, now.month, now.day + 2);
+
+    return !lesson.endTime.isBefore(startOfToday) &&
+        lesson.startTime.isBefore(startOfDayAfterTomorrow);
+  }
+
+  static LessonAcknowledgementStatus getAcknowledgementStatusForInstructor(
+    LessonModel lesson, {
+    required String instructorAssignmentId,
+    Iterable<String> instructorIdentityCandidates = const [],
+  }) {
+    if (!requiresAcknowledgementForInstructor(
+      lesson,
+      instructorAssignmentId: instructorAssignmentId,
+      instructorIdentityCandidates: instructorIdentityCandidates,
+    )) {
+      return LessonAcknowledgementStatus.notRequired;
+    }
+
+    final record = getAcknowledgementRecordForInstructor(
+      lesson,
+      instructorAssignmentId: instructorAssignmentId,
+      instructorIdentityCandidates: instructorIdentityCandidates,
+    );
+
+    if (record != null &&
+        record.isValidAfter(lesson.effectiveAcknowledgementResetAt)) {
+      return LessonAcknowledgementStatus.acknowledged;
+    }
+
+    if (getProgressStatus(lesson) == LessonProgressStatus.completed) {
+      return LessonAcknowledgementStatus.pending;
+    }
+
+    if (isAcknowledgementUrgent(lesson)) {
+      return LessonAcknowledgementStatus.urgent;
+    }
+
+    return LessonAcknowledgementStatus.pending;
+  }
+
+  static String getAcknowledgementStatusText(
+    LessonModel lesson, {
+    required String instructorAssignmentId,
+    Iterable<String> instructorIdentityCandidates = const [],
+    DateFormat? acknowledgedAtFormatter,
+  }) {
+    final status = getAcknowledgementStatusForInstructor(
+      lesson,
+      instructorAssignmentId: instructorAssignmentId,
+      instructorIdentityCandidates: instructorIdentityCandidates,
+    );
+    final record = getAcknowledgementRecordForInstructor(
+      lesson,
+      instructorAssignmentId: instructorAssignmentId,
+      instructorIdentityCandidates: instructorIdentityCandidates,
+    );
+    final progressStatus = getProgressStatus(lesson);
+
+    if (status == LessonAcknowledgementStatus.urgent) {
+      return 'Терміново: завтра або сьогодні без підтвердження';
+    }
+
+    if (status == LessonAcknowledgementStatus.acknowledged &&
+        record?.acknowledgedAt != null &&
+        acknowledgedAtFormatter != null) {
+      return 'Ознайомлено ${acknowledgedAtFormatter.format(record!.acknowledgedAt!)}';
+    }
+
+    if (status == LessonAcknowledgementStatus.acknowledged) {
+      return 'Ознайомлено';
+    }
+
+    if (status == LessonAcknowledgementStatus.pending &&
+        progressStatus == LessonProgressStatus.completed) {
+      return 'Не було ознайомлення на момент заняття';
+    }
+
+    if (status == LessonAcknowledgementStatus.pending) {
+      return 'Очікується ознайомлення';
+    }
+
+    return status.label;
   }
 }
 

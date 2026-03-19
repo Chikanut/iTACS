@@ -6,8 +6,11 @@ import '../../../globals.dart';
 import '../../../models/instructor_absence.dart';
 import '../../../models/lesson_model.dart';
 import '../../../theme/app_theme.dart';
+import '../../calendar_page/calendar_utils.dart';
 import '../../calendar_page/widgets/lesson_details_dialog.dart';
 import '../widgets/absence_assignment_dialog.dart';
+
+enum _LessonCellStatus { none, acknowledged, pending, urgent }
 
 class AbsencesGridTab extends StatefulWidget {
   const AbsencesGridTab({super.key});
@@ -274,7 +277,8 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                           decoration: BoxDecoration(
                             color: _getCellBackgroundColor(
                               absence,
-                              lessons.isNotEmpty,
+                              instructorId,
+                              lessons,
                               day,
                             ),
                             borderRadius: BorderRadius.circular(4),
@@ -285,22 +289,12 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                                   )
                                 : null,
                           ),
-                          child: Center(
-                            child: Text(
-                              _getCellDisplayText(absence, lessons.isNotEmpty),
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: absence?.isAdminAssignment == true
-                                    ? FontWeight.bold
-                                    : FontWeight.normal,
-                                color: _getCellTextColor(
-                                  absence,
-                                  lessons.isNotEmpty,
-                                  day,
-                                ),
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
+                          child: _buildCellContent(
+                            absence: absence,
+                            instructorId: instructorId,
+                            lessons: lessons,
+                            day: day,
+                            compact: true,
                           ),
                         ),
                       ),
@@ -375,7 +369,12 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
             decoration: BoxDecoration(
               border: Border.all(color: AppTheme.borderSubtle),
               borderRadius: BorderRadius.circular(4),
-              color: _getCellBackgroundColor(absence, lessons.isNotEmpty, day),
+              color: _getCellBackgroundColor(
+                absence,
+                instructorId,
+                lessons,
+                day,
+              ),
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -390,21 +389,18 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                         : AppTheme.textPrimary,
                   ),
                 ),
-                if (absence != null || lessons.isNotEmpty)
-                  Text(
-                    _getCellDisplayText(absence, lessons.isNotEmpty),
-                    style: TextStyle(
-                      fontSize: 8,
-                      fontWeight: absence?.isAdminAssignment == true
-                          ? FontWeight.bold
-                          : FontWeight.normal,
-                      color: _getCellTextColor(
-                        absence,
-                        lessons.isNotEmpty,
-                        day,
-                      ),
+                if (absence != null || lessons.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Expanded(
+                    child: _buildCellContent(
+                      absence: absence,
+                      instructorId: instructorId,
+                      lessons: lessons,
+                      day: day,
+                      compact: false,
                     ),
                   ),
+                ],
               ],
             ),
           ),
@@ -429,7 +425,8 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
 
   Color _getCellBackgroundColor(
     InstructorAbsence? absence,
-    bool hasLessons,
+    String instructorId,
+    List<LessonModel> lessons,
     DateTime day,
   ) {
     if (absence != null) {
@@ -447,8 +444,15 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
       }
     }
 
-    if (hasLessons) {
-      return AppTheme.successStatus.background.withOpacity(0.8);
+    switch (_getLessonCellStatus(instructorId, lessons)) {
+      case _LessonCellStatus.urgent:
+        return AppTheme.dangerStatus.background;
+      case _LessonCellStatus.pending:
+        return AppTheme.warningStatus.background;
+      case _LessonCellStatus.acknowledged:
+        return AppTheme.successStatus.background.withOpacity(0.8);
+      case _LessonCellStatus.none:
+        break;
     }
 
     if (_isWeekend(day)) {
@@ -460,7 +464,8 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
 
   Color _getCellTextColor(
     InstructorAbsence? absence,
-    bool hasLessons,
+    String instructorId,
+    List<LessonModel> lessons,
     DateTime day,
   ) {
     if (absence != null) {
@@ -478,8 +483,15 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
       }
     }
 
-    if (hasLessons) {
-      return AppTheme.successStatus.foreground;
+    switch (_getLessonCellStatus(instructorId, lessons)) {
+      case _LessonCellStatus.urgent:
+        return AppTheme.dangerStatus.foreground;
+      case _LessonCellStatus.pending:
+        return AppTheme.warningStatus.foreground;
+      case _LessonCellStatus.acknowledged:
+        return AppTheme.successStatus.foreground;
+      case _LessonCellStatus.none:
+        break;
     }
 
     return _isWeekend(day)
@@ -487,16 +499,105 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
         : AppTheme.textPrimary;
   }
 
-  String _getCellDisplayText(InstructorAbsence? absence, bool hasLessons) {
+  String _getCellDisplayText(
+    InstructorAbsence? absence,
+    String instructorId,
+    List<LessonModel> lessons,
+  ) {
     if (absence != null) {
       return absence.type.emoji;
     }
 
-    if (hasLessons) {
+    switch (_getLessonCellStatus(instructorId, lessons)) {
+      case _LessonCellStatus.urgent:
+        return '!';
+      case _LessonCellStatus.pending:
+        return '?';
+      case _LessonCellStatus.acknowledged:
+        return '✓';
+      case _LessonCellStatus.none:
+        return '';
+    }
+  }
+
+  String _getBaseCellDisplayText(
+    InstructorAbsence? absence,
+    List<LessonModel> lessons,
+  ) {
+    if (absence != null) {
+      return absence.type.emoji;
+    }
+
+    if (lessons.isNotEmpty) {
       return '📚';
     }
 
     return '';
+  }
+
+  Widget _buildCellContent({
+    required InstructorAbsence? absence,
+    required String instructorId,
+    required List<LessonModel> lessons,
+    required DateTime day,
+    required bool compact,
+  }) {
+    final baseText = _getBaseCellDisplayText(absence, lessons);
+    final badgeText = absence == null && lessons.isNotEmpty
+        ? _getCellDisplayText(absence, instructorId, lessons)
+        : '';
+    final textColor = _getCellTextColor(absence, instructorId, lessons, day);
+
+    if (baseText.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Align(
+          alignment: Alignment.center,
+          child: Text(
+            baseText,
+            style: TextStyle(
+              fontSize: compact ? 11 : 10,
+              fontWeight: absence?.isAdminAssignment == true
+                  ? FontWeight.bold
+                  : FontWeight.normal,
+              color: textColor,
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
+        if (badgeText.isNotEmpty)
+          Positioned(
+            top: compact ? -1 : 0,
+            right: compact ? -1 : 1,
+            child: Container(
+              width: compact ? 12 : 11,
+              height: compact ? 12 : 11,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.92),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: _getCellTextColor(null, instructorId, lessons, day),
+                  width: 1,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                badgeText,
+                style: TextStyle(
+                  fontSize: compact ? 7 : 6,
+                  fontWeight: FontWeight.bold,
+                  color: _getCellTextColor(null, instructorId, lessons, day),
+                  height: 1,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   void _showCellMenu(
@@ -531,7 +632,13 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                 trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
                   Navigator.pop(context);
-                  _showLessonDetails(context, lessons, instructorName, day);
+                  _showLessonDetails(
+                    context,
+                    lessons,
+                    instructorId,
+                    instructorName,
+                    day,
+                  );
                 },
               ),
               const Divider(),
@@ -709,16 +816,85 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
   }
 
   String _normalizeAssignmentId(String value) {
-    final normalized = value.trim();
-    if (normalized.contains('@')) {
-      return normalized.toLowerCase();
+    return LessonModel.normalizeInstructorAssignmentId(value);
+  }
+
+  List<String> _identityCandidatesForInstructor(String instructorId) {
+    final normalizedInstructorId = _normalizeAssignmentId(instructorId);
+    final candidates = <String>[normalizedInstructorId];
+
+    for (final member in _instructors) {
+      if (_memberAssignmentId(member) != normalizedInstructorId) continue;
+
+      final email = ((member['email'] as String?) ?? '').trim();
+      if (email.isNotEmpty) {
+        candidates.add(_normalizeAssignmentId(email));
+      }
     }
-    return normalized;
+
+    return candidates.toSet().toList();
+  }
+
+  _LessonCellStatus _getLessonCellStatus(
+    String instructorId,
+    List<LessonModel> lessons,
+  ) {
+    if (lessons.isEmpty) return _LessonCellStatus.none;
+
+    final identityCandidates = _identityCandidatesForInstructor(instructorId);
+    var hasPending = false;
+
+    for (final lesson in lessons) {
+      final status = LessonStatusUtils.getAcknowledgementStatusForInstructor(
+        lesson,
+        instructorAssignmentId: instructorId,
+        instructorIdentityCandidates: identityCandidates,
+      );
+
+      if (status == LessonAcknowledgementStatus.urgent) {
+        return _LessonCellStatus.urgent;
+      }
+
+      if (status == LessonAcknowledgementStatus.pending) {
+        hasPending = true;
+      }
+    }
+
+    if (hasPending) {
+      return _LessonCellStatus.pending;
+    }
+
+    return _LessonCellStatus.acknowledged;
+  }
+
+  LessonAcknowledgementStatus _getAcknowledgementStatus(
+    LessonModel lesson,
+    String instructorId,
+  ) {
+    return LessonStatusUtils.getAcknowledgementStatusForInstructor(
+      lesson,
+      instructorAssignmentId: instructorId,
+      instructorIdentityCandidates: _identityCandidatesForInstructor(
+        instructorId,
+      ),
+    );
+  }
+
+  String _getAcknowledgementSubtitle(LessonModel lesson, String instructorId) {
+    return LessonStatusUtils.getAcknowledgementStatusText(
+      lesson,
+      instructorAssignmentId: instructorId,
+      instructorIdentityCandidates: _identityCandidatesForInstructor(
+        instructorId,
+      ),
+      acknowledgedAtFormatter: DateFormat('dd.MM.yyyy HH:mm'),
+    );
   }
 
   void _showLessonDetails(
     BuildContext context,
     List<LessonModel> lessons,
+    String instructorId,
     String instructorName,
     DateTime date,
   ) {
@@ -774,6 +950,16 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                             Text('Група: ${lesson.groupName}'),
                           if (lesson.location.isNotEmpty)
                             Text('Локація: ${lesson.location}'),
+                          Text(
+                            _getAcknowledgementSubtitle(lesson, instructorId),
+                            style: TextStyle(
+                              color: _getAcknowledgementStatus(
+                                lesson,
+                                instructorId,
+                              ).color,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                         ],
                       ),
                       trailing: lesson.isPast

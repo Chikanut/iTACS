@@ -13,6 +13,7 @@ import 'services/templates_service.dart';
 import 'services/calendar_service.dart';
 import 'services/absences_service.dart';
 import 'services/group_notifications_service.dart';
+import 'services/push_notifications_service.dart';
 
 class Globals {
   static final FirebaseAuth firebaseAuth = FirebaseAuth.instance;
@@ -30,6 +31,8 @@ class Globals {
       AbsencesService(); // 👈 ДОДАЄМО
   static final GroupNotificationsService groupNotificationsService =
       GroupNotificationsService();
+  static final PushNotificationsService pushNotificationsService =
+      PushNotificationsService();
   static late FileManager fileManager;
 
   static Future<void> init() async {

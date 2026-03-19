@@ -2,6 +2,64 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+class LessonAcknowledgementRecord {
+  final DateTime? acknowledgedAt;
+  final String acknowledgedByUid;
+  final String acknowledgedByName;
+
+  const LessonAcknowledgementRecord({
+    required this.acknowledgedAt,
+    required this.acknowledgedByUid,
+    required this.acknowledgedByName,
+  });
+
+  factory LessonAcknowledgementRecord.fromMap(Map<String, dynamic> data) {
+    return LessonAcknowledgementRecord(
+      acknowledgedAt: LessonModel._parseNullableDateTime(
+        data['acknowledgedAt'],
+      ),
+      acknowledgedByUid: (data['acknowledgedByUid'] ?? '').toString().trim(),
+      acknowledgedByName: (data['acknowledgedByName'] ?? '').toString().trim(),
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'acknowledgedAt': acknowledgedAt?.toIso8601String(),
+      'acknowledgedByUid': acknowledgedByUid,
+      'acknowledgedByName': acknowledgedByName,
+    };
+  }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'acknowledgedAt': acknowledgedAt != null
+          ? Timestamp.fromDate(acknowledgedAt!)
+          : null,
+      'acknowledgedByUid': acknowledgedByUid,
+      'acknowledgedByName': acknowledgedByName,
+    };
+  }
+
+  LessonAcknowledgementRecord copyWith({
+    DateTime? acknowledgedAt,
+    String? acknowledgedByUid,
+    String? acknowledgedByName,
+  }) {
+    return LessonAcknowledgementRecord(
+      acknowledgedAt: acknowledgedAt ?? this.acknowledgedAt,
+      acknowledgedByUid: acknowledgedByUid ?? this.acknowledgedByUid,
+      acknowledgedByName: acknowledgedByName ?? this.acknowledgedByName,
+    );
+  }
+
+  bool isValidAfter(DateTime resetAt) {
+    final acknowledgedAt = this.acknowledgedAt;
+    if (acknowledgedAt == null) return false;
+    return !acknowledgedAt.isBefore(resetAt);
+  }
+}
+
 class LessonModel {
   final String id;
   final String title;
@@ -23,6 +81,8 @@ class LessonModel {
   final String createdBy;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final DateTime? acknowledgementResetAt;
+  final Map<String, LessonAcknowledgementRecord> instructorAcknowledgements;
   final Recurrence? recurrence;
   final String trainingPeriod; // 👈 НОВЕ ПОЛЕ
 
@@ -47,6 +107,8 @@ class LessonModel {
     required this.createdBy,
     required this.createdAt,
     required this.updatedAt,
+    this.acknowledgementResetAt,
+    Map<String, LessonAcknowledgementRecord>? instructorAcknowledgements,
     this.recurrence,
     required this.trainingPeriod, // 👈 НОВЕ ПОЛЕ
   }) : instructorIds = _normalizeInstructorIds(
@@ -64,16 +126,27 @@ class LessonModel {
        instructorName = _resolvePrimaryInstructorName(
          instructorName: instructorName,
          instructorNames: instructorNames,
+       ),
+       instructorAcknowledgements = _normalizeAcknowledgements(
+         instructorAcknowledgements,
        );
 
   /// Додатковий factory конструктор для Firestore
   factory LessonModel.fromFirestore(Map<String, dynamic> data, String id) {
+    final createdAt = _parseRequiredDateTime(data['createdAt']);
+    final updatedAt = _parseRequiredDateTime(
+      data['updatedAt'],
+      fallback: createdAt,
+    );
+    final acknowledgementResetAt =
+        _parseNullableDateTime(data['acknowledgementResetAt']) ?? updatedAt;
+
     return LessonModel(
       id: id,
       title: data['title'] ?? '',
       description: data['description'] ?? '',
-      startTime: (data['startTime'] as Timestamp).toDate(),
-      endTime: (data['endTime'] as Timestamp).toDate(),
+      startTime: _parseRequiredDateTime(data['startTime']),
+      endTime: _parseRequiredDateTime(data['endTime']),
       groupId: data['groupId'] ?? '',
       groupName: data['groupName'] ?? '',
       unit: data['unit'] ?? '',
@@ -87,8 +160,12 @@ class LessonModel {
       status: data['status'] ?? 'scheduled',
       tags: List<String>.from(data['tags'] ?? []),
       createdBy: data['createdBy'] ?? '',
-      createdAt: (data['createdAt'] as Timestamp).toDate(),
-      updatedAt: (data['updatedAt'] as Timestamp).toDate(),
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      acknowledgementResetAt: acknowledgementResetAt,
+      instructorAcknowledgements: _parseAcknowledgements(
+        data['instructorAcknowledgements'],
+      ),
       recurrence: data['recurrence'] != null
           ? Recurrence.fromMap(data['recurrence'])
           : null,
@@ -98,18 +175,20 @@ class LessonModel {
 
   /// Альтернативний factory конструктор для Map без Timestamp
   factory LessonModel.fromMap(Map<String, dynamic> data) {
+    final createdAt = _parseRequiredDateTime(data['createdAt']);
+    final updatedAt = _parseRequiredDateTime(
+      data['updatedAt'],
+      fallback: createdAt,
+    );
+    final acknowledgementResetAt =
+        _parseNullableDateTime(data['acknowledgementResetAt']) ?? updatedAt;
+
     return LessonModel(
       id: data['id'] ?? '',
       title: data['title'] ?? '',
       description: data['description'] ?? '',
-      startTime: data['startTime'] is Timestamp
-          ? (data['startTime'] as Timestamp).toDate()
-          : DateTime.parse(
-              data['startTime'] ?? DateTime.now().toIso8601String(),
-            ),
-      endTime: data['endTime'] is Timestamp
-          ? (data['endTime'] as Timestamp).toDate()
-          : DateTime.parse(data['endTime'] ?? DateTime.now().toIso8601String()),
+      startTime: _parseRequiredDateTime(data['startTime']),
+      endTime: _parseRequiredDateTime(data['endTime']),
       groupId: data['groupId'] ?? '',
       groupName: data['groupName'] ?? '',
       unit: data['unit'] ?? '',
@@ -123,16 +202,12 @@ class LessonModel {
       status: data['status'] ?? 'scheduled',
       tags: List<String>.from(data['tags'] ?? []),
       createdBy: data['createdBy'] ?? '',
-      createdAt: data['createdAt'] is Timestamp
-          ? (data['createdAt'] as Timestamp).toDate()
-          : DateTime.parse(
-              data['createdAt'] ?? DateTime.now().toIso8601String(),
-            ),
-      updatedAt: data['updatedAt'] is Timestamp
-          ? (data['updatedAt'] as Timestamp).toDate()
-          : DateTime.parse(
-              data['updatedAt'] ?? DateTime.now().toIso8601String(),
-            ),
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      acknowledgementResetAt: acknowledgementResetAt,
+      instructorAcknowledgements: _parseAcknowledgements(
+        data['instructorAcknowledgements'],
+      ),
       recurrence: data['recurrence'] != null
           ? Recurrence.fromMap(data['recurrence'])
           : null,
@@ -163,6 +238,10 @@ class LessonModel {
       'createdBy': createdBy,
       'createdAt': createdAt,
       'updatedAt': updatedAt,
+      'acknowledgementResetAt': acknowledgementResetAt?.toIso8601String(),
+      'instructorAcknowledgements': instructorAcknowledgements.map(
+        (key, value) => MapEntry(key, value.toMap()),
+      ),
       'recurrence': recurrence?.toMap(),
       'trainingPeriod': trainingPeriod,
     };
@@ -190,6 +269,12 @@ class LessonModel {
       'createdBy': createdBy,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
+      'acknowledgementResetAt': acknowledgementResetAt != null
+          ? Timestamp.fromDate(acknowledgementResetAt!)
+          : null,
+      'instructorAcknowledgements': instructorAcknowledgements.map(
+        (key, value) => MapEntry(key, value.toFirestore()),
+      ),
       'recurrence': recurrence?.toMap(),
       'trainingPeriod': trainingPeriod,
     };
@@ -217,6 +302,8 @@ class LessonModel {
     String? createdBy,
     DateTime? createdAt,
     DateTime? updatedAt,
+    DateTime? acknowledgementResetAt,
+    Map<String, LessonAcknowledgementRecord>? instructorAcknowledgements,
     Recurrence? recurrence,
     String? trainingPeriod,
   }) {
@@ -241,6 +328,10 @@ class LessonModel {
       createdBy: createdBy ?? this.createdBy,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      acknowledgementResetAt:
+          acknowledgementResetAt ?? this.acknowledgementResetAt,
+      instructorAcknowledgements:
+          instructorAcknowledgements ?? this.instructorAcknowledgements,
       recurrence: recurrence ?? this.recurrence,
       trainingPeriod: trainingPeriod ?? this.trainingPeriod,
     );
@@ -311,6 +402,42 @@ class LessonModel {
   /// Рядок з інформацією про дату та час
   String get dateTimeString {
     return '$dateString $timeString';
+  }
+
+  DateTime get effectiveAcknowledgementResetAt =>
+      acknowledgementResetAt ?? updatedAt;
+
+  LessonAcknowledgementRecord? acknowledgementFor(String assignmentId) {
+    final normalizedAssignmentId = normalizeInstructorAssignmentId(
+      assignmentId,
+    );
+    if (normalizedAssignmentId.isEmpty) return null;
+    return instructorAcknowledgements[normalizedAssignmentId];
+  }
+
+  Map<String, String> get instructorAssignmentsById {
+    final assignments = <String, String>{};
+
+    for (var i = 0; i < instructorIds.length; i++) {
+      final assignmentId = instructorIds[i];
+      final resolvedName = i < instructorNames.length
+          ? instructorNames[i].trim()
+          : '';
+      assignments[assignmentId] = resolvedName.isNotEmpty
+          ? resolvedName
+          : assignmentId;
+    }
+
+    if (assignments.isEmpty && instructorId.trim().isNotEmpty) {
+      final normalizedId = normalizeInstructorAssignmentId(instructorId);
+      if (normalizedId.isNotEmpty) {
+        assignments[normalizedId] = instructorName.trim().isNotEmpty
+            ? instructorName.trim()
+            : normalizedId;
+      }
+    }
+
+    return assignments;
   }
 
   @override
@@ -391,6 +518,66 @@ class LessonModel {
     addValue(fallbackName);
 
     return result;
+  }
+
+  static Map<String, LessonAcknowledgementRecord> _normalizeAcknowledgements(
+    Map<String, LessonAcknowledgementRecord>? acknowledgements,
+  ) {
+    final result = <String, LessonAcknowledgementRecord>{};
+    final entries =
+        acknowledgements?.entries ??
+        const <MapEntry<String, LessonAcknowledgementRecord>>[];
+
+    for (final entry in entries) {
+      final normalizedKey = normalizeInstructorAssignmentId(entry.key);
+      if (normalizedKey.isEmpty) continue;
+      result[normalizedKey] = entry.value;
+    }
+
+    return result;
+  }
+
+  static Map<String, LessonAcknowledgementRecord> _parseAcknowledgements(
+    dynamic raw,
+  ) {
+    if (raw is! Map) {
+      return const <String, LessonAcknowledgementRecord>{};
+    }
+
+    final result = <String, LessonAcknowledgementRecord>{};
+
+    for (final entry in raw.entries) {
+      final normalizedKey = normalizeInstructorAssignmentId(
+        entry.key.toString(),
+      );
+      if (normalizedKey.isEmpty || entry.value is! Map) {
+        continue;
+      }
+
+      result[normalizedKey] = LessonAcknowledgementRecord.fromMap(
+        Map<String, dynamic>.from(entry.value as Map),
+      );
+    }
+
+    return result;
+  }
+
+  static DateTime _parseRequiredDateTime(dynamic value, {DateTime? fallback}) {
+    return _parseNullableDateTime(value) ?? fallback ?? DateTime.now();
+  }
+
+  static DateTime? _parseNullableDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String && value.trim().isNotEmpty) {
+      return DateTime.tryParse(value);
+    }
+    return null;
+  }
+
+  static String normalizeInstructorAssignmentId(String value) {
+    return _normalizeInstructorId(value);
   }
 
   static String _normalizeInstructorId(String value) {
