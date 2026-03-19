@@ -14,13 +14,13 @@
     {
       "label": "DeployFirebase",
       "type": "shell",
-      "command": "flutter build web; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; firebase deploy --only hosting; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; firebase deploy --only firestore:rules",
+      "command": "flutter build web --dart-define=FCM_WEB_VAPID_KEY=BBrQKA47NqwXeDM9RWs4l0MK6NkvT0gC-udHPAZQHZFZG37hn_s9PKUcI6O9blpSKGyQP3BBQqM-BoT9S6C3B_w; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; firebase deploy --only hosting; if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }; firebase deploy --only firestore:rules",
       "problemMatcher": []
     },
     {
       "label": "BuildWeb",
       "type": "shell",
-      "command": "flutter build web",
+      "command": "flutter build web --dart-define=FCM_WEB_VAPID_KEY=BBrQKA47NqwXeDM9RWs4l0MK6NkvT0gC-udHPAZQHZFZG37hn_s9PKUcI6O9blpSKGyQP3BBQqM-BoT9S6C3B_w",
       "problemMatcher": []
     },
     {

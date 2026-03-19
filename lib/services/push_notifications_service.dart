@@ -49,6 +49,24 @@ class PushNavigationRequest {
     return jsonEncode(toMessageData());
   }
 
+  static PushNavigationRequest? fromUri(Uri uri) {
+    final parameters = uri.queryParameters;
+    if (!parameters.containsKey("pushKind") &&
+        !parameters.containsKey("pushLessonId") &&
+        !parameters.containsKey("pushNotificationId")) {
+      return null;
+    }
+
+    return fromMessageData({
+      "kind": parameters["pushKind"] ?? "",
+      "groupId": parameters["pushGroupId"] ?? "",
+      "lessonId": parameters["pushLessonId"] ?? "",
+      "notificationId": parameters["pushNotificationId"] ?? "",
+      "title": parameters["pushTitle"] ?? "",
+      "body": parameters["pushBody"] ?? "",
+    });
+  }
+
   static PushNavigationRequest? fromLocalNotificationPayload(String? payload) {
     if (payload == null || payload.trim().isEmpty) {
       return null;
@@ -128,6 +146,11 @@ class PushNotificationsService extends ChangeNotifier {
   static const String androidChannelName = "iTACS Push";
   static const String androidChannelDescription =
       "Сповіщення про нові заняття та оголошення";
+  static const String _webVapidKey = String.fromEnvironment(
+    "FCM_WEB_VAPID_KEY",
+    defaultValue:
+        "BBrQKA47NqwXeDM9RWs4l0MK6NkvT0gC-udHPAZQHZFZG37hn_s9PKUcI6O9blpSKGyQP3BBQqM-BoT9S6C3B_w",
+  );
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -148,7 +171,7 @@ class PushNotificationsService extends ChangeNotifier {
       _pendingNavigationRequest;
 
   bool get isSupportedPlatform =>
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+      kIsWeb || defaultTargetPlatform == TargetPlatform.android;
 
   Future<void> initialize() async {
     if (!isSupportedPlatform || _initialized || _initializing) {
@@ -157,8 +180,23 @@ class PushNotificationsService extends ChangeNotifier {
 
     _initializing = true;
     try {
-      await _initializeLocalNotifications();
+      final isSupported = await _messaging.isSupported();
+      if (!isSupported) {
+        debugPrint("PushNotificationsService: messaging is not supported here");
+        return;
+      }
+
+      if (!kIsWeb) {
+        await _initializeLocalNotifications();
+      }
       await _registerFirebaseListeners();
+
+      if (kIsWeb && _webVapidKey.trim().isEmpty) {
+        debugPrint(
+          "PushNotificationsService: FCM_WEB_VAPID_KEY is empty, web push disabled",
+        );
+        return;
+      }
 
       final settings = await _messaging.requestPermission(
         alert: true,
@@ -188,10 +226,18 @@ class PushNotificationsService extends ChangeNotifier {
     }
 
     final user = FirebaseAuth.instance.currentUser;
-    final token = _registeredToken ?? await _messaging.getToken();
+    final token = _registeredToken ?? await _getMessagingToken();
 
     if (user != null && token != null && token.isNotEmpty) {
       await _deleteDeviceTokenDocument(user.uid, token);
+    }
+
+    if (kIsWeb && token != null && token.isNotEmpty) {
+      try {
+        await _messaging.deleteToken();
+      } catch (_) {
+        // Якщо deleteToken не вдався, все одно продовжуємо logout.
+      }
     }
 
     await _tokenRefreshSubscription?.cancel();
@@ -212,6 +258,10 @@ class PushNotificationsService extends ChangeNotifier {
 
     _pendingNavigationRequest = null;
     notifyListeners();
+  }
+
+  void queueNavigationRequest(PushNavigationRequest request) {
+    _setPendingNavigationRequest(request);
   }
 
   Future<void> _initializeLocalNotifications() async {
@@ -274,7 +324,7 @@ class PushNotificationsService extends ChangeNotifier {
       return;
     }
 
-    final token = await _messaging.getToken();
+    final token = await _getMessagingToken();
     if (token == null || token.isEmpty) {
       return;
     }
@@ -293,7 +343,7 @@ class PushNotificationsService extends ChangeNotifier {
         .doc(token)
         .set({
           "token": token,
-          "platform": "android",
+          "platform": kIsWeb ? "web" : "android",
           "lastSeenAt": FieldValue.serverTimestamp(),
           "notificationsEnabled": notificationsEnabled,
           "appVersion": AppTheme.appVersion,
@@ -322,6 +372,11 @@ class PushNotificationsService extends ChangeNotifier {
   Future<void> _handleForegroundMessage(RemoteMessage message) async {
     final request = PushNavigationRequest.fromRemoteMessage(message);
     if (request == null) {
+      return;
+    }
+
+    if (kIsWeb) {
+      _setPendingNavigationRequest(request);
       return;
     }
 
@@ -357,6 +412,18 @@ class PushNotificationsService extends ChangeNotifier {
     } catch (_) {
       // Якщо документа вже немає, це не повинно блокувати logout.
     }
+  }
+
+  Future<String?> _getMessagingToken() {
+    if (kIsWeb) {
+      if (_webVapidKey.trim().isEmpty) {
+        return Future<String?>.value(null);
+      }
+
+      return _messaging.getToken(vapidKey: _webVapidKey);
+    }
+
+    return _messaging.getToken();
   }
 
   void _setPendingNavigationRequest(PushNavigationRequest? request) {

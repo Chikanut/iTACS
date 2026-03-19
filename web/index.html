@@ -61,6 +61,19 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+   <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker
+          .register("firebase-messaging-sw.js", {
+            scope: "/firebase-cloud-messaging-push-scope",
+          })
+          .catch(function (error) {
+            console.warn("Firebase messaging service worker registration failed:", error);
+          });
+      });
+    }
+  </script>
    <script src="main.dart.js" type="application/javascript"></script>
 </body>
 </html>

@@ -9,6 +9,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../globals.dart';
 import '../services/app_session_controller.dart';
 import '../services/push_notifications_service.dart';
+import '../services/web_push_environment.dart';
+import '../widgets/web_push_install_banner.dart';
 import 'tools_page/tools_page.dart';
 import 'admin_page/admin_panel_page.dart';
 import 'calendar_page/widgets/lesson_details_dialog.dart';
@@ -108,6 +110,7 @@ class _MainScaffoldState extends State<MainScaffold> {
   void initState() {
     super.initState();
     Globals.pushNotificationsService.addListener(_handlePushNavigationChanged);
+    _hydrateWebPushFromUrl();
     _initGroups();
     unawaited(_initializePushNotifications());
   }
@@ -142,6 +145,16 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   void _handlePushNavigationChanged() {
     unawaited(_handlePendingPushNavigation());
+  }
+
+  void _hydrateWebPushFromUrl() {
+    final request = PushNavigationRequest.fromUri(Uri.base);
+    if (request == null) {
+      return;
+    }
+
+    Globals.pushNotificationsService.queueNavigationRequest(request);
+    WebPushEnvironment.clearPushQueryParameters();
   }
 
   int get _homeTabIndex =>
@@ -419,11 +432,16 @@ class _MainScaffoldState extends State<MainScaffold> {
             ),
         ],
       ),
-      body: _pages.isNotEmpty && _currentIndex < _pages.length
-          ? _pages[_currentIndex]
-          : const Center(
-              child: CircularProgressIndicator(),
-            ), // 🛡️ Захист від помилок
+      body: Column(
+        children: [
+          const WebPushInstallBanner(),
+          Expanded(
+            child: _pages.isNotEmpty && _currentIndex < _pages.length
+                ? _pages[_currentIndex]
+                : const Center(child: CircularProgressIndicator()),
+          ),
+        ],
+      ), // 🛡️ Захист від помилок
       bottomNavigationBar: isMobile
           ? BottomNavigationBar(
               backgroundColor: Theme.of(

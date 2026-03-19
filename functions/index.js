@@ -3,7 +3,7 @@
 
 const admin = require("firebase-admin");
 const cors = require("cors")({origin: true});
-const functions = require("firebase-functions");
+const functionsV1 = require("firebase-functions/v1");
 const logger = require("firebase-functions/logger");
 
 admin.initializeApp();
@@ -28,7 +28,7 @@ const LESSON_RESET_FIELDS = [
   "instructorNames",
 ];
 
-exports.proxyDownload = functions.https.onRequest((req, res) => {
+exports.proxyDownload = functionsV1.https.onRequest((req, res) => {
   cors(req, res, async () => {
     const fileId = req.query.fileId;
     if (!fileId) {
@@ -57,7 +57,7 @@ exports.proxyDownload = functions.https.onRequest((req, res) => {
   });
 });
 
-exports.sendPushForGroupNotification = functions.firestore
+exports.sendPushForGroupNotification = functionsV1.firestore
     .document("groups/{groupId}/notifications/{notificationId}")
     .onCreate(async (snapshot, context) => {
       const eventKey = buildEventKey(
@@ -116,7 +116,7 @@ exports.sendPushForGroupNotification = functions.firestore
       return null;
     });
 
-exports.sendPushForLessonCreate = functions.firestore
+exports.sendPushForLessonCreate = functionsV1.firestore
     .document("lessons/{groupId}/items/{lessonId}")
     .onCreate(async (snapshot, context) => {
       const eventKey = buildEventKey(
@@ -166,7 +166,7 @@ exports.sendPushForLessonCreate = functions.firestore
       return null;
     });
 
-exports.sendPushForLessonUpdate = functions.firestore
+exports.sendPushForLessonUpdate = functionsV1.firestore
     .document("lessons/{groupId}/items/{lessonId}")
     .onUpdate(async (change, context) => {
       const eventKey = buildEventKey(
@@ -450,10 +450,13 @@ async function sendPushToUsers({userIds, title, body, data}) {
   let successCount = 0;
   let failureCount = 0;
 
-  for (let index = 0; index < tokenEntries.length; index += MAX_MULTICAST_SIZE) {
-    const batch = tokenEntries.slice(index, index + MAX_MULTICAST_SIZE);
-    const batchResult = await messaging.sendEachForMulticast({
-      tokens: batch.map((entry) => entry.token),
+  const androidEntries = tokenEntries.filter((entry) => entry.platform !== "web");
+  const webEntries = tokenEntries.filter((entry) => entry.platform === "web");
+
+  const androidSummary = await sendPlatformBatches({
+    tokenEntries: androidEntries,
+    messageFactory: (tokens) => ({
+      tokens,
       notification: {
         title,
         body,
@@ -466,32 +469,24 @@ async function sendPushToUsers({userIds, title, body, data}) {
           priority: "high",
         },
       },
-    });
+    }),
+  });
 
-    successCount += batchResult.successCount;
-    failureCount += batchResult.failureCount;
+  const webSummary = await sendPlatformBatches({
+    tokenEntries: webEntries,
+    messageFactory: (tokens) => ({
+      tokens,
+      data: stringifyMessageData(data),
+      webpush: {
+        headers: {
+          Urgency: "high",
+        },
+      },
+    }),
+  });
 
-    const invalidDocRefs = [];
-    batchResult.responses.forEach((response, responseIndex) => {
-      if (response.success) {
-        return;
-      }
-
-      const errorCode = response.error && response.error.code ?
-        response.error.code :
-        "";
-
-      if (isInvalidTokenError(errorCode)) {
-        invalidDocRefs.push(batch[responseIndex].ref);
-      }
-    });
-
-    await Promise.all(invalidDocRefs.map((docRef) => docRef.delete().catch(() => {
-      logger.warn("Failed to delete invalid token doc", {
-        path: docRef.path,
-      });
-    })));
-  }
+  successCount += androidSummary.successCount + webSummary.successCount;
+  failureCount += androidSummary.failureCount + webSummary.failureCount;
 
   return {
     userCount: userIds.length,
@@ -524,11 +519,56 @@ async function collectTokenEntries(userIds) {
       }
 
       seenTokens.add(token);
-      tokenEntries.push({token, ref: doc.ref});
+      tokenEntries.push({
+        token,
+        ref: doc.ref,
+        platform: asString(doc.get("platform")).toLowerCase(),
+      });
     });
   });
 
   return tokenEntries;
+}
+
+async function sendPlatformBatches({tokenEntries, messageFactory}) {
+  let successCount = 0;
+  let failureCount = 0;
+
+  for (let index = 0; index < tokenEntries.length; index += MAX_MULTICAST_SIZE) {
+    const batch = tokenEntries.slice(index, index + MAX_MULTICAST_SIZE);
+    const batchResult = await messaging.sendEachForMulticast(
+        messageFactory(batch.map((entry) => entry.token)),
+    );
+
+    successCount += batchResult.successCount;
+    failureCount += batchResult.failureCount;
+
+    const invalidDocRefs = [];
+    batchResult.responses.forEach((response, responseIndex) => {
+      if (response.success) {
+        return;
+      }
+
+      const errorCode = response.error && response.error.code ?
+        response.error.code :
+        "";
+
+      if (isInvalidTokenError(errorCode)) {
+        invalidDocRefs.push(batch[responseIndex].ref);
+      }
+    });
+
+    await Promise.all(
+        invalidDocRefs.map((docRef) =>
+          docRef.delete().catch(() => {
+            logger.warn("Failed to delete invalid token doc", {
+              path: docRef.path,
+            });
+          })),
+    );
+  }
+
+  return {successCount, failureCount};
 }
 
 function isInvalidTokenError(errorCode) {
