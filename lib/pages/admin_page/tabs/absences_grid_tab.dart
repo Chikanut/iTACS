@@ -674,23 +674,20 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
     _lessonsGrid.clear();
 
     for (final lesson in lessons) {
-      if (lesson.instructorId.isEmpty) continue;
-      final normalizedInstructorId = _normalizeAssignmentId(
-        lesson.instructorId,
-      );
-      if (normalizedInstructorId.isEmpty) continue;
-
       final lessonDate = DateTime(
         lesson.startTime.year,
         lesson.startTime.month,
         lesson.startTime.day,
       );
 
-      _lessonsGrid.putIfAbsent(normalizedInstructorId, () => {});
-      _lessonsGrid[normalizedInstructorId]!.putIfAbsent(lessonDate, () => []);
-      _lessonsGrid[normalizedInstructorId]![lessonDate]!.add(
-        lesson,
-      ); // 🎯 Додаємо весь об'єкт заняття
+      for (final instructorId in lesson.instructorIds) {
+        final normalizedInstructorId = _normalizeAssignmentId(instructorId);
+        if (normalizedInstructorId.isEmpty) continue;
+
+        _lessonsGrid.putIfAbsent(normalizedInstructorId, () => {});
+        _lessonsGrid[normalizedInstructorId]!.putIfAbsent(lessonDate, () => []);
+        _lessonsGrid[normalizedInstructorId]![lessonDate]!.add(lesson);
+      }
     }
   }
 

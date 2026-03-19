@@ -136,7 +136,7 @@ class LessonStatusUtils {
   /// Перевірити чи заповнені критичні поля
   static bool areCriticalFieldsFilled(LessonModel lesson) {
     // Інструктор
-    if (lesson.instructorId.isEmpty || lesson.instructorId == 'Не призначено') {
+    if (!lesson.hasInstructors) {
       return false;
     }
 
@@ -179,9 +179,7 @@ class LessonStatusUtils {
   static LessonReadinessStatus getReadinessStatus(LessonModel lesson) {
     final progressStatus = getProgressStatus(lesson);
     final criticalFieldsFilled = areCriticalFieldsFilled(lesson);
-    final hasInstructor =
-        lesson.instructorId.isNotEmpty &&
-        lesson.instructorId != 'Не призначено';
+    final hasInstructor = lesson.hasInstructors;
 
     switch (progressStatus) {
       case LessonProgressStatus.scheduled:
@@ -227,7 +225,7 @@ class LessonStatusUtils {
   static List<String> getMissingCriticalFields(LessonModel lesson) {
     final List<String> missing = [];
 
-    if (lesson.instructorId.isEmpty || lesson.instructorId == 'Не призначено') {
+    if (!lesson.hasInstructors) {
       missing.add('Інструктор');
     }
 
@@ -255,8 +253,7 @@ class LessonStatusUtils {
     int filledCount = 0;
     const int totalCount = 5; // 👈 ЗБІЛЬШЕНО до 5 критичних полів
 
-    if (lesson.instructorId.isNotEmpty &&
-        lesson.instructorId != 'Не призначено') {
+    if (lesson.hasInstructors) {
       filledCount++;
     }
 
@@ -737,7 +734,7 @@ class CalendarUtils {
     bool isUserInstructor,
   ) {
     if (isUserInstructor) return InstructorLessonStatus.teaching;
-    if (lesson.instructorId.isEmpty || lesson.instructorId == 'Не призначено') {
+    if (!lesson.hasInstructors) {
       return InstructorLessonStatus.needsInstructor;
     }
     return InstructorLessonStatus.assigned;

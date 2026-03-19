@@ -114,10 +114,8 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                     // Інструктор
                     _buildDetailRow(
                       icon: Icons.person,
-                      label: 'Інструктор',
-                      value: lesson.instructorName.isNotEmpty
-                          ? lesson.instructorName
-                          : 'Не призначено',
+                      label: 'Викладачі',
+                      value: lesson.displayInstructorNames,
                     ),
 
                     const SizedBox(height: 16),
@@ -306,7 +304,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                     Text(
                       needsInstructor
                           ? 'Викладач не призначений'
-                          : 'Викладач: ${lesson.instructorName}',
+                          : 'Викладачі: ${lesson.displayInstructorNames}',
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
@@ -412,7 +410,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
       children: [
         // Кнопки для викладачів
         if (canTakeLesson) ...[
-          if (needsInstructor)
+          if (!isUserInstructor)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -424,7 +422,11 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.school, size: 16),
-                label: const Text('Взяти заняття на себе'),
+                label: Text(
+                  needsInstructor
+                      ? 'Взяти заняття на себе'
+                      : 'Додати себе до викладачів',
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
@@ -451,8 +453,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
               ),
             ),
 
-          if ((needsInstructor && !isUserInstructor) || isUserInstructor)
-            const SizedBox(height: 12),
+          const SizedBox(height: 12),
         ],
 
         if (canAssignOthers) ...[
@@ -476,8 +477,8 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                     ),
               label: Text(
                 needsInstructor
-                    ? 'Призначити викладача'
-                    : 'Перепризначити викладача',
+                    ? 'Призначити викладачів'
+                    : 'Змінити викладачів',
               ),
             ),
           ),
@@ -640,11 +641,8 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
     }
     if (!mounted) return;
 
-    String selectedInstructorId = widget.lesson.instructorId;
-    String selectedInstructorName = widget.lesson.instructorName;
-    final hasCurrentInstructor = _availableInstructors.any(
-      (member) => _memberAssignmentId(member) == selectedInstructorId,
-    );
+    final availableOptions = _availableInstructorOptions();
+    final selectedInstructorIds = {...widget.lesson.instructorIds};
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -652,55 +650,33 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
         return StatefulBuilder(
           builder: (context, setStateDialog) {
             return AlertDialog(
-              title: const Text('Призначити викладача'),
+              title: const Text('Призначити викладачів'),
               content: SizedBox(
                 width: 420,
-                child: DropdownButtonFormField<String>(
-                  value: selectedInstructorId.isNotEmpty && hasCurrentInstructor
-                      ? selectedInstructorId
-                      : '',
-                  decoration: const InputDecoration(
-                    labelText: 'Людина з групи',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: [
-                    const DropdownMenuItem<String>(
-                      value: '',
-                      child: Text('Оберіть людину'),
-                    ),
-                    ..._availableInstructors.map((member) {
-                      final assignmentId = _memberAssignmentId(member);
-                      final displayName = _memberDisplayName(member);
-                      final email = ((member['email'] as String?) ?? '').trim();
-                      return DropdownMenuItem<String>(
-                        value: assignmentId,
-                        child: Text(
-                          email.isNotEmpty && displayName != email
-                              ? '$displayName ($email)'
-                              : displayName,
-                          overflow: TextOverflow.ellipsis,
+                child: availableOptions.isEmpty
+                    ? const Text('У групі поки немає доступних викладачів.')
+                    : SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: availableOptions.entries.map((entry) {
+                            return CheckboxListTile(
+                              value: selectedInstructorIds.contains(entry.key),
+                              title: Text(entry.value),
+                              contentPadding: EdgeInsets.zero,
+                              controlAffinity: ListTileControlAffinity.leading,
+                              onChanged: (checked) {
+                                setStateDialog(() {
+                                  if (checked == true) {
+                                    selectedInstructorIds.add(entry.key);
+                                  } else {
+                                    selectedInstructorIds.remove(entry.key);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
                         ),
-                      );
-                    }),
-                  ],
-                  onChanged: (value) {
-                    final assignmentId = value ?? '';
-                    final selectedMember = _availableInstructors
-                        .cast<Map<String, dynamic>?>()
-                        .firstWhere(
-                          (member) =>
-                              member != null &&
-                              _memberAssignmentId(member) == assignmentId,
-                          orElse: () => null,
-                        );
-                    setStateDialog(() {
-                      selectedInstructorId = assignmentId;
-                      selectedInstructorName = selectedMember != null
-                          ? _memberDisplayName(selectedMember)
-                          : '';
-                    });
-                  },
-                ),
+                      ),
               ),
               actions: [
                 TextButton(
@@ -708,10 +684,8 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                   child: const Text('Скасувати'),
                 ),
                 FilledButton(
-                  onPressed: selectedInstructorId.isEmpty
-                      ? null
-                      : () => Navigator.of(dialogContext).pop(true),
-                  child: const Text('Призначити'),
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Застосувати'),
                 ),
               ],
             );
@@ -720,14 +694,19 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
       },
     );
 
-    if (confirmed != true || selectedInstructorId.isEmpty) return;
+    if (confirmed != true) return;
 
     setState(() => _isLoading = true);
     try {
-      final success = await _calendarService.assignLessonInstructor(
+      final selectedNames = availableOptions.entries
+          .where((entry) => selectedInstructorIds.contains(entry.key))
+          .map((entry) => entry.value)
+          .toList();
+
+      final success = await _calendarService.assignLessonInstructors(
         widget.lesson.id,
-        instructorId: selectedInstructorId,
-        instructorName: selectedInstructorName,
+        instructorIds: selectedInstructorIds.toList(),
+        instructorNames: selectedNames,
       );
 
       if (success && mounted) {
@@ -738,7 +717,9 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'Для заняття "${widget.lesson.title}" призначено викладача $selectedInstructorName',
+                  selectedInstructorIds.isEmpty
+                      ? 'Для заняття "${widget.lesson.title}" очищено список викладачів'
+                      : 'Для заняття "${widget.lesson.title}" оновлено список викладачів',
                 ),
                 backgroundColor: Colors.green,
               ),
@@ -941,6 +922,8 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
           'unit': widget.lesson.unit,
           'instructorId': widget.lesson.instructorId,
           'instructorName': widget.lesson.instructorName,
+          'instructorIds': widget.lesson.instructorIds,
+          'instructorNames': widget.lesson.instructorNames,
           'tags': widget.lesson.tags,
           'durationMinutes': widget.lesson.endTime
               .difference(widget.lesson.startTime)
@@ -1041,5 +1024,29 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
     }
     final email = ((member['email'] as String?) ?? '').trim();
     return email.isNotEmpty ? email : 'Без імені';
+  }
+
+  Map<String, String> _availableInstructorOptions() {
+    final options = <String, String>{};
+
+    for (var i = 0; i < widget.lesson.instructorIds.length; i++) {
+      final id = widget.lesson.instructorIds[i];
+      if (id.isEmpty) continue;
+      final name = i < widget.lesson.instructorNames.length
+          ? widget.lesson.instructorNames[i]
+          : widget.lesson.instructorName;
+      options[id] = name.isNotEmpty ? name : id;
+    }
+
+    for (final member in _availableInstructors) {
+      final assignmentId = _memberAssignmentId(member);
+      final displayName = _memberDisplayName(member);
+      final email = ((member['email'] as String?) ?? '').trim();
+      options[assignmentId] = email.isNotEmpty && displayName != email
+          ? '$displayName ($email)'
+          : displayName;
+    }
+
+    return options;
   }
 }

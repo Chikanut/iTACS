@@ -163,21 +163,21 @@ class MobileLessonCard extends StatelessWidget {
                 Icon(
                   Icons.person,
                   size: 16,
-                  color: lesson.instructorId.isEmpty
+                  color: !lesson.hasInstructors
                       ? Colors.red.shade600
                       : Colors.grey.shade600,
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  lesson.instructorId.isEmpty
+                  !lesson.hasInstructors
                       ? 'Викладач не призначений'
-                      : lesson.instructorName,
+                      : lesson.displayInstructorNames,
                   style: TextStyle(
                     fontSize: 14,
-                    color: lesson.instructorId.isEmpty
+                    color: !lesson.hasInstructors
                         ? Colors.red.shade700
                         : Colors.grey.shade700,
-                    fontWeight: lesson.instructorId.isEmpty
+                    fontWeight: !lesson.hasInstructors
                         ? FontWeight.w600
                         : FontWeight.normal,
                   ),

@@ -134,20 +134,21 @@ class _CalendarGridState extends State<CalendarGrid> {
 
     return lessons.where((lesson) {
       if (filters.showMineOnly) {
-        final instructorId = lesson.instructorId.trim();
-        final instructorName = lesson.instructorName.trim();
         final matchesCurrentUser =
-            (currentUserId.isNotEmpty && instructorId == currentUserId) ||
+            (currentUserId.isNotEmpty &&
+                lesson.hasInstructorId(currentUserId)) ||
             (currentUserEmail.isNotEmpty &&
-                instructorId.toLowerCase() == currentUserEmail) ||
-            (currentUserName.isNotEmpty && instructorName == currentUserName);
+                (lesson.hasInstructorId(currentUserEmail) ||
+                    lesson.hasInstructorName(currentUserEmail))) ||
+            (currentUserName.isNotEmpty &&
+                lesson.hasInstructorName(currentUserName));
         if (!matchesCurrentUser) {
           return false;
         }
       }
 
       if (filters.userIds.isNotEmpty &&
-          !_matchesSelectedUser(filters.userIds, lesson.instructorId.trim())) {
+          !_matchesSelectedUsers(filters.userIds, lesson.instructorIds)) {
         return false;
       }
 
@@ -160,13 +161,18 @@ class _CalendarGridState extends State<CalendarGrid> {
     }).toList();
   }
 
-  bool _matchesSelectedUser(Set<String> selectedUsers, String instructorId) {
+  bool _matchesSelectedUsers(
+    Set<String> selectedUsers,
+    List<String> instructorIds,
+  ) {
     for (final selectedUser in selectedUsers) {
       final variants = selectedUser
           .split('|')
           .map((value) => value.trim().toLowerCase())
           .where((value) => value.isNotEmpty);
-      if (variants.contains(instructorId.trim().toLowerCase())) {
+      if (instructorIds.any(
+        (instructorId) => variants.contains(instructorId.trim().toLowerCase()),
+      )) {
         return true;
       }
     }

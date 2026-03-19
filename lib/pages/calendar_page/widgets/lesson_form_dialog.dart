@@ -64,8 +64,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   // Валідація часу
   String? _timeValidationError;
   bool _isLoadingInstructors = false;
-  String _selectedInstructorId = '';
-  String _selectedInstructorName = '';
+  final Map<String, String> _selectedInstructors = {};
 
   @override
   void initState() {
@@ -106,8 +105,11 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
       _selectedTags = List.from(lesson.tags);
       _tagsController.text = _selectedTags.join(', ');
       _trainingPeriodController.text = lesson.trainingPeriod;
-      _selectedInstructorId = lesson.instructorId;
-      _selectedInstructorName = lesson.instructorName;
+      _selectedInstructors
+        ..clear()
+        ..addAll(
+          _pairInstructors(lesson.instructorIds, lesson.instructorNames),
+        );
 
       if (lesson.recurrence != null) {
         _isRecurring = true;
@@ -137,8 +139,16 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         _unitController.text = template['unit'] ?? '';
         _selectedTags = List<String>.from(template['tags'] ?? []);
         _tagsController.text = _selectedTags.join(', ');
-        _selectedInstructorId = template['instructorId'] ?? '';
-        _selectedInstructorName = template['instructorName'] ?? '';
+        _selectedInstructors
+          ..clear()
+          ..addAll(
+            _pairInstructors(
+              List<String>.from(template['instructorIds'] ?? const []),
+              List<String>.from(template['instructorNames'] ?? const []),
+              fallbackId: template['instructorId'] ?? '',
+              fallbackName: template['instructorName'] ?? '',
+            ),
+          );
 
         if (template['durationMinutes'] != null) {
           final duration = template['durationMinutes'] as int;
@@ -171,18 +181,10 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     setState(() {
       _availableInstructors = instructors;
       _isLoadingInstructors = false;
-
-      if (_selectedInstructorId.isNotEmpty) {
-        final selectedMember = instructors
-            .cast<Map<String, dynamic>?>()
-            .firstWhere(
-              (member) =>
-                  member != null &&
-                  _memberAssignmentId(member) == _selectedInstructorId,
-              orElse: () => null,
-            );
-        if (selectedMember != null) {
-          _selectedInstructorName = _memberDisplayName(selectedMember);
+      for (final member in instructors) {
+        final assignmentId = _memberAssignmentId(member);
+        if (_selectedInstructors.containsKey(assignmentId)) {
+          _selectedInstructors[assignmentId] = _memberDisplayName(member);
         }
       }
     });
@@ -598,74 +600,73 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   }
 
   Widget _buildInstructorSection() {
-    final hasSelectedInstructor =
-        _selectedInstructorId.isNotEmpty &&
-        _availableInstructors.any(
-          (member) => _memberAssignmentId(member) == _selectedInstructorId,
-        );
-
-    return DropdownButtonFormField<String>(
-      value: _selectedInstructorId.isNotEmpty
-          ? (hasSelectedInstructor ? _selectedInstructorId : '__current__')
-          : '',
-      decoration: const InputDecoration(
-        labelText: 'Викладач',
-        border: OutlineInputBorder(),
-        prefixIcon: Icon(Icons.person),
-        helperText: 'Адмін може призначити будь-кого з поточної групи',
-      ),
-      items: [
-        const DropdownMenuItem<String>(
-          value: '',
-          child: Text('Не призначати зараз'),
-        ),
-        if (_selectedInstructorId.isNotEmpty && !hasSelectedInstructor)
-          DropdownMenuItem<String>(
-            value: '__current__',
-            child: Text(
-              _selectedInstructorName.isNotEmpty
-                  ? '$_selectedInstructorName (поточне призначення)'
-                  : 'Поточне призначення',
-              overflow: TextOverflow.ellipsis,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InputDecorator(
+          decoration: const InputDecoration(
+            labelText: 'Викладачі',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.people),
+            helperText:
+                'Адмін може призначити кількох викладачів із поточної групи',
           ),
-        ..._availableInstructors.map((member) {
-          final assignmentId = _memberAssignmentId(member);
-          final displayName = _memberDisplayName(member);
-          final email = ((member['email'] as String?) ?? '').trim();
-          return DropdownMenuItem<String>(
-            value: assignmentId,
-            child: Text(
-              email.isNotEmpty && displayName != email
-                  ? '$displayName ($email)'
-                  : displayName,
-              overflow: TextOverflow.ellipsis,
+          child: _isLoadingInstructors
+              ? const SizedBox(
+                  height: 24,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                  ),
+                )
+              : _selectedInstructors.isEmpty
+              ? const Text('Не призначено')
+              : Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _selectedInstructors.entries
+                      .map(
+                        (entry) => Chip(
+                          label: Text(entry.value),
+                          onDeleted: () {
+                            setState(() {
+                              _selectedInstructors.remove(entry.key);
+                            });
+                          },
+                        ),
+                      )
+                      .toList(),
+                ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          children: [
+            OutlinedButton.icon(
+              onPressed: _isLoadingInstructors ? null : _showInstructorPicker,
+              icon: const Icon(Icons.people_alt_outlined, size: 18),
+              label: Text(
+                _selectedInstructors.isEmpty
+                    ? 'Обрати викладачів'
+                    : 'Змінити список',
+              ),
             ),
-          );
-        }),
+            if (_selectedInstructors.isNotEmpty)
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedInstructors.clear();
+                  });
+                },
+                child: const Text('Очистити'),
+              ),
+          ],
+        ),
       ],
-      onChanged: _isLoadingInstructors
-          ? null
-          : (value) {
-              if (value == '__current__') {
-                return;
-              }
-              final assignmentId = value ?? '';
-              final selectedMember = _availableInstructors
-                  .cast<Map<String, dynamic>?>()
-                  .firstWhere(
-                    (member) =>
-                        member != null &&
-                        _memberAssignmentId(member) == assignmentId,
-                    orElse: () => null,
-                  );
-              setState(() {
-                _selectedInstructorId = assignmentId;
-                _selectedInstructorName = selectedMember != null
-                    ? _memberDisplayName(selectedMember)
-                    : '';
-              });
-            },
     );
   }
 
@@ -1085,8 +1086,14 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         groupId: Globals.profileManager.currentGroupId ?? '',
         groupName: currentGroup,
         unit: _unitController.text.trim(),
-        instructorId: _resolvedInstructorId(),
-        instructorName: _resolvedInstructorName(),
+        instructorId: _resolvedInstructorIds().isNotEmpty
+            ? _resolvedInstructorIds().first
+            : '',
+        instructorName: _resolvedInstructorNames().isNotEmpty
+            ? _resolvedInstructorNames().first
+            : '',
+        instructorIds: _resolvedInstructorIds(),
+        instructorNames: _resolvedInstructorNames(),
         location: _locationController.text.trim(),
         maxParticipants: int.parse(_maxParticipantsController.text),
         participants: widget.lesson?.participants ?? [],
@@ -1111,6 +1118,8 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
           'unit': lesson.unit,
           'instructorId': lesson.instructorId,
           'instructorName': lesson.instructorName,
+          'instructorIds': lesson.instructorIds,
+          'instructorNames': lesson.instructorNames,
           'maxParticipants': lesson.maxParticipants,
           'tags': lesson.tags,
           'trainingPeriod': lesson.trainingPeriod,
@@ -1163,18 +1172,24 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     return Globals.profileManager.currentRole == 'admin';
   }
 
-  String _resolvedInstructorId() {
+  List<String> _resolvedInstructorIds() {
     if (_canAssignInstructor()) {
-      return _normalizeInstructorAssignmentId(_selectedInstructorId);
+      return _selectedInstructors.keys
+          .map(_normalizeInstructorAssignmentId)
+          .where((value) => value.isNotEmpty)
+          .toList();
     }
-    return _normalizeInstructorAssignmentId(widget.lesson?.instructorId ?? '');
+    return widget.lesson?.instructorIds ?? const [];
   }
 
-  String _resolvedInstructorName() {
+  List<String> _resolvedInstructorNames() {
     if (_canAssignInstructor()) {
-      return _selectedInstructorName;
+      return _selectedInstructors.values
+          .map((value) => value.trim())
+          .where((value) => value.isNotEmpty)
+          .toList();
     }
-    return widget.lesson?.instructorName ?? '';
+    return widget.lesson?.instructorNames ?? const [];
   }
 
   String _memberAssignmentId(Map<String, dynamic> member) {
@@ -1200,5 +1215,117 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
       return normalized.toLowerCase();
     }
     return normalized;
+  }
+
+  Future<void> _showInstructorPicker() async {
+    final availableOptions = _availableInstructorOptions();
+    final selectedIds = {..._selectedInstructors.keys};
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: const Text('Оберіть викладачів'),
+              content: SizedBox(
+                width: 420,
+                child: availableOptions.isEmpty
+                    ? const Text('У групі поки немає доступних викладачів.')
+                    : SingleChildScrollView(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: availableOptions.entries.map((entry) {
+                            return CheckboxListTile(
+                              value: selectedIds.contains(entry.key),
+                              title: Text(entry.value),
+                              controlAffinity: ListTileControlAffinity.leading,
+                              contentPadding: EdgeInsets.zero,
+                              onChanged: (checked) {
+                                setStateDialog(() {
+                                  if (checked == true) {
+                                    selectedIds.add(entry.key);
+                                  } else {
+                                    selectedIds.remove(entry.key);
+                                  }
+                                });
+                              },
+                            );
+                          }).toList(),
+                        ),
+                      ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(false),
+                  child: const Text('Скасувати'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(true),
+                  child: const Text('Застосувати'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    setState(() {
+      _selectedInstructors
+        ..clear()
+        ..addEntries(
+          availableOptions.entries.where(
+            (entry) => selectedIds.contains(entry.key),
+          ),
+        );
+    });
+  }
+
+  Map<String, String> _availableInstructorOptions() {
+    final options = <String, String>{};
+
+    for (final entry in _selectedInstructors.entries) {
+      options[entry.key] = entry.value;
+    }
+
+    for (final member in _availableInstructors) {
+      final assignmentId = _memberAssignmentId(member);
+      final displayName = _memberDisplayName(member);
+      final email = ((member['email'] as String?) ?? '').trim();
+      options[assignmentId] = email.isNotEmpty && displayName != email
+          ? '$displayName ($email)'
+          : displayName;
+    }
+
+    return options;
+  }
+
+  Map<String, String> _pairInstructors(
+    List<String> instructorIds,
+    List<String> instructorNames, {
+    String fallbackId = '',
+    String fallbackName = '',
+  }) {
+    final paired = <String, String>{};
+
+    for (var i = 0; i < instructorIds.length; i++) {
+      final normalizedId = _normalizeInstructorAssignmentId(instructorIds[i]);
+      if (normalizedId.isEmpty) continue;
+      final name = i < instructorNames.length ? instructorNames[i].trim() : '';
+      paired[normalizedId] = name.isNotEmpty ? name : normalizedId;
+    }
+
+    final normalizedFallbackId = _normalizeInstructorAssignmentId(fallbackId);
+    if (normalizedFallbackId.isNotEmpty &&
+        !paired.containsKey(normalizedFallbackId)) {
+      paired[normalizedFallbackId] = fallbackName.trim().isNotEmpty
+          ? fallbackName.trim()
+          : normalizedFallbackId;
+    }
+
+    return paired;
   }
 }

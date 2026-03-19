@@ -61,36 +61,21 @@ class CalendarService {
     String? instructorId,
   }) async {
     try {
-      final currentGroupId = Globals.profileManager.currentGroupId;
-      if (currentGroupId == null) {
-        debugPrint('CalendarService: Немає активної групи');
+      final normalizedInstructorId = _normalizeInstructorAssignmentId(
+        instructorId ?? '',
+      );
+      if (normalizedInstructorId.isEmpty) {
         return [];
       }
 
-      debugPrint(
-        'CalendarService: Завантаження занять для групи $currentGroupId від $startDate до $endDate',
+      final lessons = await getLessonsForPeriod(
+        startDate: startDate,
+        endDate: endDate,
       );
 
-      // Запит до Firestore
-      final querySnapshot = await _firestore
-          .collection('lessons')
-          .doc(currentGroupId)
-          .collection('items')
-          .where(
-            'startTime',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
-          )
-          .where('startTime', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
-          .where('instructorId', isEqualTo: instructorId)
-          .orderBy('startTime')
-          .get();
-
-      final lessons = querySnapshot.docs
-          .map((doc) => LessonModel.fromFirestore(doc.data(), doc.id))
+      return lessons
+          .where((lesson) => lesson.hasInstructorId(normalizedInstructorId))
           .toList();
-
-      debugPrint('CalendarService: Знайдено ${lessons.length} занять');
-      return lessons;
     } catch (e) {
       debugPrint('CalendarService: Помилка завантаження занять: $e');
       return [];
@@ -149,10 +134,12 @@ class CalendarService {
         'groupId': currentGroupId,
         'groupName': lesson.groupName,
         'unit': lesson.unit,
-        'instructorName': lesson.instructorId.isEmpty
-            ? 'Не призначено'
-            : lesson.instructorName,
+        'instructorName': lesson.hasInstructors
+            ? lesson.instructorName
+            : 'Не призначено',
         'instructorId': lesson.instructorId,
+        'instructorIds': lesson.instructorIds,
+        'instructorNames': lesson.instructorNames,
         'location': lesson.location,
         'maxParticipants': lesson.maxParticipants,
         'currentParticipants': 0,
@@ -162,12 +149,12 @@ class CalendarService {
         'createdBy': currentUser.uid,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
+        'trainingPeriod': lesson.trainingPeriod,
         'recurrence': lesson.recurrence != null
             ? {
                 'type': lesson.recurrence!.type,
                 'interval': lesson.recurrence!.interval,
                 'endDate': Timestamp.fromDate(lesson.recurrence!.endDate),
-                'trainingPeriod': lesson.trainingPeriod,
               }
             : null,
       };
@@ -182,6 +169,30 @@ class CalendarService {
       return docRef.id;
     } catch (e) {
       debugPrint('CalendarService: Помилка створення заняття: $e');
+      return null;
+    }
+  }
+
+  Future<LessonModel?> getLessonById(String lessonId) async {
+    try {
+      final currentGroupId = Globals.profileManager.currentGroupId;
+      if (currentGroupId == null) return null;
+
+      final lessonDoc = await _firestore
+          .collection('lessons')
+          .doc(currentGroupId)
+          .collection('items')
+          .doc(lessonId)
+          .get();
+
+      final data = lessonDoc.data();
+      if (!lessonDoc.exists || data == null) {
+        return null;
+      }
+
+      return LessonModel.fromFirestore(data, lessonDoc.id);
+    } catch (e) {
+      debugPrint('CalendarService: Помилка отримання заняття: $e');
       return null;
     }
   }
@@ -383,8 +394,16 @@ class CalendarService {
       }
 
       if (instructors != null && instructors.isNotEmpty) {
+        final normalizedInstructors = instructors
+            .map(_normalizeInstructorAssignmentId)
+            .where((value) => value.isNotEmpty)
+            .toSet();
         lessons = lessons
-            .where((lesson) => instructors.contains(lesson.instructorId))
+            .where(
+              (lesson) => lesson.instructorIds.any(
+                (instructorId) => normalizedInstructors.contains(instructorId),
+              ),
+            )
             .toList();
       }
 
@@ -464,13 +483,35 @@ class CalendarService {
       final currentUser = Globals.firebaseAuth.currentUser;
       if (currentUser == null) return false;
 
-      // Отримуємо ім'я користувача з ProfileManager
-      final instructorName = Globals.profileManager.currentUserName;
+      final lesson = await getLessonById(lessonId);
+      if (lesson == null) return false;
 
-      final success = await assignLessonInstructor(
+      final instructorIds = [...lesson.instructorIds];
+      final normalizedInstructorId = _normalizeInstructorAssignmentId(
+        currentUser.uid,
+      );
+      if (!instructorIds.contains(normalizedInstructorId)) {
+        instructorIds.add(normalizedInstructorId);
+      }
+
+      final resolvedInstructorName = Globals.profileManager.currentUserName
+          .trim();
+      final fallbackInstructorName =
+          currentUser.email?.trim().isNotEmpty == true
+          ? currentUser.email!.trim()
+          : 'Викладач';
+      final instructorNames = [...lesson.instructorNames];
+      final instructorName = resolvedInstructorName.isNotEmpty
+          ? resolvedInstructorName
+          : fallbackInstructorName;
+      if (!instructorNames.contains(instructorName)) {
+        instructorNames.add(instructorName);
+      }
+
+      final success = await assignLessonInstructors(
         lessonId,
-        instructorId: currentUser.uid,
-        instructorName: instructorName.isEmpty ? 'Викладач' : instructorName,
+        instructorIds: instructorIds,
+        instructorNames: instructorNames,
       );
 
       return success;
@@ -485,18 +526,53 @@ class CalendarService {
     required String instructorId,
     required String instructorName,
   }) async {
+    return assignLessonInstructors(
+      lessonId,
+      instructorIds: [instructorId],
+      instructorNames: [instructorName],
+    );
+  }
+
+  Future<bool> assignLessonInstructors(
+    String lessonId, {
+    required List<String> instructorIds,
+    required List<String> instructorNames,
+  }) async {
     try {
-      final normalizedInstructorId = _normalizeInstructorAssignmentId(
-        instructorId,
-      );
+      final normalizedInstructorIds = <String>[];
+      for (final instructorId in instructorIds) {
+        final normalizedInstructorId = _normalizeInstructorAssignmentId(
+          instructorId,
+        );
+        if (normalizedInstructorId.isEmpty ||
+            normalizedInstructorIds.contains(normalizedInstructorId)) {
+          continue;
+        }
+        normalizedInstructorIds.add(normalizedInstructorId);
+      }
+
+      final normalizedInstructorNames = <String>[];
+      for (final instructorName in instructorNames) {
+        final normalizedInstructorName = instructorName.trim();
+        if (normalizedInstructorName.isEmpty ||
+            normalizedInstructorNames.contains(normalizedInstructorName)) {
+          continue;
+        }
+        normalizedInstructorNames.add(normalizedInstructorName);
+      }
+
       return await updateLesson(lessonId, {
-        'instructorId': normalizedInstructorId,
-        'instructorName': instructorName.trim().isEmpty
-            ? 'Не призначено'
-            : instructorName.trim(),
+        'instructorId': normalizedInstructorIds.isNotEmpty
+            ? normalizedInstructorIds.first
+            : '',
+        'instructorName': normalizedInstructorNames.isNotEmpty
+            ? normalizedInstructorNames.first
+            : '',
+        'instructorIds': normalizedInstructorIds,
+        'instructorNames': normalizedInstructorNames,
       });
     } catch (e) {
-      debugPrint('CalendarService: Помилка призначення викладача: $e');
+      debugPrint('CalendarService: Помилка призначення викладачів: $e');
       return false;
     }
   }
@@ -504,7 +580,34 @@ class CalendarService {
   /// Відмовитися від заняття (як інструктор)
   Future<bool> releaseLesson(String lessonId) async {
     try {
-      final success = await unassignLessonInstructor(lessonId);
+      final currentUser = Globals.firebaseAuth.currentUser;
+      if (currentUser == null) return false;
+
+      final lesson = await getLessonById(lessonId);
+      if (lesson == null) return false;
+
+      final normalizedInstructorId = _normalizeInstructorAssignmentId(
+        currentUser.uid,
+      );
+      final instructorIds = lesson.instructorIds
+          .where((instructorId) => instructorId != normalizedInstructorId)
+          .toList();
+
+      final currentUserName = Globals.profileManager.currentUserName.trim();
+      final currentUserEmail = currentUser.email?.trim() ?? '';
+      final instructorNames = lesson.instructorNames
+          .where(
+            (instructorName) =>
+                instructorName != currentUserName &&
+                instructorName != currentUserEmail,
+          )
+          .toList();
+
+      final success = await assignLessonInstructors(
+        lessonId,
+        instructorIds: instructorIds,
+        instructorNames: instructorNames,
+      );
 
       return success;
     } catch (e) {
@@ -515,10 +618,11 @@ class CalendarService {
 
   Future<bool> unassignLessonInstructor(String lessonId) async {
     try {
-      return await updateLesson(lessonId, {
-        'instructorId': '',
-        'instructorName': '',
-      });
+      return await assignLessonInstructors(
+        lessonId,
+        instructorIds: const [],
+        instructorNames: const [],
+      );
     } catch (e) {
       debugPrint('CalendarService: Помилка зняття викладача: $e');
       return false;
@@ -530,15 +634,18 @@ class CalendarService {
     final currentUser = Globals.firebaseAuth.currentUser;
     if (currentUser == null) return false;
 
-    // Перевіряємо і новий спосіб (UID), і старий (ім'я/email) для сумісності
-    return lesson.instructorId == currentUser.uid ||
-        lesson.instructorName == currentUser.email ||
-        lesson.instructorName == Globals.profileManager.currentUserName;
+    final currentUserEmail = currentUser.email?.trim() ?? '';
+    final currentUserName = Globals.profileManager.currentUserName.trim();
+
+    return lesson.hasInstructorId(currentUser.uid) ||
+        lesson.hasInstructorId(currentUserEmail) ||
+        lesson.hasInstructorName(currentUserEmail) ||
+        lesson.hasInstructorName(currentUserName);
   }
 
   /// Перевірити чи заняття потребує інструктора
   bool doesLessonNeedInstructor(LessonModel lesson) {
-    return lesson.instructorId.isEmpty;
+    return !lesson.hasInstructors;
   }
 
   String _normalizeInstructorAssignmentId(String instructorId) {

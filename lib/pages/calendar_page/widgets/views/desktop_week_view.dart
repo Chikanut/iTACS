@@ -371,7 +371,9 @@ class DesktopWeekView extends StatelessWidget {
 
             // Інструктор або "Потрібен викладач"
             Text(
-              needsInstructor ? 'Потрібен викладач' : lesson.instructorName,
+              needsInstructor
+                  ? 'Потрібен викладач'
+                  : lesson.displayInstructorNames,
               style: TextStyle(
                 fontSize: 8,
                 color: needsInstructor

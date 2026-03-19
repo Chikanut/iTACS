@@ -13,6 +13,8 @@ class LessonModel {
   final String unit;
   final String instructorId;
   final String instructorName;
+  final List<String> instructorIds;
+  final List<String> instructorNames;
   final String location;
   final int maxParticipants;
   final List<String> participants;
@@ -33,8 +35,10 @@ class LessonModel {
     required this.groupId,
     required this.groupName,
     required this.unit,
-    required this.instructorId,
-    required this.instructorName,
+    required String instructorId,
+    required String instructorName,
+    List<String>? instructorIds,
+    List<String>? instructorNames,
     required this.location,
     required this.maxParticipants,
     required this.participants,
@@ -45,7 +49,22 @@ class LessonModel {
     required this.updatedAt,
     this.recurrence,
     required this.trainingPeriod, // 👈 НОВЕ ПОЛЕ
-  });
+  }) : instructorIds = _normalizeInstructorIds(
+         instructorIds,
+         fallbackId: instructorId,
+       ),
+       instructorNames = _normalizeInstructorNames(
+         instructorNames,
+         fallbackName: instructorName,
+       ),
+       instructorId = _resolvePrimaryInstructorId(
+         instructorId: instructorId,
+         instructorIds: instructorIds,
+       ),
+       instructorName = _resolvePrimaryInstructorName(
+         instructorName: instructorName,
+         instructorNames: instructorNames,
+       );
 
   /// Додатковий factory конструктор для Firestore
   factory LessonModel.fromFirestore(Map<String, dynamic> data, String id) {
@@ -60,6 +79,8 @@ class LessonModel {
       unit: data['unit'] ?? '',
       instructorId: data['instructorId'] ?? '',
       instructorName: data['instructorName'] ?? '',
+      instructorIds: List<String>.from(data['instructorIds'] ?? const []),
+      instructorNames: List<String>.from(data['instructorNames'] ?? const []),
       location: data['location'] ?? '',
       maxParticipants: data['maxParticipants'] ?? 0,
       participants: List<String>.from(data['participants'] ?? []),
@@ -94,6 +115,8 @@ class LessonModel {
       unit: data['unit'] ?? '',
       instructorId: data['instructorId'] ?? '',
       instructorName: data['instructorName'] ?? '',
+      instructorIds: List<String>.from(data['instructorIds'] ?? const []),
+      instructorNames: List<String>.from(data['instructorNames'] ?? const []),
       location: data['location'] ?? '',
       maxParticipants: data['maxParticipants'] ?? 0,
       participants: List<String>.from(data['participants'] ?? []),
@@ -130,6 +153,8 @@ class LessonModel {
       'unit': unit,
       'instructorId': instructorId,
       'instructorName': instructorName,
+      'instructorIds': instructorIds,
+      'instructorNames': instructorNames,
       'location': location,
       'maxParticipants': maxParticipants,
       'participants': participants,
@@ -155,6 +180,8 @@ class LessonModel {
       'unit': unit,
       'instructorId': instructorId,
       'instructorName': instructorName,
+      'instructorIds': instructorIds,
+      'instructorNames': instructorNames,
       'location': location,
       'maxParticipants': maxParticipants,
       'participants': participants,
@@ -180,6 +207,8 @@ class LessonModel {
     String? unit,
     String? instructorId,
     String? instructorName,
+    List<String>? instructorIds,
+    List<String>? instructorNames,
     String? location,
     int? maxParticipants,
     List<String>? participants,
@@ -202,6 +231,8 @@ class LessonModel {
       unit: unit ?? this.unit,
       instructorId: instructorId ?? this.instructorId,
       instructorName: instructorName ?? this.instructorName,
+      instructorIds: instructorIds ?? this.instructorIds,
+      instructorNames: instructorNames ?? this.instructorNames,
       location: location ?? this.location,
       maxParticipants: maxParticipants ?? this.maxParticipants,
       participants: participants ?? this.participants,
@@ -250,6 +281,28 @@ class LessonModel {
     return '${formatter.format(startTime)}-${formatter.format(endTime)}';
   }
 
+  bool get hasInstructors => instructorIds.isNotEmpty;
+
+  String get displayInstructorNames {
+    if (instructorNames.isNotEmpty) {
+      return instructorNames.join(', ');
+    }
+    if (instructorName.trim().isNotEmpty) {
+      return instructorName.trim();
+    }
+    return 'Не призначено';
+  }
+
+  bool hasInstructorId(String value) {
+    final normalized = _normalizeInstructorId(value);
+    return normalized.isNotEmpty && instructorIds.contains(normalized);
+  }
+
+  bool hasInstructorName(String value) {
+    final normalized = value.trim();
+    return normalized.isNotEmpty && instructorNames.contains(normalized);
+  }
+
   /// Рядок з інформацією про дату
   String get dateString {
     return DateFormat('dd.MM.yyyy').format(startTime);
@@ -262,7 +315,7 @@ class LessonModel {
 
   @override
   String toString() {
-    return 'LessonModel(id: $id, title: $title, startTime: $startTime, instructorId: $instructorId, instructorName: $instructorName)';
+    return 'LessonModel(id: $id, title: $title, startTime: $startTime, instructorIds: $instructorIds, instructorNames: $instructorNames)';
   }
 
   @override
@@ -273,6 +326,80 @@ class LessonModel {
 
   @override
   int get hashCode => id.hashCode;
+
+  static String _resolvePrimaryInstructorId({
+    required String instructorId,
+    List<String>? instructorIds,
+  }) {
+    final normalizedIds = _normalizeInstructorIds(
+      instructorIds,
+      fallbackId: instructorId,
+    );
+    return normalizedIds.isNotEmpty ? normalizedIds.first : '';
+  }
+
+  static String _resolvePrimaryInstructorName({
+    required String instructorName,
+    List<String>? instructorNames,
+  }) {
+    final normalizedNames = _normalizeInstructorNames(
+      instructorNames,
+      fallbackName: instructorName,
+    );
+    return normalizedNames.isNotEmpty ? normalizedNames.first : '';
+  }
+
+  static List<String> _normalizeInstructorIds(
+    List<String>? instructorIds, {
+    String fallbackId = '',
+  }) {
+    final result = <String>[];
+
+    void addValue(String? value) {
+      final normalized = _normalizeInstructorId(value ?? '');
+      if (normalized.isEmpty || result.contains(normalized)) {
+        return;
+      }
+      result.add(normalized);
+    }
+
+    for (final instructorId in instructorIds ?? const <String>[]) {
+      addValue(instructorId);
+    }
+    addValue(fallbackId);
+
+    return result;
+  }
+
+  static List<String> _normalizeInstructorNames(
+    List<String>? instructorNames, {
+    String fallbackName = '',
+  }) {
+    final result = <String>[];
+
+    void addValue(String? value) {
+      final normalized = (value ?? '').trim();
+      if (normalized.isEmpty || result.contains(normalized)) {
+        return;
+      }
+      result.add(normalized);
+    }
+
+    for (final instructorName in instructorNames ?? const <String>[]) {
+      addValue(instructorName);
+    }
+    addValue(fallbackName);
+
+    return result;
+  }
+
+  static String _normalizeInstructorId(String value) {
+    final normalized = value.trim();
+    if (normalized.contains('@')) {
+      return normalized.toLowerCase();
+    }
+    return normalized;
+  }
 }
 
 class Recurrence {

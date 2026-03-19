@@ -221,13 +221,13 @@ class LessonsListReport extends BaseReport {
       if (!isCompleted) return false;
 
       // Тільки з інструкторами
-      final hasInstructor = lesson.instructorId.isNotEmpty;
+      final hasInstructor = lesson.hasInstructors;
       if (!hasInstructor) return false;
 
       // Фільтр по конкретному інструктору
       if (parameters != null && parameters['instructorId'] != null) {
         final instructorId = parameters['instructorId'] as String;
-        if (lesson.instructorId != instructorId) return false;
+        if (!lesson.hasInstructorId(instructorId)) return false;
       }
 
       return true;
@@ -240,11 +240,17 @@ class LessonsListReport extends BaseReport {
     final grouped = <String, List<LessonModel>>{};
 
     for (final lesson in lessons) {
-      final key = lesson.instructorName.isNotEmpty
-          ? lesson.instructorName
-          : 'ID: ${lesson.instructorId}';
+      if (!lesson.hasInstructors) {
+        grouped.putIfAbsent('Без викладача', () => []).add(lesson);
+        continue;
+      }
 
-      grouped.putIfAbsent(key, () => []).add(lesson);
+      for (final instructorName in lesson.instructorNames) {
+        final key = instructorName.isNotEmpty
+            ? instructorName
+            : 'ID: ${lesson.instructorId}';
+        grouped.putIfAbsent(key, () => []).add(lesson);
+      }
     }
 
     // Сортуємо заняття в кожній групі по даті
@@ -796,9 +802,16 @@ class _LessonsListParametersWidgetState
       instructors['all'] = 'Всі інструктори';
 
       for (final lesson in recentLessons) {
-        if (lesson.instructorId.isNotEmpty &&
-            lesson.instructorName.isNotEmpty) {
-          instructors[lesson.instructorId] = lesson.instructorName;
+        if (lesson.hasInstructors) {
+          for (var i = 0; i < lesson.instructorIds.length; i++) {
+            final id = lesson.instructorIds[i];
+            final name = i < lesson.instructorNames.length
+                ? lesson.instructorNames[i]
+                : lesson.instructorName;
+            if (id.isNotEmpty && name.isNotEmpty) {
+              instructors[id] = name;
+            }
+          }
         }
       }
 

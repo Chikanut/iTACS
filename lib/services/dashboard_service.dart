@@ -86,22 +86,15 @@ class DashboardService {
       final currentGroupId = Globals.profileManager.currentGroupId;
       if (currentGroupId == null) return [];
 
-      final querySnapshot = await FirebaseFirestore.instance
-          .collection('lessons')
-          .doc(currentGroupId)
-          .collection('items')
-          .where('startTime', isGreaterThanOrEqualTo: startOfDay)
-          .where('startTime', isLessThanOrEqualTo: endOfDay)
-          .where('instructorId', isEqualTo: currentUser.uid)
-          .orderBy('startTime')
-          .get();
+      final lessons = await Globals.calendarService.getLessonsForPeriod(
+        startDate: startOfDay,
+        endDate: endOfDay,
+        groupId: currentGroupId,
+      );
 
-      final lessons = querySnapshot.docs.map((doc) {
-        final data = doc.data();
-        return LessonModel.fromFirestore(data, doc.id);
-      }).toList();
-
-      return lessons;
+      return lessons
+          .where(Globals.calendarService.isUserInstructorForLesson)
+          .toList();
     } catch (e) {
       if (kDebugMode) {
         print('Помилка отримання поточних занять: $e');
@@ -133,12 +126,7 @@ class DashboardService {
             final data = doc.data();
             return LessonModel.fromFirestore(data, doc.id);
           })
-          .where((lesson) {
-            // Заняття без викладача або з пустим викладачем
-            return lesson.instructorId.isEmpty ||
-                lesson.instructorId.trim().isEmpty ||
-                lesson.instructorId == 'Не призначено';
-          })
+          .where((lesson) => !lesson.hasInstructors)
           .toList();
 
       return lessons;
@@ -178,20 +166,11 @@ class DashboardService {
           break;
       }
 
-      // Всі заняття користувача за період
-      final allLessonsQuery = await FirebaseFirestore.instance
-          .collection('lessons')
-          .doc(currentGroupId)
-          .collection('items')
-          .where('instructorId', isEqualTo: currentUser.uid)
-          .where('startTime', isGreaterThanOrEqualTo: startDate)
-          .where('startTime', isLessThanOrEqualTo: now)
-          .get();
-
-      final allLessons = allLessonsQuery.docs.map((doc) {
-        final data = doc.data();
-        return LessonModel.fromFirestore(data, doc.id);
-      }).toList();
+      final allLessons = (await Globals.calendarService.getLessonsForPeriod(
+        startDate: startDate,
+        endDate: now,
+        groupId: currentGroupId,
+      )).where(Globals.calendarService.isUserInstructorForLesson).toList();
 
       // Проведені заняття (в минулому)
       final conductedLessons = allLessons.where((lesson) {
@@ -308,16 +287,25 @@ class DashboardService {
           .where('startTime', isGreaterThanOrEqualTo: startDate)
           .where('startTime', isLessThanOrEqualTo: endDate);
 
-      if (instructorId != null) {
-        query = query.where('instructorId', isEqualTo: instructorId);
-      }
-
       final querySnapshot = await query.orderBy('startTime').get();
 
-      return querySnapshot.docs.map((doc) {
+      var lessons = querySnapshot.docs.map((doc) {
         final data = doc.data() as Map<String, dynamic>;
         return LessonModel.fromFirestore(data, doc.id);
       }).toList();
+
+      if (instructorId != null && instructorId.trim().isNotEmpty) {
+        final normalizedInstructorId = instructorId.trim().toLowerCase();
+        lessons = lessons
+            .where(
+              (lesson) =>
+                  lesson.hasInstructorId(instructorId) ||
+                  lesson.hasInstructorId(normalizedInstructorId),
+            )
+            .toList();
+      }
+
+      return lessons;
     } catch (e) {
       if (kDebugMode) {
         print('Помилка отримання занять за період: $e');
@@ -352,10 +340,16 @@ class DashboardService {
       // Групуємо по інструкторах
       final Map<String, List<LessonModel>> lessonsByInstructor = {};
       for (final lesson in allLessons) {
-        final instructor = lesson.instructorId.isEmpty
-            ? 'Без викладача'
-            : lesson.instructorName;
-        lessonsByInstructor.putIfAbsent(instructor, () => []).add(lesson);
+        if (!lesson.hasInstructors) {
+          lessonsByInstructor
+              .putIfAbsent('Без викладача', () => [])
+              .add(lesson);
+          continue;
+        }
+
+        for (final instructorName in lesson.instructorNames) {
+          lessonsByInstructor.putIfAbsent(instructorName, () => []).add(lesson);
+        }
       }
 
       // Створюємо статистику для кожного інструктора
