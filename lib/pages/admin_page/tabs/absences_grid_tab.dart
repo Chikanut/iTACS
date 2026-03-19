@@ -289,12 +289,23 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                                   )
                                 : null,
                           ),
-                          child: _buildCellContent(
-                            absence: absence,
-                            instructorId: instructorId,
-                            lessons: lessons,
-                            day: day,
-                            compact: true,
+                          child: Stack(
+                            clipBehavior: Clip.none,
+                            children: [
+                              Positioned.fill(
+                                child: _buildCellContent(
+                                  absence: absence,
+                                  instructorId: instructorId,
+                                  lessons: lessons,
+                                  day: day,
+                                  compact: true,
+                                ),
+                              ),
+                              _buildLessonCountBadge(
+                                lessons: lessons,
+                                compact: true,
+                              ),
+                            ],
                           ),
                         ),
                       ),
@@ -376,31 +387,39 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                 day,
               ),
             ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+            child: Stack(
+              clipBehavior: Clip.none,
               children: [
-                Text(
-                  '${day.day}',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                    color: _isWeekend(day)
-                        ? AppTheme.weekendStatus.foreground
-                        : AppTheme.textPrimary,
+                Positioned.fill(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '${day.day}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w500,
+                          color: _isWeekend(day)
+                              ? AppTheme.weekendStatus.foreground
+                              : AppTheme.textPrimary,
+                        ),
+                      ),
+                      if (absence != null || lessons.isNotEmpty) ...[
+                        const SizedBox(height: 2),
+                        Expanded(
+                          child: _buildCellContent(
+                            absence: absence,
+                            instructorId: instructorId,
+                            lessons: lessons,
+                            day: day,
+                            compact: false,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ),
-                if (absence != null || lessons.isNotEmpty) ...[
-                  const SizedBox(height: 2),
-                  Expanded(
-                    child: _buildCellContent(
-                      absence: absence,
-                      instructorId: instructorId,
-                      lessons: lessons,
-                      day: day,
-                      compact: false,
-                    ),
-                  ),
-                ],
+                _buildLessonCountBadge(lessons: lessons, compact: false),
               ],
             ),
           ),
@@ -499,27 +518,6 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
         : AppTheme.textPrimary;
   }
 
-  String _getCellDisplayText(
-    InstructorAbsence? absence,
-    String instructorId,
-    List<LessonModel> lessons,
-  ) {
-    if (absence != null) {
-      return absence.type.emoji;
-    }
-
-    switch (_getLessonCellStatus(instructorId, lessons)) {
-      case _LessonCellStatus.urgent:
-        return '!';
-      case _LessonCellStatus.pending:
-        return '?';
-      case _LessonCellStatus.acknowledged:
-        return '✓';
-      case _LessonCellStatus.none:
-        return '';
-    }
-  }
-
   String _getBaseCellDisplayText(
     InstructorAbsence? absence,
     List<LessonModel> lessons,
@@ -543,9 +541,6 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
     required bool compact,
   }) {
     final baseText = _getBaseCellDisplayText(absence, lessons);
-    final badgeText = absence == null && lessons.isNotEmpty
-        ? _getCellDisplayText(absence, instructorId, lessons)
-        : '';
     final textColor = _getCellTextColor(absence, instructorId, lessons, day);
 
     if (baseText.isEmpty) {
@@ -569,34 +564,53 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
             textAlign: TextAlign.center,
           ),
         ),
-        if (badgeText.isNotEmpty)
-          Positioned(
-            top: compact ? -1 : 0,
-            right: compact ? -1 : 1,
-            child: Container(
-              width: compact ? 12 : 11,
-              height: compact ? 12 : 11,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.92),
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: _getCellTextColor(null, instructorId, lessons, day),
-                  width: 1,
-                ),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                badgeText,
-                style: TextStyle(
-                  fontSize: compact ? 7 : 6,
-                  fontWeight: FontWeight.bold,
-                  color: _getCellTextColor(null, instructorId, lessons, day),
-                  height: 1,
-                ),
-              ),
-            ),
-          ),
       ],
+    );
+  }
+
+  Widget _buildLessonCountBadge({
+    required List<LessonModel> lessons,
+    required bool compact,
+  }) {
+    if (lessons.length <= 1) {
+      return const SizedBox.shrink();
+    }
+
+    return Positioned(
+      top: compact ? -3 : 2,
+      right: compact ? -3 : 2,
+      child: Container(
+        constraints: BoxConstraints(
+          minWidth: compact ? 16 : 18,
+          minHeight: compact ? 16 : 18,
+        ),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 3 : 4,
+          vertical: compact ? 2 : 3,
+        ),
+        decoration: BoxDecoration(
+          color: Colors.black87,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(color: Colors.white70, width: 1),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x33000000),
+              blurRadius: 2,
+              offset: Offset(0, 1),
+            ),
+          ],
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          '${lessons.length}',
+          style: TextStyle(
+            fontSize: compact ? 8 : 9,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+            height: 1,
+          ),
+        ),
+      ),
     );
   }
 

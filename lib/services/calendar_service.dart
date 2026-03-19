@@ -731,13 +731,13 @@ class CalendarService {
       final acknowledgedByName = Globals.profileManager.currentUserName.trim();
       final fallbackName = currentUser.email?.trim() ?? 'Викладач';
 
-      updatedAcknowledgements[assignmentId] = LessonAcknowledgementRecord(
-        acknowledgedAt: DateTime.now(),
-        acknowledgedByUid: currentUser.uid,
-        acknowledgedByName: acknowledgedByName.isNotEmpty
+      updatedAcknowledgements[assignmentId] = {
+        'acknowledgedAt': FieldValue.serverTimestamp(),
+        'acknowledgedByUid': currentUser.uid,
+        'acknowledgedByName': acknowledgedByName.isNotEmpty
             ? acknowledgedByName
             : fallbackName,
-      ).toFirestore();
+      };
 
       final updates = <String, dynamic>{
         'instructorAcknowledgements': updatedAcknowledgements,
