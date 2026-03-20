@@ -157,6 +157,12 @@ class CalendarService {
         'updatedAt': FieldValue.serverTimestamp(),
         'acknowledgementResetAt': FieldValue.serverTimestamp(),
         'instructorAcknowledgements': <String, dynamic>{},
+        'customFieldDefinitions': lesson.customFieldDefinitions
+            .map((definition) => definition.toFirestore())
+            .toList(),
+        'customFieldValues': lesson.customFieldValues.map(
+          (key, value) => MapEntry(key, value.toFirestore()),
+        ),
         'trainingPeriod': lesson.trainingPeriod,
         'recurrence': lesson.recurrence != null
             ? {

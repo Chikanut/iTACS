@@ -5,6 +5,7 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 import 'dart:async';
+import '../models/custom_field_model.dart';
 import '../globals.dart';
 
 // Енум для типів темплейтів
@@ -46,7 +47,7 @@ class GroupTemplate {
   final String createdBy;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final Map<String, dynamic> customFields;
+  final List<LessonCustomFieldDefinition> customFieldDefinitions;
 
   GroupTemplate({
     required this.id,
@@ -62,7 +63,7 @@ class GroupTemplate {
     required this.createdBy,
     required this.createdAt,
     required this.updatedAt,
-    this.customFields = const {},
+    this.customFieldDefinitions = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -79,7 +80,9 @@ class GroupTemplate {
     'createdBy': createdBy,
     'createdAt': createdAt.toIso8601String(),
     'updatedAt': updatedAt.toIso8601String(),
-    'customFields': customFields,
+    'customFieldDefinitions': customFieldDefinitions
+        .map((definition) => definition.toJson())
+        .toList(),
   };
 
   Map<String, dynamic> toFirestore() => {
@@ -95,7 +98,9 @@ class GroupTemplate {
     'createdBy': createdBy,
     'createdAt': Timestamp.fromDate(createdAt),
     'updatedAt': Timestamp.fromDate(updatedAt),
-    'customFields': customFields,
+    'customFieldDefinitions': customFieldDefinitions
+        .map((definition) => definition.toFirestore())
+        .toList(),
   };
 
   factory GroupTemplate.fromJson(Map<String, dynamic> json) => GroupTemplate(
@@ -116,7 +121,9 @@ class GroupTemplate {
     updatedAt: json['updatedAt'] is String
         ? DateTime.parse(json['updatedAt'])
         : DateTime.now(),
-    customFields: Map<String, dynamic>.from(json['customFields'] ?? {}),
+    customFieldDefinitions: LessonCustomFieldDefinition.parseDefinitions(
+      json['customFieldDefinitions'] ?? json['customFields'],
+    ),
   );
 
   factory GroupTemplate.fromFirestore(DocumentSnapshot doc) {
@@ -139,7 +146,9 @@ class GroupTemplate {
       updatedAt: data['updatedAt'] is Timestamp
           ? (data['updatedAt'] as Timestamp).toDate()
           : DateTime.now(),
-      customFields: Map<String, dynamic>.from(data['customFields'] ?? {}),
+      customFieldDefinitions: LessonCustomFieldDefinition.parseDefinitions(
+        data['customFieldDefinitions'] ?? data['customFields'],
+      ),
     );
   }
 
@@ -152,7 +161,7 @@ class GroupTemplate {
     int? durationMinutes,
     TemplateType? type,
     bool? isDefault,
-    Map<String, dynamic>? customFields,
+    List<LessonCustomFieldDefinition>? customFieldDefinitions,
   }) => GroupTemplate(
     id: id,
     title: title ?? this.title,
@@ -167,7 +176,8 @@ class GroupTemplate {
     createdBy: createdBy,
     createdAt: createdAt,
     updatedAt: DateTime.now(),
-    customFields: customFields ?? this.customFields,
+    customFieldDefinitions:
+        customFieldDefinitions ?? this.customFieldDefinitions,
   );
 }
 
@@ -647,7 +657,7 @@ class GroupTemplatesService {
           createdBy: currentUser.uid,
           createdAt: now,
           updatedAt: now,
-          customFields: template.customFields,
+          customFieldDefinitions: template.customFieldDefinitions,
         );
 
         await templatesRef.add(newTemplate.toFirestore());
@@ -810,7 +820,10 @@ class GroupTemplatesService {
       'tags': List.from(template.tags),
       'durationMinutes': template.durationMinutes,
       'type': template.type.id,
-      'customFields': Map.from(template.customFields),
+      'customFieldDefinitions': template.customFieldDefinitions
+          .map((definition) => definition.toJson())
+          .toList(),
+      'customFieldValues': const <String, dynamic>{},
     };
   }
 

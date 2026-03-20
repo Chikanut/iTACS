@@ -3,11 +3,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+import '../../../models/custom_field_model.dart';
 import '../../../models/lesson_model.dart';
 import '../../../services/calendar_service.dart';
 import '../calendar_utils.dart';
 import '../../../globals.dart';
 import '../../../services/templates_service.dart';
+import '../../../widgets/custom_fields_dialogs.dart';
 import 'autocomplete_field.dart';
 
 class LessonFormDialog extends StatefulWidget {
@@ -53,6 +55,8 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   TimeOfDay _startTime = const TimeOfDay(hour: 8, minute: 15);
   TimeOfDay _endTime = const TimeOfDay(hour: 11, minute: 45);
   List<String> _selectedTags = [];
+  List<LessonCustomFieldDefinition> _customFieldDefinitions = [];
+  Map<String, LessonCustomFieldValue> _customFieldValues = {};
   bool _isLoading = false;
 
   // Повторювані заняття
@@ -105,6 +109,12 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
       _selectedTags = List.from(lesson.tags);
       _tagsController.text = _selectedTags.join(', ');
       _trainingPeriodController.text = lesson.trainingPeriod;
+      _customFieldDefinitions = List<LessonCustomFieldDefinition>.from(
+        lesson.customFieldDefinitions,
+      );
+      _customFieldValues = Map<String, LessonCustomFieldValue>.from(
+        lesson.customFieldValues,
+      );
       _selectedInstructors
         ..clear()
         ..addAll(
@@ -139,6 +149,15 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         _unitController.text = template['unit'] ?? '';
         _selectedTags = List<String>.from(template['tags'] ?? []);
         _tagsController.text = _selectedTags.join(', ');
+        _customFieldDefinitions = LessonCustomFieldDefinition.parseDefinitions(
+          template['customFieldDefinitions'] ?? template['customFields'],
+        );
+        _customFieldValues = LessonCustomFieldValue.sanitizeValues(
+          definitions: _customFieldDefinitions,
+          values: LessonCustomFieldValue.parseValues(
+            template['customFieldValues'],
+          ),
+        );
         _selectedInstructors
           ..clear()
           ..addAll(
@@ -192,7 +211,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
 
   void _loadUserDefaults() {
     final currentGroup = Globals.profileManager.currentGroupName;
-    if (currentGroup != null) {
+    if (currentGroup != null && _unitController.text.trim().isEmpty) {
       _unitController.text = currentGroup;
     }
   }
@@ -236,6 +255,8 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
                       _buildTimeSection(),
                       const SizedBox(height: 20),
                       _buildDetailsSection(),
+                      const SizedBox(height: 20),
+                      _buildCustomFieldsSection(),
                       const SizedBox(height: 20),
                       _buildRecurrenceSection(),
                       const SizedBox(height: 20),
@@ -363,6 +384,13 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     _unitController.text = template.unit;
     _selectedTags = List.from(template.tags);
     _tagsController.text = _selectedTags.join(', ');
+    _customFieldDefinitions = List<LessonCustomFieldDefinition>.from(
+      template.customFieldDefinitions,
+    );
+    _customFieldValues = LessonCustomFieldValue.retainCompatibleValues(
+      definitions: _customFieldDefinitions,
+      currentValues: _customFieldValues,
+    );
 
     // Встановлюємо тривалість
     final endMinutes =
@@ -595,6 +623,88 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
             return null;
           },
         ),
+      ],
+    );
+  }
+
+  Widget _buildCustomFieldsSection() {
+    final canManageDefinitions = _canManageCustomFieldDefinitions();
+    final canEditValues = _canEditCustomFieldValues();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Кастомні параметри',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+            if (canManageDefinitions)
+              TextButton.icon(
+                onPressed: _addCustomFieldDefinition,
+                icon: const Icon(Icons.add),
+                label: const Text('Додати параметр'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        CustomFieldReadOnlyList(
+          definitions: _customFieldDefinitions,
+          values: _customFieldValues,
+          emptyText: canManageDefinitions
+              ? 'Додайте параметри, які має заповнювати інструктор.'
+              : 'Кастомні параметри не налаштовані.',
+        ),
+        if (_customFieldDefinitions.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          if (canEditValues)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: OutlinedButton.icon(
+                onPressed: _editCustomFieldValues,
+                icon: const Icon(Icons.edit_note),
+                label: const Text('Заповнити значення'),
+              ),
+            ),
+          if (canManageDefinitions)
+            Column(
+              children: _customFieldDefinitions.map((definition) {
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${definition.label} (${definition.code})',
+                          style: const TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => _editCustomFieldDefinition(definition),
+                        icon: const Icon(Icons.edit_outlined),
+                      ),
+                      IconButton(
+                        onPressed: () =>
+                            _removeCustomFieldDefinition(definition),
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+        ],
       ],
     );
   }
@@ -1102,6 +1212,8 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         createdBy: widget.lesson?.createdBy ?? currentUser?.uid ?? '',
         createdAt: widget.lesson?.createdAt ?? DateTime.now(),
         updatedAt: DateTime.now(),
+        customFieldDefinitions: _customFieldDefinitions,
+        customFieldValues: _customFieldValues,
         recurrence: recurrence,
         trainingPeriod: _trainingPeriodController.text.trim(),
       );
@@ -1122,6 +1234,12 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
           'instructorNames': lesson.instructorNames,
           'maxParticipants': lesson.maxParticipants,
           'tags': lesson.tags,
+          'customFieldDefinitions': lesson.customFieldDefinitions
+              .map((definition) => definition.toFirestore())
+              .toList(),
+          'customFieldValues': lesson.customFieldValues.map(
+            (key, value) => MapEntry(key, value.toFirestore()),
+          ),
           'trainingPeriod': lesson.trainingPeriod,
           'recurrence': recurrence != null
               ? {
@@ -1170,6 +1288,94 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
 
   bool _canAssignInstructor() {
     return Globals.profileManager.currentRole == 'admin';
+  }
+
+  bool _canManageCustomFieldDefinitions() {
+    final role = Globals.profileManager.currentRole;
+    return role == 'admin' || role == 'editor';
+  }
+
+  bool _canEditCustomFieldValues() {
+    if (_canManageCustomFieldDefinitions()) {
+      return true;
+    }
+    final lesson = widget.lesson;
+    return lesson != null && _calendarService.isUserInstructorForLesson(lesson);
+  }
+
+  Future<void> _editCustomFieldValues() async {
+    final values = await showCustomFieldValuesDialog(
+      context,
+      title: 'Значення кастомних параметрів',
+      definitions: _customFieldDefinitions,
+      initialValues: _customFieldValues,
+    );
+    if (values == null) return;
+
+    setState(() {
+      _customFieldValues = values;
+    });
+  }
+
+  Future<void> _addCustomFieldDefinition() async {
+    final definition = await showCustomFieldDefinitionDialog(
+      context,
+      existingDefinitions: _customFieldDefinitions,
+    );
+    if (definition == null) return;
+
+    setState(() {
+      _customFieldDefinitions = [..._customFieldDefinitions, definition];
+      _customFieldValues = LessonCustomFieldValue.retainCompatibleValues(
+        definitions: _customFieldDefinitions,
+        currentValues: _customFieldValues,
+      );
+    });
+  }
+
+  Future<void> _editCustomFieldDefinition(
+    LessonCustomFieldDefinition definition,
+  ) async {
+    final updatedDefinition = await showCustomFieldDefinitionDialog(
+      context,
+      initialDefinition: definition,
+      existingDefinitions: _customFieldDefinitions,
+    );
+    if (updatedDefinition == null) return;
+
+    setState(() {
+      _customFieldDefinitions = _customFieldDefinitions
+          .map(
+            (item) => item.code == definition.code ? updatedDefinition : item,
+          )
+          .toList();
+
+      final nextValues = <String, LessonCustomFieldValue>{};
+      for (final entry in _customFieldValues.entries) {
+        if (entry.key == definition.code) {
+          if (updatedDefinition.type == entry.value.type) {
+            nextValues[updatedDefinition.code] = entry.value;
+          }
+          continue;
+        }
+        nextValues[entry.key] = entry.value;
+      }
+      _customFieldValues = LessonCustomFieldValue.retainCompatibleValues(
+        definitions: _customFieldDefinitions,
+        currentValues: nextValues,
+      );
+    });
+  }
+
+  void _removeCustomFieldDefinition(LessonCustomFieldDefinition definition) {
+    setState(() {
+      _customFieldDefinitions = _customFieldDefinitions
+          .where((item) => item.code != definition.code)
+          .toList();
+      _customFieldValues = Map<String, LessonCustomFieldValue>.from(
+        _customFieldValues,
+      )..remove(definition.code);
+    });
   }
 
   List<String> _resolvedInstructorIds() {

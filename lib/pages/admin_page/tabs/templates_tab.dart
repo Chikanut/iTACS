@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../../globals.dart';
+import '../../../models/custom_field_model.dart';
 import '../../../services/templates_service.dart';
+import '../../../widgets/custom_fields_dialogs.dart';
 
 class TemplatesTab extends StatefulWidget {
   const TemplatesTab({super.key});
@@ -214,6 +216,13 @@ class _TemplatesTabState extends State<TemplatesTab> {
                     visualDensity: VisualDensity.compact,
                   ),
                 ),
+                if (template.customFieldDefinitions.isNotEmpty)
+                  Chip(
+                    avatar: const Icon(Icons.tune, size: 18),
+                    label: Text(
+                      'Параметрів: ${template.customFieldDefinitions.length}',
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -530,6 +539,7 @@ class _TemplateEditorDialogState extends State<_TemplateEditorDialog> {
 
   late TemplateType _selectedType;
   late bool _isDefault;
+  late List<LessonCustomFieldDefinition> _customFieldDefinitions;
 
   @override
   void initState() {
@@ -549,6 +559,9 @@ class _TemplateEditorDialogState extends State<_TemplateEditorDialog> {
     );
     _selectedType = template?.type ?? TemplateType.lesson;
     _isDefault = template?.isDefault ?? false;
+    _customFieldDefinitions = List<LessonCustomFieldDefinition>.from(
+      template?.customFieldDefinitions ?? const <LessonCustomFieldDefinition>[],
+    );
   }
 
   @override
@@ -670,6 +683,8 @@ class _TemplateEditorDialogState extends State<_TemplateEditorDialog> {
                     helperText: 'Розділяйте комами',
                   ),
                 ),
+                const SizedBox(height: 16),
+                _buildCustomFieldsSection(),
                 const SizedBox(height: 12),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
@@ -693,6 +708,123 @@ class _TemplateEditorDialogState extends State<_TemplateEditorDialog> {
         ),
       ],
     );
+  }
+
+  Widget _buildCustomFieldsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Кастомні параметри',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: _addCustomFieldDefinition,
+              icon: const Icon(Icons.add),
+              label: const Text('Додати параметр'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (_customFieldDefinitions.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.grey.shade300),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Text(
+              'Параметри цього шаблону ще не налаштовані.',
+              style: TextStyle(color: Colors.grey.shade700),
+            ),
+          )
+        else
+          Column(
+            children: _customFieldDefinitions.map((definition) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.grey.shade300),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            definition.label,
+                            style: const TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${definition.code} • ${definition.type.displayName}',
+                            style: TextStyle(color: Colors.grey.shade700),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => _editCustomFieldDefinition(definition),
+                      icon: const Icon(Icons.edit_outlined),
+                    ),
+                    IconButton(
+                      onPressed: () => _removeCustomFieldDefinition(definition),
+                      icon: const Icon(Icons.delete_outline),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _addCustomFieldDefinition() async {
+    final definition = await showCustomFieldDefinitionDialog(
+      context,
+      existingDefinitions: _customFieldDefinitions,
+    );
+    if (definition == null) return;
+
+    setState(() {
+      _customFieldDefinitions = [..._customFieldDefinitions, definition];
+    });
+  }
+
+  Future<void> _editCustomFieldDefinition(
+    LessonCustomFieldDefinition definition,
+  ) async {
+    final updatedDefinition = await showCustomFieldDefinitionDialog(
+      context,
+      initialDefinition: definition,
+      existingDefinitions: _customFieldDefinitions,
+    );
+    if (updatedDefinition == null) return;
+
+    setState(() {
+      _customFieldDefinitions = _customFieldDefinitions
+          .map(
+            (item) => item.code == definition.code ? updatedDefinition : item,
+          )
+          .toList();
+    });
+  }
+
+  void _removeCustomFieldDefinition(LessonCustomFieldDefinition definition) {
+    setState(() {
+      _customFieldDefinitions = _customFieldDefinitions
+          .where((item) => item.code != definition.code)
+          .toList();
+    });
   }
 
   void _submit() {
@@ -725,7 +857,7 @@ class _TemplateEditorDialogState extends State<_TemplateEditorDialog> {
       createdBy: existing?.createdBy ?? currentUser?.uid ?? 'system',
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
-      customFields: existing?.customFields ?? const {},
+      customFieldDefinitions: _customFieldDefinitions,
     );
 
     Navigator.of(context).pop(template);

@@ -2,10 +2,12 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import '../../../models/custom_field_model.dart';
 import '../../../models/lesson_model.dart';
 import '../../../services/calendar_service.dart';
 import '../calendar_utils.dart';
 import '../../../globals.dart';
+import '../../../widgets/custom_fields_dialogs.dart';
 import 'lesson_form_dialog.dart';
 
 class LessonDetailsDialog extends StatefulWidget {
@@ -162,6 +164,10 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                       const SizedBox(height: 16),
                     ],
 
+                    _buildCustomFieldsSection(lesson),
+
+                    const SizedBox(height: 16),
+
                     // Учасники
                     _buildParticipantsSection(lesson),
 
@@ -262,6 +268,39 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
               ),
             ],
           ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildCustomFieldsSection(LessonModel lesson) {
+    final canEditValues = _canEditCustomFieldValues();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Кастомні параметри',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+            if (lesson.hasCustomFields && canEditValues)
+              TextButton.icon(
+                onPressed: _editCustomFieldValues,
+                icon: const Icon(Icons.edit_note),
+                label: const Text('Заповнити'),
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        CustomFieldReadOnlyList(
+          definitions: lesson.customFieldDefinitions,
+          values: lesson.customFieldValues,
+          emptyText:
+              'Для цього заняття ще не налаштовано кастомних параметрів.',
         ),
       ],
     );
@@ -732,6 +771,13 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
     return currentRole == 'admin' || currentRole == 'editor';
   }
 
+  bool _canEditCustomFieldValues() {
+    final currentRole = Globals.profileManager.currentRole;
+    return currentRole == 'admin' ||
+        currentRole == 'editor' ||
+        _calendarService.isUserInstructorForLesson(_lesson);
+  }
+
   bool _canAssignOthers() {
     return Globals.profileManager.currentRole == 'admin';
   }
@@ -1103,6 +1149,12 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
           'instructorIds': _lesson.instructorIds,
           'instructorNames': _lesson.instructorNames,
           'tags': _lesson.tags,
+          'customFieldDefinitions': _lesson.customFieldDefinitions
+              .map((definition) => definition.toJson())
+              .toList(),
+          'customFieldValues': _lesson.customFieldValues.map(
+            (key, value) => MapEntry(key, value.toJson()),
+          ),
           'durationMinutes': _lesson.endTime
               .difference(_lesson.startTime)
               .inMinutes,
@@ -1226,6 +1278,62 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
     return options;
   }
 
+  Future<void> _editCustomFieldValues() async {
+    final values = await showCustomFieldValuesDialog(
+      context,
+      title: 'Значення кастомних параметрів',
+      definitions: _lesson.customFieldDefinitions,
+      initialValues: _lesson.customFieldValues,
+    );
+    if (values == null) return;
+
+    setState(() => _isLoading = true);
+    try {
+      final success = await _calendarService.updateLesson(_lesson.id, {
+        'customFieldValues': values.map(
+          (key, value) => MapEntry(key, value.toFirestore()),
+        ),
+      });
+      if (!success) {
+        throw Exception('Не вдалося зберегти значення параметрів');
+      }
+
+      await _refreshLesson();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Кастомні параметри оновлено'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Помилка оновлення параметрів: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  Future<void> _refreshLesson() async {
+    final refreshedLesson = await _calendarService.getLessonById(_lesson.id);
+    if (!mounted || refreshedLesson == null) return;
+
+    setState(() {
+      _lesson = refreshedLesson;
+      _isRegistered = _calendarService.isUserRegisteredForLesson(_lesson);
+    });
+    widget.onUpdated?.call();
+  }
+
   Future<void> _acknowledgeLesson() async {
     setState(() => _isLoading = true);
 
@@ -1235,14 +1343,8 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
         throw Exception('Не вдалося зберегти підтвердження');
       }
 
-      final refreshedLesson = await _calendarService.getLessonById(_lesson.id);
+      await _refreshLesson();
       if (mounted) {
-        setState(() {
-          if (refreshedLesson != null) {
-            _lesson = refreshedLesson;
-          }
-        });
-        widget.onUpdated?.call();
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Ознайомлення з заняттям підтверджено'),

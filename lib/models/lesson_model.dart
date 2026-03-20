@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'custom_field_model.dart';
 
 class LessonAcknowledgementRecord {
   final DateTime? acknowledgedAt;
@@ -83,6 +84,8 @@ class LessonModel {
   final DateTime updatedAt;
   final DateTime? acknowledgementResetAt;
   final Map<String, LessonAcknowledgementRecord> instructorAcknowledgements;
+  final List<LessonCustomFieldDefinition> customFieldDefinitions;
+  final Map<String, LessonCustomFieldValue> customFieldValues;
   final Recurrence? recurrence;
   final String trainingPeriod; // 👈 НОВЕ ПОЛЕ
 
@@ -109,6 +112,8 @@ class LessonModel {
     required this.updatedAt,
     this.acknowledgementResetAt,
     Map<String, LessonAcknowledgementRecord>? instructorAcknowledgements,
+    List<LessonCustomFieldDefinition>? customFieldDefinitions,
+    Map<String, LessonCustomFieldValue>? customFieldValues,
     this.recurrence,
     required this.trainingPeriod, // 👈 НОВЕ ПОЛЕ
   }) : instructorIds = _normalizeInstructorIds(
@@ -126,6 +131,16 @@ class LessonModel {
        instructorName = _resolvePrimaryInstructorName(
          instructorName: instructorName,
          instructorNames: instructorNames,
+       ),
+       customFieldDefinitions =
+           LessonCustomFieldDefinition.normalizeDefinitions(
+             customFieldDefinitions ?? const <LessonCustomFieldDefinition>[],
+           ),
+       customFieldValues = LessonCustomFieldValue.sanitizeValues(
+         definitions: LessonCustomFieldDefinition.normalizeDefinitions(
+           customFieldDefinitions ?? const <LessonCustomFieldDefinition>[],
+         ),
+         values: customFieldValues ?? const <String, LessonCustomFieldValue>{},
        ),
        instructorAcknowledgements = _normalizeAcknowledgements(
          instructorAcknowledgements,
@@ -165,6 +180,12 @@ class LessonModel {
       acknowledgementResetAt: acknowledgementResetAt,
       instructorAcknowledgements: _parseAcknowledgements(
         data['instructorAcknowledgements'],
+      ),
+      customFieldDefinitions: LessonCustomFieldDefinition.parseDefinitions(
+        data['customFieldDefinitions'] ?? data['customFields'],
+      ),
+      customFieldValues: LessonCustomFieldValue.parseValues(
+        data['customFieldValues'] ?? data['customFields'],
       ),
       recurrence: data['recurrence'] != null
           ? Recurrence.fromMap(data['recurrence'])
@@ -208,6 +229,12 @@ class LessonModel {
       instructorAcknowledgements: _parseAcknowledgements(
         data['instructorAcknowledgements'],
       ),
+      customFieldDefinitions: LessonCustomFieldDefinition.parseDefinitions(
+        data['customFieldDefinitions'] ?? data['customFields'],
+      ),
+      customFieldValues: LessonCustomFieldValue.parseValues(
+        data['customFieldValues'] ?? data['customFields'],
+      ),
       recurrence: data['recurrence'] != null
           ? Recurrence.fromMap(data['recurrence'])
           : null,
@@ -242,6 +269,12 @@ class LessonModel {
       'instructorAcknowledgements': instructorAcknowledgements.map(
         (key, value) => MapEntry(key, value.toMap()),
       ),
+      'customFieldDefinitions': customFieldDefinitions
+          .map((definition) => definition.toJson())
+          .toList(),
+      'customFieldValues': customFieldValues.map(
+        (key, value) => MapEntry(key, value.toJson()),
+      ),
       'recurrence': recurrence?.toMap(),
       'trainingPeriod': trainingPeriod,
     };
@@ -275,6 +308,12 @@ class LessonModel {
       'instructorAcknowledgements': instructorAcknowledgements.map(
         (key, value) => MapEntry(key, value.toFirestore()),
       ),
+      'customFieldDefinitions': customFieldDefinitions
+          .map((definition) => definition.toFirestore())
+          .toList(),
+      'customFieldValues': customFieldValues.map(
+        (key, value) => MapEntry(key, value.toFirestore()),
+      ),
       'recurrence': recurrence?.toMap(),
       'trainingPeriod': trainingPeriod,
     };
@@ -304,6 +343,8 @@ class LessonModel {
     DateTime? updatedAt,
     DateTime? acknowledgementResetAt,
     Map<String, LessonAcknowledgementRecord>? instructorAcknowledgements,
+    List<LessonCustomFieldDefinition>? customFieldDefinitions,
+    Map<String, LessonCustomFieldValue>? customFieldValues,
     Recurrence? recurrence,
     String? trainingPeriod,
   }) {
@@ -332,6 +373,9 @@ class LessonModel {
           acknowledgementResetAt ?? this.acknowledgementResetAt,
       instructorAcknowledgements:
           instructorAcknowledgements ?? this.instructorAcknowledgements,
+      customFieldDefinitions:
+          customFieldDefinitions ?? this.customFieldDefinitions,
+      customFieldValues: customFieldValues ?? this.customFieldValues,
       recurrence: recurrence ?? this.recurrence,
       trainingPeriod: trainingPeriod ?? this.trainingPeriod,
     );
@@ -406,6 +450,68 @@ class LessonModel {
 
   DateTime get effectiveAcknowledgementResetAt =>
       acknowledgementResetAt ?? updatedAt;
+
+  bool get hasCustomFields => customFieldDefinitions.isNotEmpty;
+
+  LessonCustomFieldDefinition? customFieldDefinitionByCode(String code) {
+    final normalizedCode = LessonCustomFieldDefinition.normalizeCode(code);
+    if (normalizedCode.isEmpty) return null;
+    for (final definition in customFieldDefinitions) {
+      if (definition.code == normalizedCode) {
+        return definition;
+      }
+    }
+    return null;
+  }
+
+  LessonCustomFieldDefinition? customFieldDefinitionByLabel(String label) {
+    final normalizedLabel = label.trim().toLowerCase();
+    if (normalizedLabel.isEmpty) return null;
+    for (final definition in customFieldDefinitions) {
+      if (definition.label.trim().toLowerCase() == normalizedLabel) {
+        return definition;
+      }
+    }
+    return null;
+  }
+
+  LessonCustomFieldValue? customFieldValueByCode(String code) {
+    final definition = customFieldDefinitionByCode(code);
+    if (definition == null) return null;
+    final value = customFieldValues[definition.code];
+    if (value == null || value.type != definition.type) {
+      return null;
+    }
+    return value;
+  }
+
+  LessonCustomFieldValue? customFieldValueByLabel(String label) {
+    final definition = customFieldDefinitionByLabel(label);
+    if (definition == null) return null;
+    return customFieldValueByCode(definition.code);
+  }
+
+  String customFieldDisplayValueByCode(
+    String code, {
+    String emptyFallback = 'Не вказано',
+  }) {
+    return customFieldValueByCode(
+          code,
+        )?.formatDisplayValue(emptyFallback: emptyFallback) ??
+        emptyFallback;
+  }
+
+  String customFieldDisplayValueByLabel(
+    String label, {
+    String emptyFallback = 'Не вказано',
+  }) {
+    final definition = customFieldDefinitionByLabel(label);
+    if (definition == null) return emptyFallback;
+    return customFieldDisplayValueByCode(
+      definition.code,
+      emptyFallback: emptyFallback,
+    );
+  }
 
   LessonAcknowledgementRecord? acknowledgementFor(String assignmentId) {
     final normalizedAssignmentId = normalizeInstructorAssignmentId(
