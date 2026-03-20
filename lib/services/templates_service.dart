@@ -6,6 +6,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'dart:convert';
 import 'dart:async';
 import '../models/custom_field_model.dart';
+import '../models/lesson_model.dart';
+import '../models/lesson_progress_reminder.dart';
 import '../globals.dart';
 
 // Енум для типів темплейтів
@@ -48,6 +50,7 @@ class GroupTemplate {
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<LessonCustomFieldDefinition> customFieldDefinitions;
+  final List<LessonProgressReminder> progressReminders;
 
   GroupTemplate({
     required this.id,
@@ -64,6 +67,7 @@ class GroupTemplate {
     required this.createdAt,
     required this.updatedAt,
     this.customFieldDefinitions = const [],
+    this.progressReminders = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -83,6 +87,7 @@ class GroupTemplate {
     'customFieldDefinitions': customFieldDefinitions
         .map((definition) => definition.toJson())
         .toList(),
+    'progressReminders': LessonProgressReminder.toJsonList(progressReminders),
   };
 
   Map<String, dynamic> toFirestore() => {
@@ -101,6 +106,9 @@ class GroupTemplate {
     'customFieldDefinitions': customFieldDefinitions
         .map((definition) => definition.toFirestore())
         .toList(),
+    'progressReminders': LessonProgressReminder.toFirestoreList(
+      progressReminders,
+    ),
   };
 
   factory GroupTemplate.fromJson(Map<String, dynamic> json) => GroupTemplate(
@@ -123,6 +131,9 @@ class GroupTemplate {
         : DateTime.now(),
     customFieldDefinitions: LessonCustomFieldDefinition.parseDefinitions(
       json['customFieldDefinitions'] ?? json['customFields'],
+    ),
+    progressReminders: LessonProgressReminder.parseList(
+      json['progressReminders'],
     ),
   );
 
@@ -149,6 +160,9 @@ class GroupTemplate {
       customFieldDefinitions: LessonCustomFieldDefinition.parseDefinitions(
         data['customFieldDefinitions'] ?? data['customFields'],
       ),
+      progressReminders: LessonProgressReminder.parseList(
+        data['progressReminders'],
+      ),
     );
   }
 
@@ -162,6 +176,7 @@ class GroupTemplate {
     TemplateType? type,
     bool? isDefault,
     List<LessonCustomFieldDefinition>? customFieldDefinitions,
+    List<LessonProgressReminder>? progressReminders,
   }) => GroupTemplate(
     id: id,
     title: title ?? this.title,
@@ -178,7 +193,119 @@ class GroupTemplate {
     updatedAt: DateTime.now(),
     customFieldDefinitions:
         customFieldDefinitions ?? this.customFieldDefinitions,
+    progressReminders: progressReminders ?? this.progressReminders,
   );
+}
+
+class TemplateLessonSyncResult {
+  final int linkedLessons;
+  final int updatedLessons;
+
+  const TemplateLessonSyncResult({
+    required this.linkedLessons,
+    required this.updatedLessons,
+  });
+}
+
+class TemplateLessonMigrationResult {
+  final int matchedLessons;
+  final int migratedLessons;
+
+  const TemplateLessonMigrationResult({
+    required this.matchedLessons,
+    required this.migratedLessons,
+  });
+}
+
+List<LessonCustomFieldDefinition>
+mergeLessonCustomFieldDefinitionsFromTemplate({
+  required List<LessonCustomFieldDefinition> lessonDefinitions,
+  required List<LessonCustomFieldDefinition> templateDefinitions,
+}) {
+  final mergedDefinitions = <LessonCustomFieldDefinition>[
+    ...LessonCustomFieldDefinition.normalizeDefinitions(lessonDefinitions),
+  ];
+  final existingCodes = mergedDefinitions.map((item) => item.code).toSet();
+
+  for (final definition in LessonCustomFieldDefinition.normalizeDefinitions(
+    templateDefinitions,
+  )) {
+    if (existingCodes.contains(definition.code)) {
+      continue;
+    }
+    mergedDefinitions.add(definition);
+    existingCodes.add(definition.code);
+  }
+
+  return mergedDefinitions;
+}
+
+DateTime calculateSyncedLessonEndTime({
+  required DateTime startTime,
+  required int durationMinutes,
+}) {
+  return startTime.add(Duration(minutes: durationMinutes));
+}
+
+bool shouldMigrateLessonToTemplate({
+  required LessonModel lesson,
+  required GroupTemplate template,
+  DateTime? now,
+}) {
+  final referenceNow = now ?? DateTime.now();
+  if (lesson.templateId.trim().isNotEmpty) {
+    return false;
+  }
+  if (lesson.endTime.isBefore(referenceNow)) {
+    return false;
+  }
+  if (lesson.groupId.trim().isNotEmpty &&
+      template.groupId.trim().isNotEmpty &&
+      lesson.groupId != template.groupId) {
+    return false;
+  }
+
+  return lesson.title.trim().toLowerCase() ==
+      template.title.trim().toLowerCase();
+}
+
+Map<String, dynamic> buildLessonTemplateSyncUpdate({
+  required LessonModel lesson,
+  required GroupTemplate template,
+  bool includeTemplateId = false,
+}) {
+  final mergedDefinitions = mergeLessonCustomFieldDefinitionsFromTemplate(
+    lessonDefinitions: lesson.customFieldDefinitions,
+    templateDefinitions: template.customFieldDefinitions,
+  );
+  final mergedValues = LessonCustomFieldValue.sanitizeValues(
+    definitions: mergedDefinitions,
+    values: lesson.customFieldValues,
+  );
+
+  return {
+    'type': template.type.id,
+    if (includeTemplateId) 'templateId': template.id,
+    'description': template.description,
+    'endTime': Timestamp.fromDate(
+      calculateSyncedLessonEndTime(
+        startTime: lesson.startTime,
+        durationMinutes: template.durationMinutes,
+      ),
+    ),
+    'tags': List<String>.from(template.tags),
+    'customFieldDefinitions': mergedDefinitions
+        .map((definition) => definition.toFirestore())
+        .toList(),
+    'customFieldValues': mergedValues.map(
+      (key, value) => MapEntry(key, value.toFirestore()),
+    ),
+    'progressReminders': LessonProgressReminder.toFirestoreList(
+      template.progressReminders,
+    ),
+    'trainingPeriod': FieldValue.delete(),
+    'updatedAt': FieldValue.serverTimestamp(),
+  };
 }
 
 class GroupTemplatesService {
@@ -658,6 +785,7 @@ class GroupTemplatesService {
           createdAt: now,
           updatedAt: now,
           customFieldDefinitions: template.customFieldDefinitions,
+          progressReminders: template.progressReminders,
         );
 
         await templatesRef.add(newTemplate.toFirestore());
@@ -700,6 +828,138 @@ class GroupTemplatesService {
       debugPrint('GroupTemplatesService: Помилка видалення темплейту: $e');
       return false;
     }
+  }
+
+  Future<TemplateLessonSyncResult> syncLessonsFromTemplate(
+    GroupTemplate template,
+  ) async {
+    await ensureInitializedForCurrentGroup();
+
+    final groupId = _currentGroupId;
+    if (groupId == null) {
+      throw Exception('Немає активної групи');
+    }
+    if (template.id.trim().isEmpty) {
+      throw Exception('Шаблон ще не збережений');
+    }
+
+    final lessonsRef = FirebaseFirestore.instance
+        .collection('lessons')
+        .doc(groupId)
+        .collection('items');
+    final snapshot = await lessonsRef
+        .where('templateId', isEqualTo: template.id)
+        .get();
+
+    if (snapshot.docs.isEmpty) {
+      return const TemplateLessonSyncResult(
+        linkedLessons: 0,
+        updatedLessons: 0,
+      );
+    }
+
+    var batch = FirebaseFirestore.instance.batch();
+    var writesInBatch = 0;
+    var updatedLessons = 0;
+
+    for (final doc in snapshot.docs) {
+      final lesson = LessonModel.fromFirestore(doc.data(), doc.id);
+      batch.update(
+        doc.reference,
+        buildLessonTemplateSyncUpdate(lesson: lesson, template: template),
+      );
+
+      writesInBatch++;
+      updatedLessons++;
+
+      if (writesInBatch >= 400) {
+        await batch.commit();
+        batch = FirebaseFirestore.instance.batch();
+        writesInBatch = 0;
+      }
+    }
+
+    if (writesInBatch > 0) {
+      await batch.commit();
+    }
+
+    return TemplateLessonSyncResult(
+      linkedLessons: snapshot.docs.length,
+      updatedLessons: updatedLessons,
+    );
+  }
+
+  Future<TemplateLessonMigrationResult> migrateUnlinkedLessonsForTemplate(
+    GroupTemplate template,
+  ) async {
+    await ensureInitializedForCurrentGroup();
+
+    final groupId = _currentGroupId;
+    if (groupId == null) {
+      throw Exception('Немає активної групи');
+    }
+    if (template.id.trim().isEmpty) {
+      throw Exception('Шаблон ще не збережений');
+    }
+
+    final lessonsRef = FirebaseFirestore.instance
+        .collection('lessons')
+        .doc(groupId)
+        .collection('items');
+    final now = DateTime.now();
+    final snapshot = await lessonsRef
+        .where('endTime', isGreaterThanOrEqualTo: Timestamp.fromDate(now))
+        .get();
+
+    final matchedDocs = snapshot.docs.where((doc) {
+      final lesson = LessonModel.fromFirestore(doc.data(), doc.id);
+      return shouldMigrateLessonToTemplate(
+        lesson: lesson,
+        template: template,
+        now: now,
+      );
+    }).toList();
+
+    if (matchedDocs.isEmpty) {
+      return const TemplateLessonMigrationResult(
+        matchedLessons: 0,
+        migratedLessons: 0,
+      );
+    }
+
+    var batch = FirebaseFirestore.instance.batch();
+    var writesInBatch = 0;
+    var migratedLessons = 0;
+
+    for (final doc in matchedDocs) {
+      final lesson = LessonModel.fromFirestore(doc.data(), doc.id);
+      batch.update(
+        doc.reference,
+        buildLessonTemplateSyncUpdate(
+          lesson: lesson,
+          template: template,
+          includeTemplateId: true,
+        ),
+      );
+
+      writesInBatch++;
+      migratedLessons++;
+
+      if (writesInBatch >= 400) {
+        await batch.commit();
+        batch = FirebaseFirestore.instance.batch();
+        writesInBatch = 0;
+      }
+    }
+
+    if (writesInBatch > 0) {
+      await batch.commit();
+    }
+
+    return TemplateLessonMigrationResult(
+      matchedLessons: matchedDocs.length,
+      migratedLessons: migratedLessons,
+    );
   }
 
   void _addTemplateValuesToAutocomplete(GroupTemplate template) {
@@ -820,9 +1080,13 @@ class GroupTemplatesService {
       'tags': List.from(template.tags),
       'durationMinutes': template.durationMinutes,
       'type': template.type.id,
+      'templateId': template.id,
       'customFieldDefinitions': template.customFieldDefinitions
           .map((definition) => definition.toJson())
           .toList(),
+      'progressReminders': LessonProgressReminder.toJsonList(
+        template.progressReminders,
+      ),
       'customFieldValues': const <String, dynamic>{},
     };
   }

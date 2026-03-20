@@ -224,6 +224,5 @@ LessonModel _buildLesson({
     updatedAt: DateTime(2026, 3, 1, 9, 0),
     customFieldDefinitions: customFieldDefinitions,
     customFieldValues: customFieldValues,
-    trainingPeriod: '',
   );
 }

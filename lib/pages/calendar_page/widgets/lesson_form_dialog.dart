@@ -1,15 +1,18 @@
 // lib/pages/calendar_page/widgets/lesson_form_dialog.dart
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../../models/custom_field_model.dart';
 import '../../../models/lesson_model.dart';
+import '../../../models/lesson_progress_reminder.dart';
 import '../../../services/calendar_service.dart';
 import '../calendar_utils.dart';
 import '../../../globals.dart';
 import '../../../services/templates_service.dart';
 import '../../../widgets/custom_fields_dialogs.dart';
+import '../../../widgets/lesson_progress_reminder_editor.dart';
 import 'autocomplete_field.dart';
 
 class LessonFormDialog extends StatefulWidget {
@@ -48,15 +51,17 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   late final TextEditingController _unitController;
   late final TextEditingController _maxParticipantsController;
   late final TextEditingController _tagsController;
-  late final TextEditingController _trainingPeriodController;
 
   // Дані форми
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _startTime = const TimeOfDay(hour: 8, minute: 15);
   TimeOfDay _endTime = const TimeOfDay(hour: 11, minute: 45);
+  String _selectedTemplateId = '';
+  String _selectedTypeId = '';
   List<String> _selectedTags = [];
   List<LessonCustomFieldDefinition> _customFieldDefinitions = [];
   Map<String, LessonCustomFieldValue> _customFieldValues = {};
+  List<LessonProgressReminder> _progressReminders = [];
   bool _isLoading = false;
 
   // Повторювані заняття
@@ -91,7 +96,6 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     _unitController = TextEditingController();
     _maxParticipantsController = TextEditingController(text: '180');
     _tagsController = TextEditingController();
-    _trainingPeriodController = TextEditingController();
   }
 
   void _loadInitialData() {
@@ -106,14 +110,18 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
       _selectedDate = lesson.startTime;
       _startTime = TimeOfDay.fromDateTime(lesson.startTime);
       _endTime = TimeOfDay.fromDateTime(lesson.endTime);
+      _selectedTemplateId = lesson.templateId;
+      _selectedTypeId = lesson.typeId;
       _selectedTags = List.from(lesson.tags);
       _tagsController.text = _selectedTags.join(', ');
-      _trainingPeriodController.text = lesson.trainingPeriod;
       _customFieldDefinitions = List<LessonCustomFieldDefinition>.from(
         lesson.customFieldDefinitions,
       );
       _customFieldValues = Map<String, LessonCustomFieldValue>.from(
         lesson.customFieldValues,
+      );
+      _progressReminders = List<LessonProgressReminder>.from(
+        lesson.progressReminders,
       );
       _selectedInstructors
         ..clear()
@@ -147,6 +155,8 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         _descriptionController.text = template['description'] ?? '';
         _locationController.text = template['location'] ?? '';
         _unitController.text = template['unit'] ?? '';
+        _selectedTemplateId = (template['templateId'] ?? '').toString().trim();
+        _selectedTypeId = (template['type'] ?? '').toString().trim();
         _selectedTags = List<String>.from(template['tags'] ?? []);
         _tagsController.text = _selectedTags.join(', ');
         _customFieldDefinitions = LessonCustomFieldDefinition.parseDefinitions(
@@ -157,6 +167,9 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
           values: LessonCustomFieldValue.parseValues(
             template['customFieldValues'],
           ),
+        );
+        _progressReminders = LessonProgressReminder.parseList(
+          template['progressReminders'],
         );
         _selectedInstructors
           ..clear()
@@ -224,7 +237,6 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     _unitController.dispose();
     _maxParticipantsController.dispose();
     _tagsController.dispose();
-    _trainingPeriodController.dispose();
     super.dispose();
   }
 
@@ -253,6 +265,8 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
                       _buildBasicInfoSection(),
                       const SizedBox(height: 20),
                       _buildTimeSection(),
+                      const SizedBox(height: 20),
+                      _buildProgressRemindersSection(),
                       const SizedBox(height: 20),
                       _buildDetailsSection(),
                       const SizedBox(height: 20),
@@ -382,6 +396,8 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     _descriptionController.text = template.description;
     _locationController.text = template.location;
     _unitController.text = template.unit;
+    _selectedTemplateId = template.id;
+    _selectedTypeId = template.type.id;
     _selectedTags = List.from(template.tags);
     _tagsController.text = _selectedTags.join(', ');
     _customFieldDefinitions = List<LessonCustomFieldDefinition>.from(
@@ -390,6 +406,9 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     _customFieldValues = LessonCustomFieldValue.retainCompatibleValues(
       definitions: _customFieldDefinitions,
       currentValues: _customFieldValues,
+    );
+    _progressReminders = List<LessonProgressReminder>.from(
+      template.progressReminders,
     );
 
     // Встановлюємо тривалість
@@ -490,6 +509,24 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     );
   }
 
+  Widget _buildProgressRemindersSection() {
+    return LessonProgressReminderEditor(
+      reminders: _progressReminders,
+      onChanged: (reminders) {
+        setState(() {
+          _progressReminders = reminders;
+        });
+      },
+      previewStartTime: _selectedStartDateTime,
+      previewEndTime: _selectedEndDateTime,
+      durationMinutes: _selectedEndDateTime
+          .difference(_selectedStartDateTime)
+          .inMinutes,
+      emptyText:
+          'Додайте нагадування, які мають приходити викладачам у певні моменти заняття.',
+    );
+  }
+
   Widget _buildDetailsSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -538,60 +575,6 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
           _buildInstructorSection(),
           const SizedBox(height: 16),
         ],
-
-        // Період навчання
-        Row(
-          children: [
-            Expanded(
-              flex: 2,
-              child: TextFormField(
-                controller: _trainingPeriodController,
-                decoration: const InputDecoration(
-                  labelText: 'Період навчання',
-                  hintText: '25.06.2025 - 16.07.2025',
-                  prefixIcon: Icon(Icons.date_range),
-                  border: OutlineInputBorder(),
-                  helperText: 'Формат: дд.мм.рррр - дд.мм.рррр',
-                ),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return null;
-                  }
-
-                  if (!LessonStatusUtils.isValidTrainingPeriod(value.trim())) {
-                    return 'Некоректний формат. Використовуйте: дд.мм.рррр - дд.мм.рррр';
-                  }
-                  return null;
-                },
-                onChanged: (value) {
-                  // Автоматичне форматування при введенні
-                  if (value.length == 10 && !value.contains(' - ')) {
-                    _trainingPeriodController.text = '$value - ';
-                    _trainingPeriodController.selection =
-                        TextSelection.fromPosition(
-                          TextPosition(
-                            offset: _trainingPeriodController.text.length,
-                          ),
-                        );
-                  }
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton.icon(
-                onPressed: _selectTrainingPeriod,
-                icon: const Icon(Icons.calendar_today, size: 16),
-                label: const Text('Обрати', style: TextStyle(fontSize: 12)),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        const SizedBox(height: 16),
 
         // Максимальна кількість учасників
         TextFormField(
@@ -778,45 +761,6 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         ),
       ],
     );
-  }
-
-  Future<void> _selectTrainingPeriod() async {
-    final DateTimeRange? picked = await showDateRangePicker(
-      context: context,
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
-      initialDateRange: _parseCurrentPeriod(),
-      locale: const Locale('uk', 'UA'),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: Theme.of(
-              context,
-            ).colorScheme.copyWith(primary: Theme.of(context).primaryColor),
-          ),
-          child: child!,
-        );
-      },
-    );
-
-    if (picked != null) {
-      final formattedPeriod = LessonStatusUtils.createTrainingPeriod(
-        picked.start,
-        picked.end,
-      );
-      _trainingPeriodController.text = formattedPeriod;
-    }
-  }
-
-  DateTimeRange? _parseCurrentPeriod() {
-    final text = _trainingPeriodController.text;
-    final (startDate, endDate) = LessonStatusUtils.parseTrainingPeriod(text);
-
-    if (startDate != null && endDate != null) {
-      return DateTimeRange(start: startDate, end: endDate);
-    }
-
-    return null;
   }
 
   Widget _buildRecurrenceSection() {
@@ -1195,6 +1139,8 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         endTime: endDateTime,
         groupId: Globals.profileManager.currentGroupId ?? '',
         groupName: currentGroup,
+        typeId: _selectedTypeId,
+        templateId: _selectedTemplateId,
         unit: _unitController.text.trim(),
         instructorId: _resolvedInstructorIds().isNotEmpty
             ? _resolvedInstructorIds().first
@@ -1214,8 +1160,8 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         updatedAt: DateTime.now(),
         customFieldDefinitions: _customFieldDefinitions,
         customFieldValues: _customFieldValues,
+        progressReminders: _progressReminders,
         recurrence: recurrence,
-        trainingPeriod: _trainingPeriodController.text.trim(),
       );
 
       bool success;
@@ -1226,6 +1172,8 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
           'description': lesson.description,
           'startTime': lesson.startTime,
           'endTime': lesson.endTime,
+          'type': lesson.typeId,
+          'templateId': lesson.templateId,
           'location': lesson.location,
           'unit': lesson.unit,
           'instructorId': lesson.instructorId,
@@ -1240,7 +1188,10 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
           'customFieldValues': lesson.customFieldValues.map(
             (key, value) => MapEntry(key, value.toFirestore()),
           ),
-          'trainingPeriod': lesson.trainingPeriod,
+          'progressReminders': LessonProgressReminder.toFirestoreList(
+            lesson.progressReminders,
+          ),
+          'trainingPeriod': FieldValue.delete(),
           'recurrence': recurrence != null
               ? {
                   'type': recurrence.type,
@@ -1422,6 +1373,22 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     }
     return normalized;
   }
+
+  DateTime get _selectedStartDateTime => DateTime(
+    _selectedDate.year,
+    _selectedDate.month,
+    _selectedDate.day,
+    _startTime.hour,
+    _startTime.minute,
+  );
+
+  DateTime get _selectedEndDateTime => DateTime(
+    _selectedDate.year,
+    _selectedDate.month,
+    _selectedDate.day,
+    _endTime.hour,
+    _endTime.minute,
+  );
 
   Future<void> _showInstructorPicker() async {
     final availableOptions = _availableInstructorOptions();

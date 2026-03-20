@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'custom_field_model.dart';
+import 'lesson_progress_reminder.dart';
 
 class LessonAcknowledgementRecord {
   final DateTime? acknowledgedAt;
@@ -69,6 +70,8 @@ class LessonModel {
   final DateTime endTime;
   final String groupId;
   final String groupName;
+  final String typeId;
+  final String templateId;
   final String unit;
   final String instructorId;
   final String instructorName;
@@ -86,8 +89,8 @@ class LessonModel {
   final Map<String, LessonAcknowledgementRecord> instructorAcknowledgements;
   final List<LessonCustomFieldDefinition> customFieldDefinitions;
   final Map<String, LessonCustomFieldValue> customFieldValues;
+  final List<LessonProgressReminder> progressReminders;
   final Recurrence? recurrence;
-  final String trainingPeriod; // 👈 НОВЕ ПОЛЕ
 
   LessonModel({
     required this.id,
@@ -97,6 +100,8 @@ class LessonModel {
     required this.endTime,
     required this.groupId,
     required this.groupName,
+    this.typeId = '',
+    this.templateId = '',
     required this.unit,
     required String instructorId,
     required String instructorName,
@@ -114,8 +119,8 @@ class LessonModel {
     Map<String, LessonAcknowledgementRecord>? instructorAcknowledgements,
     List<LessonCustomFieldDefinition>? customFieldDefinitions,
     Map<String, LessonCustomFieldValue>? customFieldValues,
+    List<LessonProgressReminder>? progressReminders,
     this.recurrence,
-    required this.trainingPeriod, // 👈 НОВЕ ПОЛЕ
   }) : instructorIds = _normalizeInstructorIds(
          instructorIds,
          fallbackId: instructorId,
@@ -142,6 +147,7 @@ class LessonModel {
          ),
          values: customFieldValues ?? const <String, LessonCustomFieldValue>{},
        ),
+       progressReminders = LessonProgressReminder.parseList(progressReminders),
        instructorAcknowledgements = _normalizeAcknowledgements(
          instructorAcknowledgements,
        );
@@ -164,6 +170,8 @@ class LessonModel {
       endTime: _parseRequiredDateTime(data['endTime']),
       groupId: data['groupId'] ?? '',
       groupName: data['groupName'] ?? '',
+      typeId: (data['type'] ?? '').toString().trim(),
+      templateId: (data['templateId'] ?? '').toString().trim(),
       unit: data['unit'] ?? '',
       instructorId: data['instructorId'] ?? '',
       instructorName: data['instructorName'] ?? '',
@@ -187,10 +195,12 @@ class LessonModel {
       customFieldValues: LessonCustomFieldValue.parseValues(
         data['customFieldValues'] ?? data['customFields'],
       ),
+      progressReminders: LessonProgressReminder.parseList(
+        data['progressReminders'],
+      ),
       recurrence: data['recurrence'] != null
           ? Recurrence.fromMap(data['recurrence'])
           : null,
-      trainingPeriod: data['trainingPeriod'] ?? '',
     );
   }
 
@@ -212,6 +222,8 @@ class LessonModel {
       endTime: _parseRequiredDateTime(data['endTime']),
       groupId: data['groupId'] ?? '',
       groupName: data['groupName'] ?? '',
+      typeId: (data['type'] ?? '').toString().trim(),
+      templateId: (data['templateId'] ?? '').toString().trim(),
       unit: data['unit'] ?? '',
       instructorId: data['instructorId'] ?? '',
       instructorName: data['instructorName'] ?? '',
@@ -235,10 +247,12 @@ class LessonModel {
       customFieldValues: LessonCustomFieldValue.parseValues(
         data['customFieldValues'] ?? data['customFields'],
       ),
+      progressReminders: LessonProgressReminder.parseList(
+        data['progressReminders'],
+      ),
       recurrence: data['recurrence'] != null
           ? Recurrence.fromMap(data['recurrence'])
           : null,
-      trainingPeriod: data['trainingPeriod'] ?? '',
     );
   }
 
@@ -252,6 +266,8 @@ class LessonModel {
       'endTime': endTime,
       'groupId': groupId,
       'groupName': groupName,
+      'type': typeId,
+      'templateId': templateId,
       'unit': unit,
       'instructorId': instructorId,
       'instructorName': instructorName,
@@ -275,8 +291,8 @@ class LessonModel {
       'customFieldValues': customFieldValues.map(
         (key, value) => MapEntry(key, value.toJson()),
       ),
+      'progressReminders': LessonProgressReminder.toJsonList(progressReminders),
       'recurrence': recurrence?.toMap(),
-      'trainingPeriod': trainingPeriod,
     };
   }
 
@@ -289,6 +305,8 @@ class LessonModel {
       'endTime': Timestamp.fromDate(endTime),
       'groupId': groupId,
       'groupName': groupName,
+      'type': typeId,
+      'templateId': templateId,
       'unit': unit,
       'instructorId': instructorId,
       'instructorName': instructorName,
@@ -314,8 +332,10 @@ class LessonModel {
       'customFieldValues': customFieldValues.map(
         (key, value) => MapEntry(key, value.toFirestore()),
       ),
+      'progressReminders': LessonProgressReminder.toFirestoreList(
+        progressReminders,
+      ),
       'recurrence': recurrence?.toMap(),
-      'trainingPeriod': trainingPeriod,
     };
   }
 
@@ -328,6 +348,8 @@ class LessonModel {
     DateTime? endTime,
     String? groupId,
     String? groupName,
+    String? typeId,
+    String? templateId,
     String? unit,
     String? instructorId,
     String? instructorName,
@@ -345,8 +367,8 @@ class LessonModel {
     Map<String, LessonAcknowledgementRecord>? instructorAcknowledgements,
     List<LessonCustomFieldDefinition>? customFieldDefinitions,
     Map<String, LessonCustomFieldValue>? customFieldValues,
+    List<LessonProgressReminder>? progressReminders,
     Recurrence? recurrence,
-    String? trainingPeriod,
   }) {
     return LessonModel(
       id: id ?? this.id,
@@ -356,6 +378,8 @@ class LessonModel {
       endTime: endTime ?? this.endTime,
       groupId: groupId ?? this.groupId,
       groupName: groupName ?? this.groupName,
+      typeId: typeId ?? this.typeId,
+      templateId: templateId ?? this.templateId,
       unit: unit ?? this.unit,
       instructorId: instructorId ?? this.instructorId,
       instructorName: instructorName ?? this.instructorName,
@@ -376,17 +400,44 @@ class LessonModel {
       customFieldDefinitions:
           customFieldDefinitions ?? this.customFieldDefinitions,
       customFieldValues: customFieldValues ?? this.customFieldValues,
+      progressReminders: progressReminders ?? this.progressReminders,
       recurrence: recurrence ?? this.recurrence,
-      trainingPeriod: trainingPeriod ?? this.trainingPeriod,
     );
   }
 
   /// Отримати тип заняття (перший тег або 'Загальне')
   String get type {
+    final normalizedTypeId = typeId.trim();
+    if (normalizedTypeId.isNotEmpty) {
+      return lessonTypeDisplayName(normalizedTypeId);
+    }
     if (tags.isNotEmpty) {
       return tags.first;
     }
     return 'Загальне';
+  }
+
+  static String lessonTypeDisplayName(String typeId) {
+    switch (typeId.trim()) {
+      case 'lesson':
+        return 'Заняття';
+      case 'event':
+        return 'Подія';
+      case 'meeting':
+        return 'Нарада';
+      case 'inspection':
+        return 'Перевірка';
+      case 'training':
+        return 'Тренування';
+      case 'ceremony':
+        return 'Церемонія';
+      case 'maintenance':
+        return 'Обслуговування';
+      case 'other':
+        return 'Інше';
+      default:
+        return typeId.trim().isEmpty ? 'Загальне' : typeId.trim();
+    }
   }
 
   /// Тривалість заняття в хвилинах

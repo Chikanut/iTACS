@@ -21,16 +21,16 @@ class MobileLessonCard extends StatelessWidget {
 
     // Отримуємо статуси та прогрес
     final progressStatus = LessonStatusUtils.getProgressStatus(lesson);
-    final readinessStatus = LessonStatusUtils.getReadinessStatus(lesson);
+    final statusEvaluation = LessonStatusUtils.evaluateLessonStatus(lesson);
     final criticalFieldsProgress = LessonStatusUtils.getCriticalFieldsProgress(
       lesson,
     );
-    final missingFields = LessonStatusUtils.getMissingCriticalFields(lesson);
+    final missingFields = statusEvaluation.issues;
 
     // Для відображення використовуємо readinessStatus
-    final statusColor = readinessStatus.color;
-    final statusLabel = readinessStatus.label;
-    final statusIcon = readinessStatus.icon;
+    final statusColor = statusEvaluation.color;
+    final statusLabel = statusEvaluation.label;
+    final statusIcon = statusEvaluation.icon;
 
     return GestureDetector(
       onTap: onTap,
@@ -132,10 +132,10 @@ class MobileLessonCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Не заповнено: ${missingFields.join(', ')}',
+                    '${statusEvaluation.label}: ${missingFields.join(', ')}',
                     style: TextStyle(
                       fontSize: 11,
-                      color: Colors.red.shade700,
+                      color: statusColor,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -248,43 +248,6 @@ class MobileLessonCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       lesson.unit,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey.shade700,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-            ],
-
-            // Період навчання
-            if (lesson.trainingPeriod.isEmpty) ...[
-              Row(
-                children: [
-                  Icon(Icons.date_range, size: 16, color: Colors.red.shade600),
-                  const SizedBox(width: 4),
-                  Text(
-                    'Період навчання не вказано',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.red.shade700,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-            ] else ...[
-              Row(
-                children: [
-                  Icon(Icons.date_range, size: 16, color: Colors.grey.shade600),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      'Період навчання: ${LessonStatusUtils.formatTrainingPeriod(lesson.trainingPeriod)}',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey.shade700,

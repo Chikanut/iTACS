@@ -2,8 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../../../models/custom_field_model.dart';
 import '../../../models/lesson_model.dart';
+import '../../../models/lesson_progress_reminder.dart';
 import '../../../services/calendar_service.dart';
 import '../calendar_utils.dart';
 import '../../../globals.dart';
@@ -40,17 +40,18 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   Widget build(BuildContext context) {
     final lesson = _lesson;
     final status = LessonStatusUtils.getProgressStatus(lesson);
+    final dialogMaxHeight = MediaQuery.sizeOf(context).height * 0.88;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 500, maxHeight: 700),
+        constraints: BoxConstraints(maxWidth: 500, maxHeight: dialogMaxHeight),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             // Шапка
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(18, 16, 10, 16),
               decoration: BoxDecoration(
                 color: CalendarUtils.getGroupColor(lesson.groupName),
                 borderRadius: const BorderRadius.vertical(
@@ -63,10 +64,10 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                     CalendarUtils.getLessonTypeIcon(
                       lesson.tags.isNotEmpty ? lesson.tags.first : '',
                     ),
-                    size: 24,
+                    size: 22,
                     color: Colors.grey.shade700,
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,7 +75,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                         Text(
                           lesson.title,
                           style: const TextStyle(
-                            fontSize: 20,
+                            fontSize: 19,
                             fontWeight: FontWeight.bold,
                             color: Color.fromARGB(255, 29, 28, 28),
                           ),
@@ -83,7 +84,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                         Text(
                           lesson.groupName,
                           style: TextStyle(
-                            fontSize: 14,
+                            fontSize: 13,
                             color: Colors.grey.shade700,
                           ),
                         ),
@@ -92,6 +93,12 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                   ),
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
                     icon: const Icon(Icons.close),
                   ),
                 ],
@@ -101,10 +108,14 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
             // Контент
             Expanded(
               child: SingleChildScrollView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    _buildStatusSection(lesson, status),
+
+                    const SizedBox(height: 16),
+
                     // Час
                     _buildDetailRow(
                       icon: Icons.schedule,
@@ -142,13 +153,10 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
 
                     const SizedBox(height: 16),
 
-                    // Підрозділ
                     _buildDetailRow(
-                      icon: Icons.military_tech,
-                      label: 'Період навчання',
-                      value: lesson.trainingPeriod.isNotEmpty
-                          ? lesson.trainingPeriod
-                          : 'Не вказано',
+                      icon: Icons.groups_2_outlined,
+                      label: 'Очікується учнів',
+                      value: '${lesson.maxParticipants}',
                     ),
 
                     const SizedBox(height: 16),
@@ -164,22 +172,21 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                       const SizedBox(height: 16),
                     ],
 
-                    _buildCustomFieldsSection(lesson),
-
-                    const SizedBox(height: 16),
+                    if (lesson.hasCustomFields) ...[
+                      _buildCustomFieldsSection(lesson),
+                      const SizedBox(height: 16),
+                    ],
 
                     // Учасники
                     _buildParticipantsSection(lesson),
 
-                    if (_shouldShowCurrentUserAcknowledgementSection(
-                      lesson,
-                    )) ...[
+                    if (lesson.hasInstructors) ...[
                       const SizedBox(height: 16),
-                      _buildCurrentUserAcknowledgementSection(lesson),
+                      _buildInstructorAcknowledgementsSection(lesson),
                     ],
 
-                    // Теги
                     if (lesson.tags.isNotEmpty) ...[
+                      const SizedBox(height: 16),
                       const Text(
                         'Теги',
                         style: TextStyle(
@@ -204,15 +211,6 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                             )
                             .toList(),
                       ),
-                      const SizedBox(height: 16),
-                    ],
-
-                    // Статус
-                    _buildStatusSection(lesson, status),
-
-                    if (_canAssignOthers() && lesson.hasInstructors) ...[
-                      const SizedBox(height: 16),
-                      _buildInstructorAcknowledgementsSection(lesson),
                     ],
                   ],
                 ),
@@ -221,7 +219,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
 
             // Кнопки дій
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: Colors.grey.shade200)),
               ),
@@ -283,7 +281,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
           children: [
             const Expanded(
               child: Text(
-                'Кастомні параметри',
+                'Поля для заповнення',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
             ),
@@ -299,8 +297,13 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
         CustomFieldReadOnlyList(
           definitions: lesson.customFieldDefinitions,
           values: lesson.customFieldValues,
-          emptyText:
-              'Для цього заняття ще не налаштовано кастомних параметрів.',
+          showFieldType: false,
+          backgroundColor: Colors.white.withOpacity(0.02),
+          borderColor: Colors.white70,
+          labelColor: Colors.white,
+          valueColor: Colors.white,
+          emptyValueColor: Colors.white70,
+          emptyText: 'Для цього заняття ще не налаштовано поля для заповнення.',
         ),
       ],
     );
@@ -309,20 +312,19 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   Widget _buildParticipantsSection(LessonModel lesson) {
     final needsInstructor = _calendarService.doesLessonNeedInstructor(lesson);
     final isUserInstructor = _calendarService.isUserInstructorForLesson(lesson);
-    final status = CalendarUtils.getInstructorLessonStatus(
+    final instructorStatus = CalendarUtils.getInstructorLessonStatus(
       lesson,
       isUserInstructor,
     );
-
-    final readinessStatus = LessonStatusUtils.getReadinessStatus(lesson);
-    final missingFields = LessonStatusUtils.getMissingCriticalFields(lesson);
-    final hasProblems = missingFields.isNotEmpty;
+    final statusEvaluation = LessonStatusUtils.evaluateLessonStatus(lesson);
+    final missingFields = statusEvaluation.issues;
+    final hasIssues = statusEvaluation.hasIssues;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Інформація про заняття',
+          'Викладацьке покриття',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 12),
@@ -331,20 +333,24 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: hasProblems
-                ? Colors.red.withOpacity(0.05)
-                : status.color.withOpacity(0.1),
+            color: hasIssues
+                ? statusEvaluation.color.withOpacity(0.05)
+                : instructorStatus.color.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-              color: hasProblems ? Colors.red : status.color.withOpacity(0.3),
+              color: hasIssues
+                  ? statusEvaluation.color
+                  : instructorStatus.color.withOpacity(0.3),
               width: 1.5,
             ),
           ),
           child: Row(
             children: [
               Icon(
-                hasProblems ? Icons.error_outline : status.icon,
-                color: hasProblems ? Colors.red : status.color,
+                hasIssues ? statusEvaluation.icon : instructorStatus.icon,
+                color: hasIssues
+                    ? statusEvaluation.color
+                    : instructorStatus.color,
                 size: 20,
               ),
               const SizedBox(width: 12),
@@ -363,12 +369,14 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      hasProblems
-                          ? 'Проблеми з заповненням: ${missingFields.join(", ")}'
-                          : status.label,
+                      hasIssues
+                          ? '${statusEvaluation.label}: ${missingFields.join(", ")}'
+                          : instructorStatus.label,
                       style: TextStyle(
                         fontSize: 12,
-                        color: hasProblems ? Colors.red : status.color,
+                        color: hasIssues
+                            ? statusEvaluation.color
+                            : instructorStatus.color,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
@@ -377,20 +385,6 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
               ),
             ],
           ),
-        ),
-
-        const SizedBox(height: 16),
-
-        // Інформація про учнів
-        Row(
-          children: [
-            Icon(Icons.group, size: 20, color: Colors.grey.shade600),
-            const SizedBox(width: 8),
-            Text(
-              'Очікується: ${lesson.maxParticipants} учнів',
-              style: const TextStyle(fontSize: 14),
-            ),
-          ],
         ),
       ],
     );
@@ -419,7 +413,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Статус заняття',
+          'Статус',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
@@ -447,72 +441,6 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildCurrentUserAcknowledgementSection(LessonModel lesson) {
-    final assignmentId = _calendarService.getCurrentUserAssignmentIdForLesson(
-      lesson,
-    );
-    final status = assignmentId != null
-        ? LessonStatusUtils.getAcknowledgementStatusForInstructor(
-            lesson,
-            instructorAssignmentId: assignmentId,
-            instructorIdentityCandidates: _calendarService
-                .getCurrentUserAssignmentCandidates(),
-          )
-        : LessonAcknowledgementStatus.notRequired;
-    final progressStatus = LessonStatusUtils.getProgressStatus(lesson);
-    final record = assignmentId != null
-        ? LessonStatusUtils.getAcknowledgementRecordForInstructor(
-            lesson,
-            instructorAssignmentId: assignmentId,
-            instructorIdentityCandidates: _calendarService
-                .getCurrentUserAssignmentCandidates(),
-          )
-        : null;
-    final subtitle = assignmentId != null
-        ? LessonStatusUtils.getAcknowledgementStatusText(
-            lesson,
-            instructorAssignmentId: assignmentId,
-            instructorIdentityCandidates: _calendarService
-                .getCurrentUserAssignmentCandidates(),
-            acknowledgedAtFormatter: DateFormat('dd.MM.yyyy HH:mm'),
-          )
-        : status.label;
-
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: status.color.withOpacity(0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: status.color.withOpacity(0.25)),
-      ),
-      child: Row(
-        children: [
-          Icon(status.icon, color: status.color, size: 20),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Мій статус ознайомлення',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: status.color,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -593,9 +521,9 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
 
   Widget _buildActionButtons(LessonModel lesson) {
     final canEdit = _canEditLesson();
-    final needsInstructor = _calendarService.doesLessonNeedInstructor(lesson);
     final isUserInstructor = _calendarService.isUserInstructorForLesson(lesson);
-    final canTakeLesson = _canTakeLesson(); // Перевірка ролі editor/admin
+    final canManageOwnInstructorAssignment =
+        _canManageOwnInstructorAssignment();
     final canAssignOthers = _canAssignOthers();
     final currentAssignmentId = _calendarService
         .getCurrentUserAssignmentIdForLesson(lesson);
@@ -637,8 +565,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
           const SizedBox(height: 12),
         ],
 
-        // Кнопки для викладачів
-        if (canTakeLesson) ...[
+        if (canManageOwnInstructorAssignment) ...[
           if (!isUserInstructor)
             SizedBox(
               width: double.infinity,
@@ -651,11 +578,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.school, size: 16),
-                label: Text(
-                  needsInstructor
-                      ? 'Взяти заняття на себе'
-                      : 'Додати себе до викладачів',
-                ),
+                label: const Text('Прийняти заняття на себе'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   foregroundColor: Colors.white,
@@ -682,7 +605,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
               ),
             ),
 
-          const SizedBox(height: 12),
+          if (canEdit || canAssignOthers) const SizedBox(height: 10),
         ],
 
         if (canAssignOthers) ...[
@@ -698,32 +621,11 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : Icon(
-                      needsInstructor
-                          ? Icons.person_add_alt_1
-                          : Icons.swap_horiz,
-                      size: 16,
-                    ),
-              label: Text(
-                needsInstructor
-                    ? 'Призначити викладачів'
-                    : 'Змінити викладачів',
-              ),
+                  : const Icon(Icons.manage_accounts_outlined, size: 16),
+              label: const Text('Змінити викладачів'),
             ),
           ),
-          if (!needsInstructor) ...[
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: _isLoading ? null : _unassignInstructor,
-                icon: const Icon(Icons.person_off_outlined, size: 16),
-                label: const Text('Зняти викладача'),
-                style: OutlinedButton.styleFrom(foregroundColor: Colors.orange),
-              ),
-            ),
-          ],
-          const SizedBox(height: 12),
+          if (canEdit) const SizedBox(height: 10),
         ],
 
         // Кнопки редагування
@@ -766,15 +668,12 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
     );
   }
 
-  bool _canTakeLesson() {
-    final currentRole = Globals.profileManager.currentRole;
-    return currentRole == 'admin' || currentRole == 'editor';
+  bool _canManageOwnInstructorAssignment() {
+    return !_canAssignOthers() && Globals.firebaseAuth.currentUser != null;
   }
 
   bool _canEditCustomFieldValues() {
-    final currentRole = Globals.profileManager.currentRole;
-    return currentRole == 'admin' ||
-        currentRole == 'editor' ||
+    return Globals.profileManager.isCurrentGroupEditor ||
         _calendarService.isUserInstructorForLesson(_lesson);
   }
 
@@ -975,44 +874,6 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
     }
   }
 
-  Future<void> _unassignInstructor() async {
-    setState(() => _isLoading = true);
-
-    try {
-      final success = await _calendarService.unassignLessonInstructor(
-        _lesson.id,
-      );
-
-      if (success && mounted) {
-        Navigator.of(context).pop();
-        widget.onUpdated?.call();
-        Future.delayed(const Duration(milliseconds: 100), () {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Викладача з заняття "${_lesson.title}" знято'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Помилка зняття викладача: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
   IconData _getStatusIcon(String status) {
     switch (status) {
       case 'scheduled':
@@ -1046,12 +907,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   }
 
   bool _canEditLesson() {
-    final currentRole = Globals.profileManager.currentRole;
-    final currentUser = Globals.firebaseAuth.currentUser;
-
-    return currentRole == 'admin' ||
-        currentRole == 'editor' ||
-        _lesson.createdBy == currentUser?.uid;
+    return Globals.profileManager.isCurrentGroupEditor;
   }
 
   Future<void> _registerForLesson() async {
@@ -1154,6 +1010,9 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
               .toList(),
           'customFieldValues': _lesson.customFieldValues.map(
             (key, value) => MapEntry(key, value.toJson()),
+          ),
+          'progressReminders': LessonProgressReminder.toJsonList(
+            _lesson.progressReminders,
           ),
           'durationMinutes': _lesson.endTime
               .difference(_lesson.startTime)
@@ -1281,7 +1140,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   Future<void> _editCustomFieldValues() async {
     final values = await showCustomFieldValuesDialog(
       context,
-      title: 'Значення кастомних параметрів',
+      title: 'Поля для заповнення',
       definitions: _lesson.customFieldDefinitions,
       initialValues: _lesson.customFieldValues,
     );
@@ -1295,14 +1154,14 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
         ),
       });
       if (!success) {
-        throw Exception('Не вдалося зберегти значення параметрів');
+        throw Exception('Не вдалося зберегти поля для заповнення');
       }
 
       await _refreshLesson();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Кастомні параметри оновлено'),
+            content: Text('Поля для заповнення оновлено'),
             backgroundColor: Colors.green,
           ),
         );
@@ -1311,7 +1170,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Помилка оновлення параметрів: $e'),
+            content: Text('Помилка оновлення полів: $e'),
             backgroundColor: Colors.red,
           ),
         );
@@ -1382,21 +1241,5 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
     }
 
     return candidates;
-  }
-
-  bool _shouldShowCurrentUserAcknowledgementSection(LessonModel lesson) {
-    final assignmentId = _calendarService.getCurrentUserAssignmentIdForLesson(
-      lesson,
-    );
-    if (assignmentId == null) return false;
-
-    final status = LessonStatusUtils.getAcknowledgementStatusForInstructor(
-      lesson,
-      instructorAssignmentId: assignmentId,
-      instructorIdentityCandidates: _calendarService
-          .getCurrentUserAssignmentCandidates(),
-    );
-
-    return status != LessonAcknowledgementStatus.notRequired;
   }
 }

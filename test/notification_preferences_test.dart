@@ -12,6 +12,7 @@ void main() {
       expect(preferences.lessonRemoved, isTrue);
       expect(preferences.lessonCriticalChanged, isTrue);
       expect(preferences.absenceRequestResult, isTrue);
+      expect(preferences.lessonProgressReminder, isTrue);
       expect(preferences.adminAbsenceAssignment, isTrue);
       expect(preferences.adminLessonAcknowledged, isTrue);
     });
@@ -23,6 +24,7 @@ void main() {
         lessonRemoved: false,
         lessonCriticalChanged: true,
         absenceRequestResult: false,
+        lessonProgressReminder: true,
         adminAbsenceAssignment: true,
         adminLessonAcknowledged: false,
       );
@@ -34,6 +36,7 @@ void main() {
       expect(restored.lessonRemoved, isFalse);
       expect(restored.lessonCriticalChanged, isTrue);
       expect(restored.absenceRequestResult, isFalse);
+      expect(restored.lessonProgressReminder, isTrue);
       expect(restored.adminAbsenceAssignment, isTrue);
       expect(restored.adminLessonAcknowledged, isFalse);
     });
@@ -50,6 +53,7 @@ void main() {
       expect(profile.notificationPreferences.groupAnnouncements, isTrue);
       expect(profile.notificationPreferences.lessonAssigned, isTrue);
       expect(profile.notificationPreferences.lessonRemoved, isTrue);
+      expect(profile.notificationPreferences.lessonProgressReminder, isTrue);
       expect(profile.notificationPreferences.adminLessonAcknowledged, isTrue);
     });
 
@@ -64,6 +68,7 @@ void main() {
           lessonRemoved: true,
           lessonCriticalChanged: true,
           absenceRequestResult: true,
+          lessonProgressReminder: false,
           adminAbsenceAssignment: false,
           adminLessonAcknowledged: false,
         ),
@@ -74,6 +79,7 @@ void main() {
       expect(restored.notificationPreferences.groupAnnouncements, isFalse);
       expect(restored.notificationPreferences.lessonAssigned, isFalse);
       expect(restored.notificationPreferences.lessonRemoved, isTrue);
+      expect(restored.notificationPreferences.lessonProgressReminder, isFalse);
       expect(restored.notificationPreferences.adminAbsenceAssignment, isFalse);
       expect(restored.notificationPreferences.adminLessonAcknowledged, isFalse);
     });

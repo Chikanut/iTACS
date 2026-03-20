@@ -60,16 +60,14 @@ class MobileDayView extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? Theme.of(context).primaryColor
+                    ? Theme.of(context).primaryColor.withOpacity(0.18)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                  color: isToday && !isSelected
-                      ? Theme.of(context).primaryColor
-                      : isSelected
+                  color: isToday || isSelected
                       ? Theme.of(context).primaryColor
                       : Colors.grey.shade300,
-                  width: isToday && !isSelected ? 2 : 1,
+                  width: isToday || isSelected ? 2 : 1,
                 ),
               ),
               child: Column(
@@ -80,10 +78,7 @@ class MobileDayView extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: isSelected
-                          ? Theme.of(context).colorScheme.onSurface
-                          : Colors
-                                .white, // 👈 Завжди білий текст для неактивних днів
+                      color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -92,23 +87,16 @@ class MobileDayView extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: isSelected
-                          ? Theme.of(context).colorScheme.onSurface
-                          : Colors
-                                .white, // 👈 Завжди білий текст для неактивних днів
+                      color: Colors.white,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  // Крапка для всіх днів з заняттями (завжди показується якщо є заняття)
                   Container(
                     width: 6,
                     height: 6,
                     decoration: BoxDecoration(
                       color: hasLessons
-                          ? (isSelected
-                                ? Theme.of(context).colorScheme.onSurface
-                                : Colors
-                                      .orange) // 👈 Помаранчева крапка для неактивних днів з заняттями
+                          ? (isSelected ? Colors.white : Colors.orange)
                           : Colors.transparent,
                       shape: BoxShape.circle,
                     ),

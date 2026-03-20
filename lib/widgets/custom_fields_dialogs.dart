@@ -36,28 +36,45 @@ class CustomFieldReadOnlyList extends StatelessWidget {
   final List<LessonCustomFieldDefinition> definitions;
   final Map<String, LessonCustomFieldValue> values;
   final String emptyText;
+  final bool showFieldType;
+  final Color? backgroundColor;
+  final Color? borderColor;
+  final Color? labelColor;
+  final Color? valueColor;
+  final Color? emptyValueColor;
 
   const CustomFieldReadOnlyList({
     super.key,
     required this.definitions,
     required this.values,
     this.emptyText = 'Кастомних параметрів немає',
+    this.showFieldType = true,
+    this.backgroundColor,
+    this.borderColor,
+    this.labelColor,
+    this.valueColor,
+    this.emptyValueColor,
   });
 
   @override
   Widget build(BuildContext context) {
     if (definitions.isEmpty) {
-      return Text(emptyText, style: TextStyle(color: Colors.grey.shade700));
+      return Text(
+        emptyText,
+        style: TextStyle(color: labelColor ?? Colors.grey.shade700),
+      );
     }
 
     return Column(
       children: definitions.map((definition) {
         final value = values[definition.code];
+        final hasValue = value != null && !value.isEmpty;
         return Container(
           margin: const EdgeInsets.only(bottom: 8),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            border: Border.all(color: Colors.grey.shade300),
+            color: backgroundColor,
+            border: Border.all(color: borderColor ?? Colors.grey.shade300),
             borderRadius: BorderRadius.circular(10),
           ),
           child: Row(
@@ -69,21 +86,32 @@ class CustomFieldReadOnlyList extends StatelessWidget {
                   children: [
                     Text(
                       definition.label,
-                      style: const TextStyle(fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        color: labelColor,
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       value?.formatDisplayValue() ?? 'Не вказано',
-                      style: TextStyle(color: Colors.grey.shade800),
+                      style: TextStyle(
+                        color: hasValue
+                            ? (valueColor ?? Colors.grey.shade800)
+                            : (emptyValueColor ??
+                                  valueColor ??
+                                  Colors.grey.shade600),
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              Chip(
-                label: Text(definition.type.displayName),
-                visualDensity: VisualDensity.compact,
-              ),
+              if (showFieldType) ...[
+                const SizedBox(width: 12),
+                Chip(
+                  label: Text(definition.type.displayName),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
             ],
           ),
         );

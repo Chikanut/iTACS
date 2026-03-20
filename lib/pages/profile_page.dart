@@ -573,6 +573,8 @@ class _ProfilePageState extends State<ProfilePage> {
         return _notificationPreferences.copyWith(lessonCriticalChanged: value);
       case NotificationPreferences.absenceRequestResultKey:
         return _notificationPreferences.copyWith(absenceRequestResult: value);
+      case NotificationPreferences.lessonProgressReminderKey:
+        return _notificationPreferences.copyWith(lessonProgressReminder: value);
       case NotificationPreferences.adminAbsenceAssignmentKey:
         return _notificationPreferences.copyWith(adminAbsenceAssignment: value);
       case NotificationPreferences.adminLessonAcknowledgedKey:

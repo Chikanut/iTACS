@@ -19,7 +19,7 @@ class LessonsListReport extends BaseReport {
   @override
   String get description =>
       'Список проведених занять по інструкторах у форматі:\n'
-      'Дата | Підрозділ | Період навчання | Назва заняття';
+      'Дата | Підрозділ | Назва заняття';
 
   @override
   IconData get icon => Icons.list_alt;
@@ -275,7 +275,7 @@ class LessonsListReport extends BaseReport {
     titleCell.value = ex.TextCellValue(titleText);
     sheet.merge(
       ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
-      ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 0),
+      ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 0),
     );
 
     titleCell.cellStyle = ex.CellStyle(
@@ -293,7 +293,7 @@ class LessonsListReport extends BaseReport {
     periodCell.value = ex.TextCellValue(dateRange);
     sheet.merge(
       ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1),
-      ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 1),
+      ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 1),
     );
 
     periodCell.cellStyle = ex.CellStyle(
@@ -309,7 +309,7 @@ class LessonsListReport extends BaseReport {
     groupCell.value = ex.TextCellValue('Група: $groupName');
     sheet.merge(
       ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 2),
-      ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: 2),
+      ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: 2),
     );
 
     groupCell.cellStyle = ex.CellStyle(
@@ -329,7 +329,7 @@ class LessonsListReport extends BaseReport {
       instructorCell.value = ex.TextCellValue('Інструктор: $instructorName');
       sheet.merge(
         ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
-        ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+        ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow),
       );
 
       instructorCell.cellStyle = ex.CellStyle(
@@ -349,7 +349,7 @@ class LessonsListReport extends BaseReport {
     generatedCell.value = ex.TextCellValue(generatedText);
     sheet.merge(
       ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
-      ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+      ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow),
     );
 
     generatedCell.cellStyle = ex.CellStyle(
@@ -368,7 +368,7 @@ class LessonsListReport extends BaseReport {
     int currentRow = 5; // Почати після заголовків
 
     // Заголовки таблиці
-    final headers = ['Дата', 'Підрозділ', 'Період навчання', 'Назва заняття'];
+    final headers = ['Дата', 'Підрозділ', 'Назва заняття'];
     for (int i = 0; i < headers.length; i++) {
       final cell = sheet.cell(
         ex.CellIndex.indexByColumnRow(columnIndex: i, rowIndex: currentRow),
@@ -418,7 +418,7 @@ class LessonsListReport extends BaseReport {
       );
       sheet.merge(
         ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
-        ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+        ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow),
       );
 
       instructorHeaderCell.cellStyle = ex.CellStyle(
@@ -463,21 +463,9 @@ class LessonsListReport extends BaseReport {
           horizontalAlign: ex.HorizontalAlign.Left,
         );
 
-        // Період навчання
-        final periodCell = sheet.cell(
-          ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow),
-        );
-        periodCell.value = ex.TextCellValue(
-          _formatTrainingPeriod(lesson.trainingPeriod),
-        );
-        periodCell.cellStyle = ex.CellStyle(
-          fontSize: 11,
-          horizontalAlign: ex.HorizontalAlign.Left,
-        );
-
         // Назва заняття
         final titleCell = sheet.cell(
-          ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+          ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow),
         );
         titleCell.value = ex.TextCellValue(lesson.title);
         titleCell.cellStyle = ex.CellStyle(
@@ -495,7 +483,7 @@ class LessonsListReport extends BaseReport {
       summaryCell.value = ex.TextCellValue('Всього занять: ${lessons.length}');
       sheet.merge(
         ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
-        ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+        ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow),
       );
 
       summaryCell.cellStyle = ex.CellStyle(
@@ -531,7 +519,7 @@ class LessonsListReport extends BaseReport {
     totalHeaderCell.value = ex.TextCellValue('ЗАГАЛЬНА СТАТИСТИКА');
     sheet.merge(
       ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
-      ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+      ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow),
     );
 
     totalHeaderCell.cellStyle = ex.CellStyle(
@@ -559,8 +547,8 @@ class LessonsListReport extends BaseReport {
     );
     totalCell.value = ex.TextCellValue('Всього занять: $totalLessons');
     sheet.merge(
+      ex.CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow),
       ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow),
-      ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
     );
   }
 
@@ -576,7 +564,7 @@ class LessonsListReport extends BaseReport {
     absenceMainCell.value = ex.TextCellValue('**$absenceTypeText**');
     sheet.merge(
       ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
-      ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+      ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow),
     );
 
     absenceMainCell.cellStyle = ex.CellStyle(
@@ -597,7 +585,7 @@ class LessonsListReport extends BaseReport {
     periodCell.value = ex.TextCellValue('**з $startDateText по $endDateText**');
     sheet.merge(
       ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
-      ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+      ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow),
     );
 
     periodCell.cellStyle = ex.CellStyle(
@@ -621,7 +609,7 @@ class LessonsListReport extends BaseReport {
         orderBaseCell.value = ex.TextCellValue('**${details.orderBase}**');
         sheet.merge(
           ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
-          ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+          ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow),
         );
 
         orderBaseCell.cellStyle = ex.CellStyle(
@@ -650,7 +638,7 @@ class LessonsListReport extends BaseReport {
         orderNumberCell.value = ex.TextCellValue(orderNumberText);
         sheet.merge(
           ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
-          ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+          ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow),
         );
 
         orderNumberCell.cellStyle = ex.CellStyle(
@@ -673,7 +661,7 @@ class LessonsListReport extends BaseReport {
       );
       sheet.merge(
         ex.CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow),
-        ex.CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow),
+        ex.CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow),
       );
 
       docCell.cellStyle = ex.CellStyle(
@@ -703,31 +691,11 @@ class LessonsListReport extends BaseReport {
     }
   }
 
-  String _formatTrainingPeriod(String period) {
-    if (period.isEmpty || period == '-') return '-';
-
-    if (period.contains(' - ')) {
-      try {
-        final parts = period.split(' - ');
-        if (parts.length == 2) {
-          final start = DateTime.parse(parts[0]);
-          final end = DateTime.parse(parts[1]);
-          return '${DateFormat('dd.MM.yyyy').format(start)} - ${DateFormat('dd.MM.yyyy').format(end)}';
-        }
-      } catch (e) {
-        // Якщо не вдається розпарсити - повертаємо як є
-      }
-    }
-
-    return period;
-  }
-
   void _formatSheet(ex.Sheet sheet) {
     // Налаштовуємо ширину колонок
     sheet.setColumnWidth(0, 15); // Дата
     sheet.setColumnWidth(1, 20); // Підрозділ
-    sheet.setColumnWidth(2, 25); // Період навчання
-    sheet.setColumnWidth(3, 35); // Назва заняття
+    sheet.setColumnWidth(2, 35); // Назва заняття
   }
 
   String _formatDateRange(DateTime startDate, DateTime endDate) {

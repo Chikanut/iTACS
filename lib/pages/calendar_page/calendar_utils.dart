@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/lesson_model.dart';
+import '../../models/custom_field_model.dart';
 import 'package:intl/intl.dart';
 
 enum InstructorLessonStatus { needsInstructor, assigned, teaching }
@@ -21,6 +22,58 @@ enum LessonReadinessStatus {
 }
 
 enum LessonAcknowledgementStatus { notRequired, pending, acknowledged, urgent }
+
+enum LessonReadinessTone { normal, warning, problem }
+
+class LessonStatusEvaluation {
+  final LessonProgressStatus progressStatus;
+  final LessonReadinessStatus readinessStatus;
+  final LessonReadinessTone tone;
+  final String label;
+  final String description;
+  final List<String> issues;
+  final bool missingInstructor;
+  final List<String> missingLegacyFields;
+  final List<String> missingPostLessonCustomFields;
+
+  const LessonStatusEvaluation({
+    required this.progressStatus,
+    required this.readinessStatus,
+    required this.tone,
+    required this.label,
+    required this.description,
+    required this.issues,
+    required this.missingInstructor,
+    required this.missingLegacyFields,
+    required this.missingPostLessonCustomFields,
+  });
+
+  bool get hasIssues => tone != LessonReadinessTone.normal;
+  bool get hasProblems => tone == LessonReadinessTone.problem;
+  bool get hasWarnings => tone == LessonReadinessTone.warning;
+
+  Color get color {
+    switch (tone) {
+      case LessonReadinessTone.problem:
+        return Colors.red;
+      case LessonReadinessTone.warning:
+        return Colors.orange;
+      case LessonReadinessTone.normal:
+        return readinessStatus.color;
+    }
+  }
+
+  IconData get icon {
+    switch (tone) {
+      case LessonReadinessTone.problem:
+        return Icons.error_outline;
+      case LessonReadinessTone.warning:
+        return Icons.person_add;
+      case LessonReadinessTone.normal:
+        return readinessStatus.icon;
+    }
+  }
+}
 
 extension LessonProgressStatusExtension on LessonProgressStatus {
   String get label {
@@ -167,44 +220,12 @@ extension LessonAcknowledgementStatusExtension on LessonAcknowledgementStatus {
 
 // ОНОВЛЕНИЙ LessonStatusUtils
 class LessonStatusUtils {
-  // Критичні поля для звітності - ДОДАНО trainingPeriod
   static const List<String> criticalFields = [
     'instructorId',
     'location',
     'unit',
     'maxParticipants',
-    'trainingPeriod', // 👈 ДОДАНО
   ];
-
-  /// Перевірити чи заповнені критичні поля
-  static bool areCriticalFieldsFilled(LessonModel lesson) {
-    // Інструктор
-    if (!lesson.hasInstructors) {
-      return false;
-    }
-
-    // Місце проведення
-    if (lesson.location.isEmpty) {
-      return false;
-    }
-
-    // Підрозділ
-    if (lesson.unit.isEmpty) {
-      return false;
-    }
-
-    // Кількість учнів
-    if (lesson.maxParticipants <= 0) {
-      return false;
-    }
-
-    // Період навчання 👈 ДОДАНО
-    if (lesson.trainingPeriod.isEmpty) {
-      return false;
-    }
-
-    return true;
-  }
 
   static LessonProgressStatus getProgressStatus(LessonModel lesson) {
     final now = DateTime.now();
@@ -218,36 +239,105 @@ class LessonStatusUtils {
     }
   }
 
+  static LessonStatusEvaluation evaluateLessonStatus(LessonModel lesson) {
+    final progressStatus = getProgressStatus(lesson);
+    final missingInstructor = !lesson.hasInstructors;
+    final missingLegacyFields = _getMissingLegacyFields(lesson);
+    final missingPostLessonCustomFields =
+        progressStatus == LessonProgressStatus.completed
+        ? _getMissingPostLessonCustomFields(lesson)
+        : const <String>[];
+    final issues = <String>[
+      if (missingInstructor) 'Викладач',
+      ...missingLegacyFields,
+      ...missingPostLessonCustomFields,
+    ];
+
+    if (missingLegacyFields.isNotEmpty ||
+        missingPostLessonCustomFields.isNotEmpty) {
+      return LessonStatusEvaluation(
+        progressStatus: progressStatus,
+        readinessStatus: switch (progressStatus) {
+          LessonProgressStatus.scheduled => LessonReadinessStatus.notReady,
+          LessonProgressStatus.inProgress =>
+            LessonReadinessStatus.inProgressNotReady,
+          LessonProgressStatus.completed =>
+            LessonReadinessStatus.completedNotReady,
+        },
+        tone: LessonReadinessTone.problem,
+        label:
+            progressStatus == LessonProgressStatus.completed &&
+                missingPostLessonCustomFields.isNotEmpty
+            ? 'Не всі поля після заняття заповнені'
+            : switch (progressStatus) {
+                LessonProgressStatus.scheduled => 'Не заповнено',
+                LessonProgressStatus.inProgress => 'Проводиться (є проблеми)',
+                LessonProgressStatus.completed => 'Завершено (є проблеми)',
+              },
+        description: _buildProblemDescription(
+          progressStatus: progressStatus,
+          missingInstructor: missingInstructor,
+          missingLegacyFields: missingLegacyFields,
+          missingPostLessonCustomFields: missingPostLessonCustomFields,
+        ),
+        issues: issues,
+        missingInstructor: missingInstructor,
+        missingLegacyFields: missingLegacyFields,
+        missingPostLessonCustomFields: missingPostLessonCustomFields,
+      );
+    }
+
+    if (missingInstructor) {
+      return LessonStatusEvaluation(
+        progressStatus: progressStatus,
+        readinessStatus: LessonReadinessStatus.needsInstructor,
+        tone: LessonReadinessTone.warning,
+        label: 'Потрібен викладач',
+        description: 'Викладач не призначений',
+        issues: issues,
+        missingInstructor: true,
+        missingLegacyFields: const <String>[],
+        missingPostLessonCustomFields: const <String>[],
+      );
+    }
+
+    return LessonStatusEvaluation(
+      progressStatus: progressStatus,
+      readinessStatus: switch (progressStatus) {
+        LessonProgressStatus.scheduled => LessonReadinessStatus.ready,
+        LessonProgressStatus.inProgress =>
+          LessonReadinessStatus.inProgressReady,
+        LessonProgressStatus.completed => LessonReadinessStatus.completedReady,
+      },
+      tone: LessonReadinessTone.normal,
+      label: switch (progressStatus) {
+        LessonProgressStatus.scheduled => 'Готове',
+        LessonProgressStatus.inProgress => 'Проводиться',
+        LessonProgressStatus.completed => 'Завершено',
+      },
+      description: switch (progressStatus) {
+        LessonProgressStatus.scheduled =>
+          'Всі дані заповнені, готове до проведення',
+        LessonProgressStatus.inProgress =>
+          'Заняття проводиться, всі дані в порядку',
+        LessonProgressStatus.completed =>
+          'Заняття завершено, всі дані для звітності заповнені',
+      },
+      issues: const <String>[],
+      missingInstructor: false,
+      missingLegacyFields: const <String>[],
+      missingPostLessonCustomFields: const <String>[],
+    );
+  }
+
+  /// Перевірити чи заповнені всі релевантні поля для поточної фази заняття
+  static bool areCriticalFieldsFilled(LessonModel lesson) {
+    return !evaluateLessonStatus(lesson).hasIssues;
+  }
+
   /// Визначити статус готовності заняття
   static LessonReadinessStatus getReadinessStatus(LessonModel lesson) {
-    final progressStatus = getProgressStatus(lesson);
-    final criticalFieldsFilled = areCriticalFieldsFilled(lesson);
-    final hasInstructor = lesson.hasInstructors;
-
-    switch (progressStatus) {
-      case LessonProgressStatus.scheduled:
-        if (!criticalFieldsFilled) {
-          return LessonReadinessStatus.notReady;
-        } else if (!hasInstructor) {
-          return LessonReadinessStatus.needsInstructor;
-        } else {
-          return LessonReadinessStatus.ready;
-        }
-
-      case LessonProgressStatus.inProgress:
-        if (!criticalFieldsFilled) {
-          return LessonReadinessStatus.inProgressNotReady;
-        } else {
-          return LessonReadinessStatus.inProgressReady;
-        }
-
-      case LessonProgressStatus.completed:
-        if (!criticalFieldsFilled) {
-          return LessonReadinessStatus.completedNotReady;
-        } else {
-          return LessonReadinessStatus.completedReady;
-        }
-    }
+    return evaluateLessonStatus(lesson).readinessStatus;
   }
 
   /// Отримати комбінований статус (для простішого використання)
@@ -257,122 +347,125 @@ class LessonStatusUtils {
     List<String> issues,
   })
   getFullStatus(LessonModel lesson) {
-    final progress = getProgressStatus(lesson);
-    final readiness = getReadinessStatus(lesson);
-    final issues = getMissingCriticalFields(lesson);
+    final evaluation = evaluateLessonStatus(lesson);
 
-    return (progress: progress, readiness: readiness, issues: issues);
+    return (
+      progress: evaluation.progressStatus,
+      readiness: evaluation.readinessStatus,
+      issues: evaluation.issues,
+    );
   }
 
   /// Отримати список незаповнених критичних полів
   static List<String> getMissingCriticalFields(LessonModel lesson) {
-    final List<String> missing = [];
-
-    if (!lesson.hasInstructors) {
-      missing.add('Інструктор');
-    }
-
-    if (lesson.location.isEmpty) {
-      missing.add('Місце проведення');
-    }
-
-    if (lesson.unit.isEmpty) {
-      missing.add('Підрозділ');
-    }
-
-    if (lesson.maxParticipants <= 0) {
-      missing.add('Кількість учнів');
-    }
-
-    if (lesson.trainingPeriod.isEmpty) {
-      missing.add('Період навчання'); // 👈 ДОДАНО
-    }
-
-    return missing;
+    return evaluateLessonStatus(lesson).issues;
   }
 
   /// Отримати прогрес заповнення критичних полів (для прогрес-бару)
   static double getCriticalFieldsProgress(LessonModel lesson) {
-    int filledCount = 0;
-    const int totalCount = 5; // 👈 ЗБІЛЬШЕНО до 5 критичних полів
+    var totalCount = 4;
+    var filledCount = 0;
 
     if (lesson.hasInstructors) {
       filledCount++;
     }
-
     if (lesson.location.isNotEmpty) {
       filledCount++;
     }
-
     if (lesson.unit.isNotEmpty) {
       filledCount++;
     }
-
     if (lesson.maxParticipants > 0) {
       filledCount++;
     }
 
-    if (lesson.trainingPeriod.isNotEmpty) {
-      // 👈 ДОДАНО
-      filledCount++;
+    if (getProgressStatus(lesson) == LessonProgressStatus.completed) {
+      totalCount += lesson.customFieldDefinitions.length;
+      for (final definition in lesson.customFieldDefinitions) {
+        if (_isCustomFieldFilled(
+          definition: definition,
+          value: lesson.customFieldValues[definition.code],
+        )) {
+          filledCount++;
+        }
+      }
+    }
+
+    if (totalCount == 0) {
+      return 1.0;
     }
 
     return filledCount / totalCount;
   }
 
-  /// Форматувати період навчання для відображення
-  static String formatTrainingPeriod(String trainingPeriod) {
-    if (trainingPeriod.isEmpty) return 'Не вказано';
+  static List<String> _getMissingLegacyFields(LessonModel lesson) {
+    final missing = <String>[];
 
-    // Якщо період у форматі "dd.MM.yyyy - dd.MM.yyyy"
-    if (trainingPeriod.contains(' - ')) {
-      final parts = trainingPeriod.split(' - ');
-      if (parts.length == 2) {
-        return '${parts[0]} - ${parts[1]}';
+    if (lesson.location.isEmpty) {
+      missing.add('Місце проведення');
+    }
+    if (lesson.unit.isEmpty) {
+      missing.add('Підрозділ');
+    }
+    if (lesson.maxParticipants <= 0) {
+      missing.add('Кількість учнів');
+    }
+
+    return missing;
+  }
+
+  static List<String> _getMissingPostLessonCustomFields(LessonModel lesson) {
+    if (!lesson.hasCustomFields) {
+      return const <String>[];
+    }
+
+    final missing = <String>[];
+    for (final definition in lesson.customFieldDefinitions) {
+      final value = lesson.customFieldValues[definition.code];
+      if (!_isCustomFieldFilled(definition: definition, value: value)) {
+        missing.add(definition.label);
       }
     }
 
-    return trainingPeriod;
+    return missing;
   }
 
-  /// Валідувати формат періоду навчання
-  static bool isValidTrainingPeriod(String period) {
-    if (period.isEmpty) return false;
+  static bool _isCustomFieldFilled({
+    required LessonCustomFieldDefinition definition,
+    required LessonCustomFieldValue? value,
+  }) {
+    if (value == null || value.type != definition.type) {
+      return false;
+    }
 
-    // Перевіряємо формат "dd.MM.yyyy - dd.MM.yyyy"
-    final regex = RegExp(r'^\d{2}\.\d{2}\.\d{4} - \d{2}\.\d{2}\.\d{4}$');
-    return regex.hasMatch(period);
-  }
-
-  /// Створити період навчання з дат
-  static String createTrainingPeriod(DateTime startDate, DateTime endDate) {
-    final formatter = DateFormat('dd.MM.yyyy');
-    return '${formatter.format(startDate)} - ${formatter.format(endDate)}';
-  }
-
-  /// Отримати дати початку та закінчення з періоду
-  static (DateTime?, DateTime?) parseTrainingPeriod(String period) {
-    if (!isValidTrainingPeriod(period)) return (null, null);
-
-    final parts = period.split(' - ');
-    try {
-      final formatter = DateFormat('dd.MM.yyyy');
-      final startDate = formatter.parse(parts[0]);
-      final endDate = formatter.parse(parts[1]);
-      return (startDate, endDate);
-    } catch (e) {
-      return (null, null);
+    switch (definition.type) {
+      case CustomFieldType.string:
+        return (value.stringValue ?? '').trim().isNotEmpty;
+      case CustomFieldType.date:
+        return value.dateValue != null;
+      case CustomFieldType.dateRange:
+        return value.rangeStart != null && value.rangeEnd != null;
     }
   }
 
-  /// Перевірити чи період активний (поточна дата в межах періоду)
-  static bool isTrainingPeriodActive(String period) {
-    final (startDate, endDate) = parseTrainingPeriod(period);
-    if (startDate == null || endDate == null) return false;
+  static String _buildProblemDescription({
+    required LessonProgressStatus progressStatus,
+    required bool missingInstructor,
+    required List<String> missingLegacyFields,
+    required List<String> missingPostLessonCustomFields,
+  }) {
+    final issues = <String>[
+      if (missingInstructor) 'Викладач',
+      ...missingLegacyFields,
+      ...missingPostLessonCustomFields,
+    ];
 
-    final now = DateTime.now();
-    return now.isAfter(startDate) &&
-        now.isBefore(endDate.add(const Duration(days: 1)));
+    if (progressStatus == LessonProgressStatus.completed &&
+        missingPostLessonCustomFields.isNotEmpty) {
+      return 'Після завершення потрібно заповнити: ${issues.join(', ')}';
+    }
+
+    return 'Проблеми з заповненням: ${issues.join(', ')}';
   }
 
   static String? resolveInstructorAssignmentId(

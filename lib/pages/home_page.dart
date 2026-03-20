@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../globals.dart';
 import '../services/dashboard_service.dart';
@@ -1036,6 +1037,9 @@ class _ReportButton extends StatelessWidget {
 class _LastUpdatedCard extends StatelessWidget {
   final DateTime? lastUpdated;
   static final Uri _githubUri = Uri.parse('https://github.com/Chikanut');
+  static final Future<String> _appVersionFuture = PackageInfo.fromPlatform()
+      .then((info) => info.version)
+      .catchError((_) => AppTheme.appVersion);
 
   const _LastUpdatedCard({this.lastUpdated});
 
@@ -1060,11 +1064,17 @@ class _LastUpdatedCard extends StatelessWidget {
             spacing: 8,
             runSpacing: 4,
             children: [
-              Text(
-                'Версія ${AppTheme.appVersion}',
-                style: Theme.of(
-                  context,
-                ).textTheme.bodySmall?.copyWith(color: AppTheme.textMuted),
+              FutureBuilder<String>(
+                future: _appVersionFuture,
+                builder: (context, snapshot) {
+                  final version = snapshot.data ?? AppTheme.appVersion;
+                  return Text(
+                    'Версія $version',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodySmall?.copyWith(color: AppTheme.textMuted),
+                  );
+                },
               ),
               Text(
                 'Розробник: Войтович Євген',
@@ -1077,7 +1087,7 @@ class _LastUpdatedCard extends StatelessWidget {
                 child: Text(
                   'GitHub',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).primaryColor,
+                    color: Colors.white,
                     decoration: TextDecoration.underline,
                   ),
                 ),
@@ -1108,28 +1118,9 @@ class _EnhancedLessonListTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Отримуємо статус заняття
-    final readinessStatus = LessonStatusUtils.getReadinessStatus(lesson);
-
-    // Визначаємо колір фону на основі статусу
-    Color backgroundColor;
-    Color textColor = Colors.white;
-
-    switch (readinessStatus) {
-      case LessonReadinessStatus.completedReady:
-      case LessonReadinessStatus.inProgressReady:
-      case LessonReadinessStatus.ready:
-        backgroundColor = Colors.green;
-        break;
-      case LessonReadinessStatus.needsInstructor:
-      case LessonReadinessStatus.notReady:
-        backgroundColor = Colors.orange;
-        break;
-      case LessonReadinessStatus.completedNotReady:
-      case LessonReadinessStatus.inProgressNotReady:
-        backgroundColor = Colors.red;
-        break;
-    }
+    final statusEvaluation = LessonStatusUtils.evaluateLessonStatus(lesson);
+    final backgroundColor = statusEvaluation.color;
+    const textColor = Colors.white;
 
     final now = DateTime.now();
     final isToday =
@@ -1234,9 +1225,9 @@ class _EnhancedLessonListTile extends StatelessWidget {
                     ),
                   // Додаємо статус заняття
                   Text(
-                    readinessStatus.label,
+                    statusEvaluation.label,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: readinessStatus.color,
+                      color: statusEvaluation.color,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -1278,8 +1269,8 @@ class _EnhancedLessonListTile extends StatelessWidget {
               )
             else
               Icon(
-                readinessStatus.icon,
-                color: readinessStatus.color,
+                statusEvaluation.icon,
+                color: statusEvaluation.color,
                 size: 20,
               ),
           ],

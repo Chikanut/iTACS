@@ -139,6 +139,8 @@ class CalendarService {
         'endTime': Timestamp.fromDate(lesson.endTime),
         'groupId': currentGroupId,
         'groupName': lesson.groupName,
+        'type': lesson.typeId,
+        'templateId': lesson.templateId,
         'unit': lesson.unit,
         'instructorName': lesson.hasInstructors
             ? lesson.instructorName
@@ -163,7 +165,6 @@ class CalendarService {
         'customFieldValues': lesson.customFieldValues.map(
           (key, value) => MapEntry(key, value.toFirestore()),
         ),
-        'trainingPeriod': lesson.trainingPeriod,
         'recurrence': lesson.recurrence != null
             ? {
                 'type': lesson.recurrence!.type,

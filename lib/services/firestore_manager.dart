@@ -374,7 +374,31 @@ class FirestoreManager {
     required String email,
     required String role,
   }) async {
-    await addOrUpdateGroupMember(groupId: groupId, email: email, role: role);
+    final normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail.isEmpty) {
+      throw Exception('Email не може бути порожнім');
+    }
+
+    final groupRef = _firestore.collection('allowed_users').doc(groupId);
+    final groupDoc = await groupRef.get();
+    final groupData = groupDoc.data() ?? {};
+    final members = Map<String, dynamic>.from(groupData['members'] ?? {});
+    final existingMember = members[normalizedEmail];
+
+    if (existingMember == null) {
+      throw Exception('Учасника не знайдено в цій групі');
+    }
+
+    if (existingMember is Map<String, dynamic>) {
+      await groupRef.update({'members.$normalizedEmail.role': role});
+      return;
+    }
+
+    await groupRef.set({
+      'members': {
+        normalizedEmail: {'role': role},
+      },
+    }, SetOptions(merge: true));
   }
 
   Future<void> removeGroupMember({

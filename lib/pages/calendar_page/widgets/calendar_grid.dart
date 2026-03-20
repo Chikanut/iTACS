@@ -66,7 +66,7 @@ class _CalendarGridState extends State<CalendarGrid> {
 
       switch (widget.viewType) {
         case CalendarViewType.day:
-          lessons = await _calendarService.getLessonsForDay(
+          lessons = await _calendarService.getLessonsForWeek(
             widget.selectedDate,
           );
           break;

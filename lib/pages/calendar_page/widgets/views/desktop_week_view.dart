@@ -93,7 +93,7 @@ class DesktopWeekView extends StatelessWidget {
                             fontWeight: FontWeight.bold,
                             color: isToday
                                 ? Theme.of(context).primaryColor
-                                : Colors.black,
+                                : Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
                         if (hasLessons) ...[

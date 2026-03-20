@@ -323,6 +323,11 @@ class _MainScaffoldState extends State<MainScaffold> {
     setState(() => _currentIndex = newIndex);
   }
 
+  void _openHomePage() {
+    if (!mounted) return;
+    setState(() => _currentIndex = _homeTabIndex);
+  }
+
   // 🛡️ Безпечна валідація поточного індексу
   void _validateCurrentIndex() {
     final maxIndex = _pages.length - 1;
@@ -378,46 +383,72 @@ class _MainScaffoldState extends State<MainScaffold> {
             ? Row(
                 children: [
                   if (groupNames.length > 1)
-                    PopupMenuButton<String>(
-                      onSelected: (selectedGroupId) async {
-                        final groupName = groupNames[selectedGroupId]!;
-                        final role = Globals.profileManager.getRoleInGroup(
-                          selectedGroupId,
-                        );
-                        await Globals.profileManager.setCurrentGroup(
-                          selectedGroupId,
-                          groupName,
-                          role,
-                        );
-                        await widget.sessionController.revalidate();
-                      },
-                      itemBuilder: (context) => groupNames.entries.map((entry) {
-                        return PopupMenuItem<String>(
-                          value: entry.key,
-                          child: Text(entry.value),
-                        );
-                      }).toList(),
-                      child: Row(
-                        children: [
-                          Text(
-                            Globals.profileManager.currentGroupName ??
-                                'Оберіть групу',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onSurface,
+                    Row(
+                      children: [
+                        InkWell(
+                          onTap: _openHomePage,
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 6,
+                            ),
+                            child: Text(
+                              Globals.profileManager.currentGroupName ??
+                                  'Оберіть групу',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
                             ),
                           ),
-                          Icon(
+                        ),
+                        PopupMenuButton<String>(
+                          onSelected: (selectedGroupId) async {
+                            final groupName = groupNames[selectedGroupId]!;
+                            final role = Globals.profileManager.getRoleInGroup(
+                              selectedGroupId,
+                            );
+                            await Globals.profileManager.setCurrentGroup(
+                              selectedGroupId,
+                              groupName,
+                              role,
+                            );
+                            await widget.sessionController.revalidate();
+                          },
+                          itemBuilder: (context) =>
+                              groupNames.entries.map((entry) {
+                                return PopupMenuItem<String>(
+                                  value: entry.key,
+                                  child: Text(entry.value),
+                                );
+                              }).toList(),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(
+                            minWidth: 36,
+                            minHeight: 36,
+                          ),
+                          icon: Icon(
                             Icons.keyboard_arrow_down,
                             color: Theme.of(context).colorScheme.onSurface,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     )
                   else
-                    Text(
-                      Globals.profileManager.currentGroupName ?? '',
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.onSurface,
+                    InkWell(
+                      onTap: _openHomePage,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 6,
+                        ),
+                        child: Text(
+                          Globals.profileManager.currentGroupName ?? '',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
+                        ),
                       ),
                     ),
                 ],

@@ -272,6 +272,5 @@ LessonModel _buildLesson({
     updatedAt: now.subtract(const Duration(days: 1)),
     acknowledgementResetAt: acknowledgementResetAt,
     instructorAcknowledgements: instructorAcknowledgements,
-    trainingPeriod: '01.03.2026 - 31.03.2026',
   );
 }

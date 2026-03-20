@@ -16,6 +16,7 @@ class NotificationPreferences {
   static const String lessonRemovedKey = 'lessonRemoved';
   static const String lessonCriticalChangedKey = 'lessonCriticalChanged';
   static const String absenceRequestResultKey = 'absenceRequestResult';
+  static const String lessonProgressReminderKey = 'lessonProgressReminder';
   static const String adminAbsenceAssignmentKey = 'adminAbsenceAssignment';
   static const String adminLessonAcknowledgedKey = 'adminLessonAcknowledged';
 
@@ -25,6 +26,7 @@ class NotificationPreferences {
     lessonRemovedKey,
     lessonCriticalChangedKey,
     absenceRequestResultKey,
+    lessonProgressReminderKey,
     adminAbsenceAssignmentKey,
     adminLessonAcknowledgedKey,
   ];
@@ -59,6 +61,12 @@ class NotificationPreferences {
           'Рішення по вашому запиту на відпустку або лікарняний, а також його скасування.',
     ),
     NotificationPreferenceDefinition(
+      key: lessonProgressReminderKey,
+      title: 'Нагадування під час заняття',
+      description:
+          'Push-нагадування для призначених викладачів у задані моменти ходу заняття.',
+    ),
+    NotificationPreferenceDefinition(
       key: adminAbsenceAssignmentKey,
       title: 'Наряд та відрядження',
       description:
@@ -80,6 +88,7 @@ class NotificationPreferences {
   final bool lessonRemoved;
   final bool lessonCriticalChanged;
   final bool absenceRequestResult;
+  final bool lessonProgressReminder;
   final bool adminAbsenceAssignment;
   final bool adminLessonAcknowledged;
 
@@ -89,6 +98,7 @@ class NotificationPreferences {
     this.lessonRemoved = true,
     this.lessonCriticalChanged = true,
     this.absenceRequestResult = true,
+    this.lessonProgressReminder = true,
     this.adminAbsenceAssignment = true,
     this.adminLessonAcknowledged = true,
   });
@@ -103,6 +113,7 @@ class NotificationPreferences {
       lessonRemoved: _readBool(source[lessonRemovedKey]),
       lessonCriticalChanged: _readBool(source[lessonCriticalChangedKey]),
       absenceRequestResult: _readBool(source[absenceRequestResultKey]),
+      lessonProgressReminder: _readBool(source[lessonProgressReminderKey]),
       adminAbsenceAssignment: _readBool(source[adminAbsenceAssignmentKey]),
       adminLessonAcknowledged: _readBool(source[adminLessonAcknowledgedKey]),
     );
@@ -115,6 +126,7 @@ class NotificationPreferences {
       lessonRemovedKey: lessonRemoved,
       lessonCriticalChangedKey: lessonCriticalChanged,
       absenceRequestResultKey: absenceRequestResult,
+      lessonProgressReminderKey: lessonProgressReminder,
       adminAbsenceAssignmentKey: adminAbsenceAssignment,
       adminLessonAcknowledgedKey: adminLessonAcknowledged,
     };
@@ -126,6 +138,7 @@ class NotificationPreferences {
     bool? lessonRemoved,
     bool? lessonCriticalChanged,
     bool? absenceRequestResult,
+    bool? lessonProgressReminder,
     bool? adminAbsenceAssignment,
     bool? adminLessonAcknowledged,
   }) {
@@ -136,6 +149,8 @@ class NotificationPreferences {
       lessonCriticalChanged:
           lessonCriticalChanged ?? this.lessonCriticalChanged,
       absenceRequestResult: absenceRequestResult ?? this.absenceRequestResult,
+      lessonProgressReminder:
+          lessonProgressReminder ?? this.lessonProgressReminder,
       adminAbsenceAssignment:
           adminAbsenceAssignment ?? this.adminAbsenceAssignment,
       adminLessonAcknowledged:
@@ -155,6 +170,8 @@ class NotificationPreferences {
         return lessonCriticalChanged;
       case absenceRequestResultKey:
         return absenceRequestResult;
+      case lessonProgressReminderKey:
+        return lessonProgressReminder;
       case adminAbsenceAssignmentKey:
         return adminAbsenceAssignment;
       case adminLessonAcknowledgedKey:

@@ -3,8 +3,10 @@ import 'package:intl/intl.dart';
 
 import '../../../globals.dart';
 import '../../../models/custom_field_model.dart';
+import '../../../models/lesson_progress_reminder.dart';
 import '../../../services/templates_service.dart';
 import '../../../widgets/custom_fields_dialogs.dart';
+import '../../../widgets/lesson_progress_reminder_editor.dart';
 
 class TemplatesTab extends StatefulWidget {
   const TemplatesTab({super.key});
@@ -226,29 +228,55 @@ class _TemplatesTabState extends State<TemplatesTab> {
               ],
             ),
             const SizedBox(height: 12),
-            Row(
+            Column(
               children: [
-                Expanded(
-                  child: OutlinedButton.icon(
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
                     onPressed: _isSaving
                         ? null
-                        : () => _openTemplateDialog(template: template),
-                    icon: const Icon(Icons.edit_outlined),
-                    label: const Text('Редагувати'),
+                        : () => _confirmSyncTemplateLessons(template),
+                    icon: const Icon(Icons.sync_alt),
+                    label: const Text('Оновити заняття за шаблоном'),
                   ),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
                   child: OutlinedButton.icon(
                     onPressed: _isSaving
                         ? null
-                        : () => _confirmDeleteTemplate(template),
-                    icon: const Icon(Icons.delete_outline),
-                    label: const Text('Видалити'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.red,
-                    ),
+                        : () => _confirmMigrateTemplateLessons(template),
+                    icon: const Icon(Icons.link),
+                    label: const Text('Міграція старих занять'),
                   ),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _isSaving
+                            ? null
+                            : () => _openTemplateDialog(template: template),
+                        icon: const Icon(Icons.edit_outlined),
+                        label: const Text('Редагувати'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _isSaving
+                            ? null
+                            : () => _confirmDeleteTemplate(template),
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Видалити'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -433,6 +461,138 @@ class _TemplatesTabState extends State<TemplatesTab> {
     }
   }
 
+  Future<void> _confirmSyncTemplateLessons(GroupTemplate template) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Оновити пов’язані заняття?'),
+        content: Text(
+          'Будуть оновлені всі заняття, які прив’язані до шаблону "${template.title}".\n\n'
+          'Оновляться: тип, опис, тривалість, нагадування, теги та кастомні параметри.\n\n'
+          'Кастомні параметри з однаковим id у заняттях не будуть перезаписані.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Скасувати'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.of(context).pop(true),
+            icon: const Icon(Icons.sync_alt),
+            label: const Text('Оновити'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isSaving = true);
+    try {
+      final result = await _templatesService.syncLessonsFromTemplate(template);
+      if (!mounted) return;
+
+      if (result.linkedLessons == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Для цього шаблону ще немає пов’язаних занять'),
+          ),
+        );
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Оновлено ${result.updatedLessons} занять за шаблоном "${template.title}"',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Не вдалося оновити заняття: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Future<void> _confirmMigrateTemplateLessons(GroupTemplate template) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Мігрувати старі заняття?'),
+        content: Text(
+          'Будуть знайдені незавершені заняття без прив’язки до шаблону, '
+          'у яких назва точно збігається з шаблоном "${template.title}".\n\n'
+          'Для таких занять буде записано `templateId` і одразу застосовано '
+          'оновлення типу, опису, тривалості, нагадувань, тегів та кастомних параметрів.\n\n'
+          'Це одноразова дія для швидкого backfill старих занять.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Скасувати'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.of(context).pop(true),
+            icon: const Icon(Icons.link),
+            label: const Text('Запустити міграцію'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    setState(() => _isSaving = true);
+    try {
+      final result = await _templatesService.migrateUnlinkedLessonsForTemplate(
+        template,
+      );
+      if (!mounted) return;
+
+      if (result.matchedLessons == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Старих занять для міграції не знайдено. Перевіряються лише незавершені заняття з такою самою назвою.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Міграція завершена: прив’язано та оновлено ${result.migratedLessons} занять',
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Не вдалося виконати міграцію: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
   Future<void> _showAddAutocompleteValueDialog(
     String label,
     String type,
@@ -540,6 +700,7 @@ class _TemplateEditorDialogState extends State<_TemplateEditorDialog> {
   late TemplateType _selectedType;
   late bool _isDefault;
   late List<LessonCustomFieldDefinition> _customFieldDefinitions;
+  late List<LessonProgressReminder> _progressReminders;
 
   @override
   void initState() {
@@ -561,6 +722,9 @@ class _TemplateEditorDialogState extends State<_TemplateEditorDialog> {
     _isDefault = template?.isDefault ?? false;
     _customFieldDefinitions = List<LessonCustomFieldDefinition>.from(
       template?.customFieldDefinitions ?? const <LessonCustomFieldDefinition>[],
+    );
+    _progressReminders = List<LessonProgressReminder>.from(
+      template?.progressReminders ?? const <LessonProgressReminder>[],
     );
   }
 
@@ -672,6 +836,20 @@ class _TemplateEditorDialogState extends State<_TemplateEditorDialog> {
                     }
                     return null;
                   },
+                ),
+                const SizedBox(height: 16),
+                LessonProgressReminderEditor(
+                  reminders: _progressReminders,
+                  onChanged: (reminders) {
+                    setState(() {
+                      _progressReminders = reminders;
+                    });
+                  },
+                  durationMinutes: int.tryParse(
+                    _durationController.text.trim(),
+                  ),
+                  emptyText:
+                      'Шаблон може містити типові нагадування, які скопіюються в заняття.',
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
@@ -858,6 +1036,7 @@ class _TemplateEditorDialogState extends State<_TemplateEditorDialog> {
       createdAt: existing?.createdAt ?? now,
       updatedAt: now,
       customFieldDefinitions: _customFieldDefinitions,
+      progressReminders: _progressReminders,
     );
 
     Navigator.of(context).pop(template);
