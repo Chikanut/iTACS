@@ -149,6 +149,9 @@ class FirestoreManager {
       // Для кожного email отримуємо повну інформацію з users
       for (final entry in members.entries) {
         final email = entry.key;
+        if (!_isValidMemberEmailKey(email)) {
+          continue;
+        }
         final roleValue = entry.value;
 
         // Роль може бути як рядком (стара структура), так і об'єктом (нова)
@@ -316,7 +319,11 @@ class FirestoreManager {
     final groupDoc = await groupRef.get();
     final groupData = groupDoc.data() ?? {};
     final members = Map<String, dynamic>.from(groupData['members'] ?? {});
-    final existingMember = members[normalizedEmail];
+    final malformedMember = _extractMalformedMemberEntry(
+      members,
+      normalizedEmail,
+    );
+    final existingMember = members[normalizedEmail] ?? malformedMember;
 
     String? memberUid;
     if (existingMember is Map<String, dynamic>) {
@@ -355,9 +362,8 @@ class FirestoreManager {
     setOptionalField('position', position);
     setOptionalField('phone', phone);
 
-    await groupRef.set({
-      'members': {normalizedEmail: memberPayload},
-    }, SetOptions(merge: true));
+    members[normalizedEmail] = memberPayload;
+    await groupRef.update({'members': members});
 
     await _upsertPendingUserProfile(
       email: normalizedEmail,
@@ -383,22 +389,24 @@ class FirestoreManager {
     final groupDoc = await groupRef.get();
     final groupData = groupDoc.data() ?? {};
     final members = Map<String, dynamic>.from(groupData['members'] ?? {});
-    final existingMember = members[normalizedEmail];
+    final malformedMember = _extractMalformedMemberEntry(
+      members,
+      normalizedEmail,
+    );
+    final existingMember = members[normalizedEmail] ?? malformedMember;
 
     if (existingMember == null) {
       throw Exception('Учасника не знайдено в цій групі');
     }
 
     if (existingMember is Map<String, dynamic>) {
-      await groupRef.update({'members.$normalizedEmail.role': role});
-      return;
+      final updatedMember = Map<String, dynamic>.from(existingMember);
+      updatedMember['role'] = role;
+      members[normalizedEmail] = updatedMember;
+    } else {
+      members[normalizedEmail] = {'role': role};
     }
-
-    await groupRef.set({
-      'members': {
-        normalizedEmail: {'role': role},
-      },
-    }, SetOptions(merge: true));
+    await groupRef.update({'members': members});
   }
 
   Future<void> removeGroupMember({
@@ -410,9 +418,13 @@ class FirestoreManager {
       throw Exception('Email не може бути порожнім');
     }
 
-    await _firestore.collection('allowed_users').doc(groupId).update({
-      'members.$normalizedEmail': FieldValue.delete(),
-    });
+    final groupRef = _firestore.collection('allowed_users').doc(groupId);
+    final groupDoc = await groupRef.get();
+    final groupData = groupDoc.data() ?? {};
+    final members = Map<String, dynamic>.from(groupData['members'] ?? {});
+    members.remove(normalizedEmail);
+    _extractMalformedMemberEntry(members, normalizedEmail);
+    await groupRef.update({'members': members});
   }
 
   /// Отримати інформацію про користувача за UID
@@ -683,9 +695,13 @@ class FirestoreManager {
         final groupId = doc.id;
         final data = doc.data();
         final members = Map<String, dynamic>.from(data['members'] ?? {});
+        final malformedMember = _extractMalformedMemberEntry(
+          members,
+          normalizedEmail,
+        );
 
-        if (members.containsKey(normalizedEmail)) {
-          final currentValue = members[normalizedEmail];
+        if (members.containsKey(normalizedEmail) || malformedMember != null) {
+          final currentValue = members[normalizedEmail] ?? malformedMember;
 
           // Перевіряємо чи це стара структура (тільки роль як рядок)
           if (currentValue is String) {
@@ -693,12 +709,9 @@ class FirestoreManager {
               '🔄 Оновлюємо структуру для $normalizedEmail в групі $groupId',
             );
 
-            // Оновлюємо на нову структуру з UID
+            members[normalizedEmail] = {'uid': uid, 'role': currentValue};
             await _firestore.collection('allowed_users').doc(groupId).update({
-              'members.$normalizedEmail': {
-                'uid': uid,
-                'role': currentValue, // зберігаємо стару роль
-              },
+              'members': members,
             });
 
             debugPrint('✅ UID додано для $normalizedEmail в групі $groupId');
@@ -709,8 +722,11 @@ class FirestoreManager {
                 '🔄 Оновлюємо UID для $normalizedEmail в групі $groupId',
               );
 
+              final updatedMember = Map<String, dynamic>.from(currentValue);
+              updatedMember['uid'] = uid;
+              members[normalizedEmail] = updatedMember;
               await _firestore.collection('allowed_users').doc(groupId).update({
-                'members.$normalizedEmail.uid': uid,
+                'members': members,
               });
 
               debugPrint(
@@ -724,6 +740,81 @@ class FirestoreManager {
       debugPrint('❌ Помилка оновлення UID в групах: $e');
       // Не кидаємо помилку, щоб не блокувати вхід
     }
+  }
+
+  dynamic _extractMalformedMemberEntry(
+    Map<String, dynamic> members,
+    String normalizedEmail,
+  ) {
+    if (members.containsKey(normalizedEmail)) {
+      _removeMalformedMemberEntry(members, normalizedEmail);
+      return null;
+    }
+
+    final parts = normalizedEmail.split('.');
+    if (parts.length < 2) {
+      return null;
+    }
+
+    dynamic current = members;
+    for (final part in parts) {
+      if (current is! Map || !current.containsKey(part)) {
+        return null;
+      }
+      current = current[part];
+    }
+
+    _removeMalformedMemberEntry(members, normalizedEmail);
+    return current;
+  }
+
+  void _removeMalformedMemberEntry(
+    Map<String, dynamic> members,
+    String normalizedEmail,
+  ) {
+    final parts = normalizedEmail.split('.');
+    if (parts.length < 2) {
+      return;
+    }
+
+    _removeNestedKeyPath(members, parts, 0);
+  }
+
+  bool _removeNestedKeyPath(
+    Map<String, dynamic> current,
+    List<String> parts,
+    int index,
+  ) {
+    final key = parts[index];
+    if (!current.containsKey(key)) {
+      return false;
+    }
+
+    if (index == parts.length - 1) {
+      current.remove(key);
+      return current.isEmpty;
+    }
+
+    final next = current[key];
+    if (next is! Map) {
+      return false;
+    }
+
+    final nextMap = Map<String, dynamic>.from(next);
+    final shouldRemoveChild = _removeNestedKeyPath(nextMap, parts, index + 1);
+
+    if (shouldRemoveChild) {
+      current.remove(key);
+    } else {
+      current[key] = nextMap;
+    }
+
+    return current.isEmpty;
+  }
+
+  bool _isValidMemberEmailKey(String value) {
+    final normalized = value.trim().toLowerCase();
+    return RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(normalized);
   }
 
   Future<void> _upsertPendingUserProfile({
