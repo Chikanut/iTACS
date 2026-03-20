@@ -151,6 +151,10 @@ class _CalendarPageState extends State<CalendarPage> {
   }
 
   void _createNewLesson() {
+    if (!Globals.profileManager.isCurrentGroupEditor) {
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) => LessonFormDialog(
@@ -209,6 +213,7 @@ class _CalendarPageState extends State<CalendarPage> {
   @override
   Widget build(BuildContext context) {
     final isOnMobileDevice = isMobile(context);
+    final canCreateLessons = Globals.profileManager.isCurrentGroupEditor;
 
     Widget content;
     switch (_viewType) {
@@ -338,11 +343,13 @@ class _CalendarPageState extends State<CalendarPage> {
           Expanded(child: content),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _createNewLesson,
-        tooltip: 'Створити заняття',
-        child: const Icon(Icons.add),
-      ),
+      floatingActionButton: canCreateLessons
+          ? FloatingActionButton(
+              onPressed: _createNewLesson,
+              tooltip: 'Створити заняття',
+              child: const Icon(Icons.add),
+            )
+          : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
       // 👈 ПРИБРАТИ: bottomNavigationBar повністю видалена
     );

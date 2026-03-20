@@ -365,14 +365,24 @@ class FirestoreManager {
     members[normalizedEmail] = memberPayload;
     await groupRef.update({'members': members});
 
-    await _upsertPendingUserProfile(
-      email: normalizedEmail,
-      firstName: firstName,
-      lastName: lastName,
-      rank: rank,
-      position: position,
-      phone: phone,
-    );
+    try {
+      await _upsertPendingUserProfile(
+        email: normalizedEmail,
+        firstName: firstName,
+        lastName: lastName,
+        rank: rank,
+        position: position,
+        phone: phone,
+      );
+    } catch (e) {
+      // Адмін може додавати людей у групу раніше, ніж вони створять власний
+      // профіль. У такому разі allowed_users вже оновлено успішно, а запис
+      // у /users може бути заборонений rules і не повинен валити весь сценарій.
+      debugPrint(
+        'FirestoreManager: Профіль користувача $normalizedEmail не було '
+        'синхронізовано під час додавання до групи: $e',
+      );
+    }
   }
 
   Future<void> updateGroupMemberRole({
