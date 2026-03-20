@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../globals.dart';
+import '../models/notification_preferences.dart';
 
 /// Модель профільних даних користувача
 class UserProfile {
@@ -13,6 +14,7 @@ class UserProfile {
   final String? uid;
   final List<String> groups;
   final Map<String, String> rolesPerGroup;
+  final NotificationPreferences notificationPreferences;
   final DateTime? lastUpdated;
 
   const UserProfile({
@@ -25,6 +27,7 @@ class UserProfile {
     this.uid,
     this.groups = const [],
     this.rolesPerGroup = const {},
+    this.notificationPreferences = NotificationPreferences.defaults,
     this.lastUpdated,
   });
 
@@ -61,6 +64,7 @@ class UserProfile {
     String? uid,
     List<String>? groups,
     Map<String, String>? rolesPerGroup,
+    NotificationPreferences? notificationPreferences,
     DateTime? lastUpdated,
   }) {
     return UserProfile(
@@ -73,6 +77,8 @@ class UserProfile {
       uid: uid ?? this.uid,
       groups: groups ?? this.groups,
       rolesPerGroup: rolesPerGroup ?? this.rolesPerGroup,
+      notificationPreferences:
+          notificationPreferences ?? this.notificationPreferences,
       lastUpdated: lastUpdated ?? this.lastUpdated,
     );
   }
@@ -89,6 +95,7 @@ class UserProfile {
       'uid': uid,
       'groups': groups,
       'rolesPerGroup': rolesPerGroup,
+      'notificationPreferences': notificationPreferences.toMap(),
       'lastUpdated': lastUpdated?.toIso8601String(),
     };
   }
@@ -105,6 +112,11 @@ class UserProfile {
       uid: map['uid'],
       groups: List<String>.from(map['groups'] ?? []),
       rolesPerGroup: Map<String, String>.from(map['rolesPerGroup'] ?? {}),
+      notificationPreferences: NotificationPreferences.fromMap(
+        map['notificationPreferences'] is Map
+            ? Map<String, dynamic>.from(map['notificationPreferences'])
+            : null,
+      ),
       lastUpdated: map['lastUpdated'] != null
           ? DateTime.parse(map['lastUpdated'])
           : null,
@@ -173,6 +185,8 @@ class ProfileManager {
   String get currentUserInitials => _profile.initials;
   String? get currentUserEmail => _profile.email;
   String? get currentUserId => _profile.uid;
+  NotificationPreferences get notificationPreferences =>
+      _profile.notificationPreferences;
 
   /// Завантажити профіль з Firestore та синхронізувати локально
   Future<bool> loadAndSyncProfile() async {
@@ -202,6 +216,13 @@ class ProfileManager {
         uid: user.uid,
         groups: groups,
         rolesPerGroup: roles,
+        notificationPreferences: NotificationPreferences.fromMap(
+          firestoreData['notificationPreferences'] is Map
+              ? Map<String, dynamic>.from(
+                  firestoreData['notificationPreferences'],
+                )
+              : null,
+        ),
         lastUpdated: DateTime.now(),
       );
 
@@ -224,6 +245,7 @@ class ProfileManager {
     String? rank,
     String? position,
     String? phone,
+    NotificationPreferences? notificationPreferences,
   }) async {
     try {
       final user = Globals.firebaseAuth.currentUser;
@@ -237,6 +259,7 @@ class ProfileManager {
         rank: rank,
         position: position,
         phone: phone,
+        notificationPreferences: notificationPreferences?.toMap(),
       );
 
       // Оновлюємо локальний профіль
@@ -246,6 +269,8 @@ class ProfileManager {
         rank: rank,
         position: position,
         phone: phone,
+        notificationPreferences:
+            notificationPreferences ?? _profile.notificationPreferences,
         lastUpdated: DateTime.now(),
       );
 

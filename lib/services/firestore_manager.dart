@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 import '../globals.dart';
+import '../models/notification_preferences.dart';
 
 class FirestoreManager {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -553,6 +554,7 @@ class FirestoreManager {
     String? position,
     String? rank,
     String? phone, // 👈 додано
+    Map<String, bool>? notificationPreferences,
   }) async {
     Map<String, dynamic> updates = {};
 
@@ -561,6 +563,9 @@ class FirestoreManager {
     if (position != null) updates['position'] = position;
     if (rank != null) updates['rank'] = rank;
     if (phone != null) updates['phone'] = phone;
+    if (notificationPreferences != null) {
+      updates['notificationPreferences'] = notificationPreferences;
+    }
 
     if (updates.isNotEmpty) {
       await FirebaseFirestore.instance
@@ -719,6 +724,9 @@ class FirestoreManager {
       'rank': _pickProfileValue(rank, existingData['rank']),
       'position': _pickProfileValue(position, existingData['position']),
       'phone': _pickProfileValue(phone, existingData['phone']),
+      'notificationPreferences': _normalizeNotificationPreferencesMap(
+        existingData['notificationPreferences'],
+      ),
       'profileSeedSource': 'group_member_add',
       'updatedAt': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
@@ -736,6 +744,9 @@ class FirestoreManager {
       await docRef.set({
         'email': email,
         'groups': groups,
+        'notificationPreferences': _normalizeNotificationPreferencesMap(
+          docSnap.data()?['notificationPreferences'],
+        ),
         'lastLogin': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
 
@@ -754,6 +765,9 @@ class FirestoreManager {
       'rank': (pendingData['rank'] as String?) ?? '',
       'position': (pendingData['position'] as String?) ?? '',
       'phone': (pendingData['phone'] as String?) ?? '',
+      'notificationPreferences': _normalizeNotificationPreferencesMap(
+        pendingData['notificationPreferences'],
+      ),
       'lastLogin': FieldValue.serverTimestamp(),
     }, SetOptions(merge: true));
 
@@ -792,6 +806,20 @@ class FirestoreManager {
 
     final existingText = (existing as String?)?.trim();
     return existingText ?? '';
+  }
+
+  Map<String, bool> _normalizeNotificationPreferencesMap(dynamic raw) {
+    if (raw is Map<String, dynamic>) {
+      return NotificationPreferences.fromMap(raw).toMap();
+    }
+
+    if (raw is Map) {
+      return NotificationPreferences.fromMap(
+        Map<String, dynamic>.from(raw),
+      ).toMap();
+    }
+
+    return NotificationPreferences.defaults.toMap();
   }
 
   Future<Map<String, String>> getGroupNamesForUser(String email) async {

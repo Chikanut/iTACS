@@ -68,7 +68,9 @@ firebase deploy --only firestore:rules
 - Web push працює через `firebase_messaging` + `web/firebase-messaging-sw.js`.
 - Клієнт зберігає FCM token у `users/{uid}/devices/{token}` і очищає його під час logout.
 - Групові та персональні Firestore-сповіщення з `groups/{groupId}/notifications` автоматично дублюються push-сповіщеннями через Firebase Functions.
-- Призначення нового заняття або повторне ознайомлення після змін у занятті також шлеться через Firebase Functions.
+- Призначення на заняття, зняття із заняття та критичні зміни заняття також шлються через Firebase Functions.
+- Критичними для повторного ознайомлення вважаються лише зміни `startTime`, `endTime` або `unit`.
+- Користувач керує типами push-сповіщень у `Профіль -> Налаштування`; ці тогли зберігаються в `users/{uid}.notificationPreferences`.
 - Public VAPID key вже зашита в коді та VS Code tasks для автоматичної web-збірки. За потреби її все одно можна перевизначити через `--dart-define=FCM_WEB_VAPID_KEY=...`.
 - Private VAPID key не зберігається в репозиторії й не потрібна Flutter/web-клієнту; вона має лишатися тільки у Firebase Console.
 - На iPhone/iPad web push очікується лише для PWA/Home Screen сценарію.

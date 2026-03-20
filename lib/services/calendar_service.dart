@@ -11,15 +11,7 @@ class CalendarService {
   static const Set<String> _acknowledgementResetFields = {
     'startTime',
     'endTime',
-    'location',
     'unit',
-    'trainingPeriod',
-    'description',
-    'tags',
-    'instructorId',
-    'instructorName',
-    'instructorIds',
-    'instructorNames',
   };
 
   factory CalendarService() => _instance;
@@ -222,7 +214,7 @@ class CalendarService {
       final currentGroupId = Globals.profileManager.currentGroupId;
       if (currentGroupId == null) return false;
 
-      if (_shouldResetAcknowledgements(updates.keys)) {
+      if (CalendarService.shouldResetAcknowledgementsForFields(updates.keys)) {
         updates['acknowledgementResetAt'] = FieldValue.serverTimestamp();
       }
       updates['updatedAt'] = FieldValue.serverTimestamp();
@@ -761,7 +753,8 @@ class CalendarService {
     return !lesson.hasInstructors;
   }
 
-  bool _shouldResetAcknowledgements(Iterable<String> fields) {
+  @visibleForTesting
+  static bool shouldResetAcknowledgementsForFields(Iterable<String> fields) {
     for (final field in fields) {
       if (_acknowledgementResetFields.contains(field)) {
         return true;

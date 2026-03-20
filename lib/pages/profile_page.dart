@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../globals.dart';
-import '../services/profile_manager.dart';
+import '../models/notification_preferences.dart';
 import '../services/app_session_controller.dart';
+import '../services/profile_manager.dart';
 import '../theme/app_theme.dart';
 
 class ProfilePage extends StatefulWidget {
@@ -20,6 +21,9 @@ class _ProfilePageState extends State<ProfilePage> {
   final TextEditingController _rankController = TextEditingController();
   final TextEditingController _positionController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+
+  NotificationPreferences _notificationPreferences =
+      NotificationPreferences.defaults;
 
   bool _isLoading = true;
   bool _isSaving = false;
@@ -44,19 +48,18 @@ class _ProfilePageState extends State<ProfilePage> {
     setState(() => _isLoading = true);
 
     try {
-      // Синхронізуємо профіль з Firestore якщо потрібно
       if (Globals.profileManager.needsSync()) {
         await Globals.profileManager.loadAndSyncProfile();
       }
 
       final profile = Globals.profileManager.profile;
 
-      // Заповнюємо контролери
       _firstNameController.text = profile.firstName ?? '';
       _lastNameController.text = profile.lastName ?? '';
       _rankController.text = profile.rank ?? '';
       _positionController.text = profile.position ?? '';
       _phoneController.text = profile.phone ?? '';
+      _notificationPreferences = profile.notificationPreferences;
     } catch (e) {
       if (mounted) {
         Globals.errorNotificationManager.showError(
@@ -80,6 +83,7 @@ class _ProfilePageState extends State<ProfilePage> {
         rank: _rankController.text.trim(),
         position: _positionController.text.trim(),
         phone: _phoneController.text.trim(),
+        notificationPreferences: _notificationPreferences,
       );
 
       if (success && mounted) {
@@ -105,7 +109,6 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _signOut() async {
     try {
-      // Показуємо діалог підтвердження
       final shouldSignOut = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
@@ -152,40 +155,65 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final profile = Globals.profileManager.profile;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Профіль'),
-        actions: [
-          // Кнопка оновлення
-          IconButton(
-            onPressed: _loadProfile,
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Оновити дані',
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Профіль'),
+          actions: [
+            IconButton(
+              onPressed: _loadProfile,
+              icon: const Icon(Icons.refresh),
+              tooltip: 'Оновити дані',
+            ),
+          ],
+          bottom: const TabBar(
+            isScrollable: true,
+            tabs: [
+              Tab(text: 'Загальна інформація'),
+              Tab(text: 'Повна інформація'),
+              Tab(text: 'Налаштування'),
+            ],
           ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        body: Column(
           children: [
-            // Заголовок з ініціалами
-            _buildProfileHeader(profile),
-
-            const SizedBox(height: 24),
-
-            // Форма редагування
-            _buildEditForm(),
-
-            const SizedBox(height: 24),
-
-            // Інформація про групи
-            _buildGroupsInfo(profile),
-
-            const SizedBox(height: 24),
-
-            // Кнопки дій
-            _buildActionButtons(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              child: _buildProfileHeader(profile),
+            ),
+            Expanded(
+              child: TabBarView(
+                children: [
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildEditForm(),
+                        const SizedBox(height: 24),
+                        _buildGroupsInfo(profile),
+                      ],
+                    ),
+                  ),
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: _buildFullInfoPlaceholder(),
+                  ),
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: _buildNotificationSettings(),
+                  ),
+                ],
+              ),
+            ),
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                child: _buildActionButtons(),
+              ),
+            ),
           ],
         ),
       ),
@@ -198,7 +226,6 @@ class _ProfilePageState extends State<ProfilePage> {
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            // Аватар з ініціалами
             CircleAvatar(
               radius: 30,
               backgroundColor: Theme.of(context).colorScheme.primary,
@@ -211,10 +238,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               ),
             ),
-
             const SizedBox(width: 16),
-
-            // Інформація
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,7 +291,6 @@ class _ProfilePageState extends State<ProfilePage> {
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-
             TextField(
               controller: _firstNameController,
               decoration: const InputDecoration(
@@ -277,7 +300,6 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             const SizedBox(height: 16),
-
             TextField(
               controller: _lastNameController,
               decoration: const InputDecoration(
@@ -287,7 +309,6 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             const SizedBox(height: 16),
-
             TextField(
               controller: _rankController,
               decoration: const InputDecoration(
@@ -297,7 +318,6 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             const SizedBox(height: 16),
-
             TextField(
               controller: _positionController,
               decoration: const InputDecoration(
@@ -307,7 +327,6 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
             ),
             const SizedBox(height: 16),
-
             TextField(
               controller: _phoneController,
               decoration: const InputDecoration(
@@ -324,7 +343,9 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildGroupsInfo(UserProfile profile) {
-    if (profile.groups.isEmpty) return const SizedBox.shrink();
+    if (profile.groups.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return Card(
       child: Padding(
@@ -339,7 +360,6 @@ class _ProfilePageState extends State<ProfilePage> {
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-
             ...profile.groups.map((groupId) {
               final role = profile.rolesPerGroup[groupId] ?? 'viewer';
               final isCurrentGroup =
@@ -368,7 +388,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         size: 20,
                       ),
                     if (isCurrentGroup) const SizedBox(width: 8),
-
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -390,7 +409,6 @@ class _ProfilePageState extends State<ProfilePage> {
                         ],
                       ),
                     ),
-
                     if (isCurrentGroup)
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -420,10 +438,156 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  Widget _buildFullInfoPlaceholder() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Повна інформація',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppTheme.neutralStatus.background,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppTheme.neutralStatus.border),
+              ),
+              child: const Text(
+                'В розробці',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationSettings() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Push-сповіщення',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Тут можна керувати тим, які push-сповіщення приходять для вашого акаунта.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppTheme.textSecondary,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ...NotificationPreferences.generalDefinitions.map(
+                  _buildPreferenceTile,
+                ),
+                if (Globals.profileManager.isCurrentGroupAdmin) ...[
+                  const SizedBox(height: 20),
+                  Text(
+                    'Admin push',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ...NotificationPreferences.adminDefinitions.map(
+                    _buildPreferenceTile,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Системний дозвіл на push у браузері або на пристрої керується окремо від цих тоглів. Тут налаштовується лише логіка застосунку.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPreferenceTile(NotificationPreferenceDefinition definition) {
+    return SwitchListTile.adaptive(
+      value: _notificationPreferences.valueForKey(definition.key),
+      contentPadding: EdgeInsets.zero,
+      title: Text(definition.title),
+      subtitle: Text(definition.description),
+      onChanged: (value) {
+        setState(() {
+          _notificationPreferences = _updatedPreferencesForKey(
+            key: definition.key,
+            value: value,
+          );
+        });
+      },
+    );
+  }
+
+  NotificationPreferences _updatedPreferencesForKey({
+    required String key,
+    required bool value,
+  }) {
+    switch (key) {
+      case NotificationPreferences.groupAnnouncementsKey:
+        return _notificationPreferences.copyWith(groupAnnouncements: value);
+      case NotificationPreferences.lessonAssignedKey:
+        return _notificationPreferences.copyWith(lessonAssigned: value);
+      case NotificationPreferences.lessonRemovedKey:
+        return _notificationPreferences.copyWith(lessonRemoved: value);
+      case NotificationPreferences.lessonCriticalChangedKey:
+        return _notificationPreferences.copyWith(lessonCriticalChanged: value);
+      case NotificationPreferences.absenceRequestResultKey:
+        return _notificationPreferences.copyWith(absenceRequestResult: value);
+      case NotificationPreferences.adminAbsenceAssignmentKey:
+        return _notificationPreferences.copyWith(adminAbsenceAssignment: value);
+      case NotificationPreferences.adminLessonAcknowledgedKey:
+        return _notificationPreferences.copyWith(
+          adminLessonAcknowledged: value,
+        );
+      default:
+        return _notificationPreferences;
+    }
+  }
+
   Widget _buildActionButtons() {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        // Кнопка збереження
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
@@ -441,12 +605,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
           ),
         ),
-
-        const SizedBox(height: 16),
-        const Divider(),
-        const SizedBox(height: 16),
-
-        // Кнопка виходу
+        const SizedBox(height: 12),
         SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(

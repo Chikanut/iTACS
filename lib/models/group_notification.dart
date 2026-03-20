@@ -4,7 +4,9 @@ enum GroupNotificationType {
   announcement('announcement', 'Оголошення'),
   absenceApproved('absence_approved', 'Підтвердження відсутності'),
   absenceRejected('absence_rejected', 'Відхилення відсутності'),
-  absenceCancelled('absence_cancelled', 'Скасування відсутності');
+  absenceCancelled('absence_cancelled', 'Скасування відсутності'),
+  absenceAssigned('absence_assigned', 'Призначення відсутності'),
+  absenceUpdated('absence_updated', 'Зміна відсутності');
 
   const GroupNotificationType(this.value, this.displayName);
 
@@ -30,6 +32,7 @@ class GroupNotification {
   final String createdBy;
   final String? targetUserId;
   final String? relatedAbsenceId;
+  final String? relatedAbsenceCreationType;
 
   const GroupNotification({
     required this.id,
@@ -42,6 +45,7 @@ class GroupNotification {
     required this.createdBy,
     this.targetUserId,
     this.relatedAbsenceId,
+    this.relatedAbsenceCreationType,
   });
 
   bool get isActive => expiresAt.isAfter(DateTime.now());
@@ -57,6 +61,7 @@ class GroupNotification {
       'createdBy': createdBy,
       'targetUserId': targetUserId,
       'relatedAbsenceId': relatedAbsenceId,
+      'relatedAbsenceCreationType': relatedAbsenceCreationType,
     };
   }
 
@@ -77,6 +82,7 @@ class GroupNotification {
       createdBy: data['createdBy'] ?? '',
       targetUserId: data['targetUserId'],
       relatedAbsenceId: data['relatedAbsenceId'],
+      relatedAbsenceCreationType: data['relatedAbsenceCreationType'],
     );
   }
 
@@ -91,6 +97,7 @@ class GroupNotification {
     String? createdBy,
     String? targetUserId,
     String? relatedAbsenceId,
+    String? relatedAbsenceCreationType,
   }) {
     return GroupNotification(
       id: id ?? this.id,
@@ -103,6 +110,8 @@ class GroupNotification {
       createdBy: createdBy ?? this.createdBy,
       targetUserId: targetUserId ?? this.targetUserId,
       relatedAbsenceId: relatedAbsenceId ?? this.relatedAbsenceId,
+      relatedAbsenceCreationType:
+          relatedAbsenceCreationType ?? this.relatedAbsenceCreationType,
     );
   }
 }

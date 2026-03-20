@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_application_1/models/lesson_model.dart';
 import 'package:flutter_application_1/pages/calendar_page/calendar_utils.dart';
+import 'package:flutter_application_1/services/calendar_service.dart';
 
 void main() {
   group('Lesson acknowledgement model', () {
@@ -151,6 +152,87 @@ void main() {
           instructorAssignmentId: 'other-uid',
         ),
         LessonAcknowledgementStatus.urgent,
+      );
+    });
+
+    test(
+      'preserves other instructor acknowledgement on non-critical changes',
+      () {
+        final now = DateTime.now();
+        final lesson = _buildLesson(
+          startTime: now.add(const Duration(days: 5)),
+          endTime: now.add(const Duration(days: 5, hours: 2)),
+          acknowledgementResetAt: now.subtract(const Duration(days: 1)),
+          instructorIds: const ['first-uid', 'second-uid'],
+          instructorNames: const ['Перший', 'Другий'],
+          instructorAcknowledgements: {
+            'first-uid': LessonAcknowledgementRecord(
+              acknowledgedAt: now.subtract(const Duration(hours: 2)),
+              acknowledgedByUid: 'first-uid',
+              acknowledgedByName: 'Перший',
+            ),
+            'second-uid': LessonAcknowledgementRecord(
+              acknowledgedAt: now.subtract(const Duration(hours: 1)),
+              acknowledgedByUid: 'second-uid',
+              acknowledgedByName: 'Другий',
+            ),
+          },
+        );
+
+        final updatedLesson = lesson.copyWith(location: 'Новий клас');
+
+        expect(updatedLesson.acknowledgementFor('first-uid'), isNotNull);
+        expect(updatedLesson.acknowledgementFor('second-uid'), isNotNull);
+        expect(
+          LessonStatusUtils.getAcknowledgementStatusForInstructor(
+            updatedLesson,
+            instructorAssignmentId: 'second-uid',
+          ),
+          LessonAcknowledgementStatus.acknowledged,
+        );
+      },
+    );
+  });
+
+  group('Lesson acknowledgement reset fields', () {
+    test('does not reset acknowledgement for location change', () {
+      expect(
+        CalendarService.shouldResetAcknowledgementsForFields(const [
+          'location',
+        ]),
+        isFalse,
+      );
+    });
+
+    test('does not reset acknowledgement for description change', () {
+      expect(
+        CalendarService.shouldResetAcknowledgementsForFields(const [
+          'description',
+        ]),
+        isFalse,
+      );
+    });
+
+    test('resets acknowledgement for startTime change', () {
+      expect(
+        CalendarService.shouldResetAcknowledgementsForFields(const [
+          'startTime',
+        ]),
+        isTrue,
+      );
+    });
+
+    test('resets acknowledgement for endTime change', () {
+      expect(
+        CalendarService.shouldResetAcknowledgementsForFields(const ['endTime']),
+        isTrue,
+      );
+    });
+
+    test('resets acknowledgement for unit change', () {
+      expect(
+        CalendarService.shouldResetAcknowledgementsForFields(const ['unit']),
+        isTrue,
       );
     });
   });

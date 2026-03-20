@@ -126,7 +126,10 @@ class AbsencesService {
         ),
       );
 
-      await _saveAbsence(absence);
+      final absenceId = await _saveAbsence(absence);
+      await Globals.groupNotificationsService.notifyAbsenceAssigned(
+        absence.copyWith(id: absenceId),
+      );
       return true;
     } catch (e) {
       debugPrint('AbsencesService: Помилка призначення відсутності: $e');
@@ -335,7 +338,7 @@ class AbsencesService {
 
   // === ПРИВАТНІ МЕТОДИ ===
 
-  Future<void> _saveAbsence(InstructorAbsence absence) async {
+  Future<String> _saveAbsence(InstructorAbsence absence) async {
     final currentGroupId = Globals.profileManager.currentGroupId;
     if (currentGroupId == null) throw Exception('Група не обрана');
 
@@ -347,6 +350,8 @@ class AbsencesService {
     if (absenceId == null) {
       throw Exception('Не вдалося створити відсутність');
     }
+
+    return absenceId;
   }
 
   Future<bool> _checkAbsenceConflict(

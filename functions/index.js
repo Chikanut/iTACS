@@ -14,18 +14,19 @@ const messaging = admin.messaging();
 const EVENT_COLLECTION = "function_events";
 const MAX_MULTICAST_SIZE = 500;
 const ANDROID_CHANNEL_ID = "itacs_high_importance_notifications";
+const NOTIFICATION_PREFERENCE_KEYS = {
+  groupAnnouncements: "groupAnnouncements",
+  lessonAssigned: "lessonAssigned",
+  lessonRemoved: "lessonRemoved",
+  lessonCriticalChanged: "lessonCriticalChanged",
+  absenceRequestResult: "absenceRequestResult",
+  adminAbsenceAssignment: "adminAbsenceAssignment",
+  adminLessonAcknowledged: "adminLessonAcknowledged",
+};
 const LESSON_RESET_FIELDS = [
   "startTime",
   "endTime",
-  "location",
   "unit",
-  "trainingPeriod",
-  "description",
-  "tags",
-  "instructorId",
-  "instructorName",
-  "instructorIds",
-  "instructorNames",
 ];
 
 exports.proxyDownload = functionsV1.https.onRequest((req, res) => {
@@ -103,6 +104,7 @@ exports.sendPushForGroupNotification = functionsV1.firestore
             groupId,
             notificationId: context.params.notificationId,
           },
+          preferenceKey: resolveGroupNotificationPreferenceKey(notification),
         });
 
         await finishEvent(eventKey, {
@@ -153,6 +155,7 @@ exports.sendPushForLessonCreate = functionsV1.firestore
           title: request.title,
           body: request.body,
           data: request.data,
+          preferenceKey: NOTIFICATION_PREFERENCE_KEYS.lessonAssigned,
         });
 
         await finishEvent(eventKey, {
@@ -186,18 +189,81 @@ exports.sendPushForLessonUpdate = functionsV1.firestore
       try {
         const before = change.before.data() || {};
         const after = change.after.data() || {};
+        const operations = await buildLessonUpdatePushOperations({
+          before,
+          after,
+          groupId: context.params.groupId,
+          lessonId: context.params.lessonId,
+        });
 
-        if (!shouldSendLessonUpdatePush(before, after)) {
+        if (operations.length === 0) {
           await finishEvent(eventKey, {status: "skipped"});
           return null;
         }
 
-        const recipientUserIds = await resolveLessonRecipientUserIds(after);
-        const request = buildLessonPushRequest({
+        const summary = createEmptySummary();
+        for (const operation of operations) {
+          const operationSummary = await sendPushToUsers(operation);
+          mergeSummaries(summary, operationSummary);
+        }
+
+        await finishEvent(eventKey, {
+          status: "completed",
+          ...summary,
+        });
+      } catch (error) {
+        await failEvent(eventKey, error);
+      }
+
+      return null;
+    });
+
+exports.sendPushForLessonAcknowledgement = functionsV1.firestore
+    .document("lessons/{groupId}/items/{lessonId}")
+    .onUpdate(async (change, context) => {
+      const eventKey = buildEventKey(
+          "lesson_acknowledgement",
+          context.eventId,
+      );
+      const eventStarted = await startEvent(eventKey, {
+        functionName: "sendPushForLessonAcknowledgement",
+        groupId: context.params.groupId,
+        lessonId: context.params.lessonId,
+      });
+
+      if (!eventStarted) {
+        return null;
+      }
+
+      try {
+        const before = change.before.data() || {};
+        const after = change.after.data() || {};
+        const acknowledgementEvent = detectNewAcknowledgement(before, after);
+
+        if (!acknowledgementEvent) {
+          await finishEvent(eventKey, {status: "skipped"});
+          return null;
+        }
+
+        const adminUserIds = await resolveGroupAdminUserIds(
+            context.params.groupId,
+        );
+        const recipientUserIds = adminUserIds.filter((userId) =>
+          userId !== acknowledgementEvent.acknowledgedByUid);
+
+        if (recipientUserIds.length === 0) {
+          await finishEvent(eventKey, {
+            status: "skipped",
+            reason: "no_admin_recipients",
+          });
+          return null;
+        }
+
+        const request = buildLessonAcknowledgementPushRequest({
           lesson: after,
           groupId: context.params.groupId,
           lessonId: context.params.lessonId,
-          reason: "acknowledgement_reset",
+          acknowledgementEvent,
         });
 
         const summary = await sendPushToUsers({
@@ -205,6 +271,7 @@ exports.sendPushForLessonUpdate = functionsV1.firestore
           title: request.title,
           body: request.body,
           data: request.data,
+          preferenceKey: NOTIFICATION_PREFERENCE_KEYS.adminLessonAcknowledged,
         });
 
         await finishEvent(eventKey, {
@@ -297,46 +364,11 @@ function toDate(value) {
 }
 
 function lessonHasInstructors(lesson) {
-  const instructorIds = Array.isArray(lesson.instructorIds) ?
-    lesson.instructorIds.map(asString).filter(Boolean) :
-    [];
-
-  if (instructorIds.length > 0) {
-    return true;
-  }
-
-  return Boolean(asString(lesson.instructorId));
+  return extractLessonAssignmentIds(lesson).length > 0;
 }
 
 function shouldSendLessonCreatePush(lesson) {
   return isFutureLesson(lesson) && lessonHasInstructors(lesson);
-}
-
-function shouldSendLessonUpdatePush(before, after) {
-  if (!isFutureLesson(after) || !lessonHasInstructors(after)) {
-    return false;
-  }
-
-  const beforeResetAt = toDate(before.acknowledgementResetAt);
-  const afterResetAt = toDate(after.acknowledgementResetAt);
-
-  if (!afterResetAt) {
-    return false;
-  }
-
-  if (beforeResetAt &&
-      beforeResetAt.getTime() === afterResetAt.getTime() &&
-      !hasRelevantLessonFieldChange(before, after)) {
-    return false;
-  }
-
-  if (!beforeResetAt && afterResetAt) {
-    return hasRelevantLessonFieldChange(before, after);
-  }
-
-  return !beforeResetAt ||
-    beforeResetAt.getTime() !== afterResetAt.getTime() ||
-    hasRelevantLessonFieldChange(before, after);
 }
 
 function hasRelevantLessonFieldChange(before, after) {
@@ -349,6 +381,10 @@ function deepEqual(left, right) {
 }
 
 async function resolveLessonRecipientUserIds(lesson) {
+  return resolveAssignmentIdsToUserIds(extractLessonAssignmentIds(lesson));
+}
+
+function extractLessonAssignmentIds(lesson) {
   const assignmentIds = [];
   const rawInstructorIds = Array.isArray(lesson.instructorIds) ?
     lesson.instructorIds :
@@ -367,6 +403,10 @@ async function resolveLessonRecipientUserIds(lesson) {
     assignmentIds.push(primaryInstructorId);
   }
 
+  return assignmentIds;
+}
+
+async function resolveAssignmentIdsToUserIds(assignmentIds) {
   const resolvedUserIds = await Promise.all(
       assignmentIds.map((assignmentId) => resolveUserId(assignmentId)),
   );
@@ -375,17 +415,19 @@ async function resolveLessonRecipientUserIds(lesson) {
 }
 
 async function resolveUserId(value) {
-  const normalizedValue = asString(value).toLowerCase();
-  if (!normalizedValue) {
+  const rawValue = asString(value);
+  if (!rawValue) {
     return null;
   }
 
-  if (!normalizedValue.includes("@")) {
-    return normalizedValue;
+  if (!rawValue.includes("@")) {
+    return rawValue;
   }
 
+  const normalizedEmail = rawValue.toLowerCase();
+
   const snapshot = await db.collection("users")
-      .where("email", "==", normalizedValue)
+      .where("email", "==", normalizedEmail)
       .limit(1)
       .get();
 
@@ -427,8 +469,65 @@ async function resolveGroupMemberUserIds(groupId) {
   return resolvedUserIds.filter(Boolean);
 }
 
-async function sendPushToUsers({userIds, title, body, data}) {
-  if (!Array.isArray(userIds) || userIds.length === 0) {
+async function resolveGroupAdminUserIds(groupId) {
+  const groupDoc = await db.collection("allowed_users").doc(groupId).get();
+  if (!groupDoc.exists) {
+    return [];
+  }
+
+  const members = groupDoc.get("members") || {};
+  const candidateIds = [];
+
+  for (const [email, rawValue] of Object.entries(members)) {
+    const role = extractMemberRole(rawValue);
+    if (role !== "admin") {
+      continue;
+    }
+
+    if (rawValue && typeof rawValue === "object") {
+      const memberUid = asString(rawValue.uid);
+      if (memberUid && !candidateIds.includes(memberUid)) {
+        candidateIds.push(memberUid);
+        continue;
+      }
+    }
+
+    const normalizedEmail = asString(email).toLowerCase();
+    if (normalizedEmail && !candidateIds.includes(normalizedEmail)) {
+      candidateIds.push(normalizedEmail);
+    }
+  }
+
+  const resolvedUserIds = await Promise.all(
+      candidateIds.map((candidateId) => resolveUserId(candidateId)),
+  );
+
+  return resolvedUserIds.filter(Boolean);
+}
+
+function extractMemberRole(rawValue) {
+  if (!rawValue) {
+    return "";
+  }
+
+  if (typeof rawValue === "string") {
+    return asString(rawValue).toLowerCase();
+  }
+
+  if (typeof rawValue === "object") {
+    return asString(rawValue.role).toLowerCase();
+  }
+
+  return "";
+}
+
+async function sendPushToUsers({userIds, title, body, data, preferenceKey}) {
+  const filteredUserIds = await filterUserIdsByPreference(
+      userIds,
+      preferenceKey,
+  );
+
+  if (!Array.isArray(filteredUserIds) || filteredUserIds.length === 0) {
     return {
       userCount: 0,
       tokenCount: 0,
@@ -437,10 +536,15 @@ async function sendPushToUsers({userIds, title, body, data}) {
     };
   }
 
-  const tokenEntries = await collectTokenEntries(userIds);
+  const tokenEntries = await collectTokenEntries(filteredUserIds);
   if (tokenEntries.length === 0) {
+    logger.info("Push skipped: no device tokens", {
+      preferenceKey,
+      userIds: filteredUserIds,
+      title,
+    });
     return {
-      userCount: userIds.length,
+      userCount: filteredUserIds.length,
       tokenCount: 0,
       successCount: 0,
       failureCount: 0,
@@ -488,12 +592,51 @@ async function sendPushToUsers({userIds, title, body, data}) {
   successCount += androidSummary.successCount + webSummary.successCount;
   failureCount += androidSummary.failureCount + webSummary.failureCount;
 
+  logger.info("Push send summary", {
+    preferenceKey,
+    userCount: filteredUserIds.length,
+    tokenCount: tokenEntries.length,
+    successCount,
+    failureCount,
+    title,
+  });
+
   return {
-    userCount: userIds.length,
+    userCount: filteredUserIds.length,
     tokenCount: tokenEntries.length,
     successCount,
     failureCount,
   };
+}
+
+async function filterUserIdsByPreference(userIds, preferenceKey) {
+  const uniqueUserIds = [...new Set((userIds || []).map((userId) => asString(userId))
+      .filter(Boolean))];
+
+  if (!preferenceKey || uniqueUserIds.length === 0) {
+    return uniqueUserIds;
+  }
+
+  const snapshots = await Promise.all(
+      uniqueUserIds.map((userId) => db.collection("users").doc(userId).get()),
+  );
+
+  return uniqueUserIds.filter((userId, index) =>
+    isPreferenceEnabled(snapshots[index].data(), preferenceKey));
+}
+
+function isPreferenceEnabled(userData, preferenceKey) {
+  if (!preferenceKey) {
+    return true;
+  }
+
+  const preferences = userData &&
+    typeof userData.notificationPreferences === "object" ?
+      userData.notificationPreferences :
+      {};
+  const value = preferences[preferenceKey];
+
+  return typeof value === "boolean" ? value : true;
 }
 
 async function collectTokenEntries(userIds) {
@@ -598,9 +741,18 @@ function buildLessonPushRequest({
 }) {
   const lessonTitle = asString(lesson.title) || "Нове заняття";
   const lessonStart = toDate(lesson.startTime);
-  const title = reason === "new_assignment" ?
-    "Вам призначено нове заняття" :
-    "Заняття оновлено, потрібно ознайомитись";
+  let title = "Заняття оновлено";
+  switch (reason) {
+    case "new_assignment":
+      title = "Вам призначено нове заняття";
+      break;
+    case "lesson_removed":
+      title = "Вас зняли із заняття";
+      break;
+    case "critical_change":
+      title = "Заняття оновлено, потрібно ознайомитись";
+      break;
+  }
   const body = lessonStart ?
     `${lessonTitle} • ${formatLessonDateTime(lessonStart)}` :
     lessonTitle;
@@ -609,13 +761,212 @@ function buildLessonPushRequest({
     title,
     body,
     data: {
-      kind: "lesson_acknowledgement",
+      kind: reason,
       title,
       body,
       groupId,
       lessonId,
     },
   };
+}
+
+function buildLessonAcknowledgementPushRequest({
+  lesson,
+  groupId,
+  lessonId,
+  acknowledgementEvent,
+}) {
+  const lessonTitle = asString(lesson.title) || "Заняття";
+  const lessonStart = toDate(lesson.startTime);
+  const acknowledgedByName = asString(acknowledgementEvent.acknowledgedByName) ||
+    "Викладач";
+  const title = "Викладач ознайомився із заняттям";
+  const body = lessonStart ?
+    `${acknowledgedByName} • ${lessonTitle} • ${formatLessonDateTime(lessonStart)}` :
+    `${acknowledgedByName} • ${lessonTitle}`;
+
+  return {
+    title,
+    body,
+    data: {
+      kind: "lesson_acknowledged",
+      title,
+      body,
+      groupId,
+      lessonId,
+      acknowledgedByUid: acknowledgementEvent.acknowledgedByUid,
+      acknowledgedByName,
+      assignmentId: acknowledgementEvent.assignmentId,
+    },
+  };
+}
+
+function resolveGroupNotificationPreferenceKey(notification) {
+  const type = asString(notification.type);
+  const creationType = asString(notification.relatedAbsenceCreationType);
+
+  switch (type) {
+    case "announcement":
+      return NOTIFICATION_PREFERENCE_KEYS.groupAnnouncements;
+    case "absence_assigned":
+    case "absence_updated":
+      return NOTIFICATION_PREFERENCE_KEYS.adminAbsenceAssignment;
+    case "absence_approved":
+    case "absence_rejected":
+      return creationType === "admin_assignment" ?
+        NOTIFICATION_PREFERENCE_KEYS.adminAbsenceAssignment :
+        NOTIFICATION_PREFERENCE_KEYS.absenceRequestResult;
+    case "absence_cancelled":
+      return creationType === "admin_assignment" ?
+        NOTIFICATION_PREFERENCE_KEYS.adminAbsenceAssignment :
+        NOTIFICATION_PREFERENCE_KEYS.absenceRequestResult;
+    default:
+      return NOTIFICATION_PREFERENCE_KEYS.groupAnnouncements;
+  }
+}
+
+async function buildLessonUpdatePushOperations({
+  before,
+  after,
+  groupId,
+  lessonId,
+}) {
+  if (!isFutureLesson(after)) {
+    return [];
+  }
+
+  const beforeAssignmentIds = extractLessonAssignmentIds(before);
+  const afterAssignmentIds = extractLessonAssignmentIds(after);
+  const addedAssignmentIds = afterAssignmentIds.filter((assignmentId) =>
+    !beforeAssignmentIds.includes(assignmentId));
+  const removedAssignmentIds = beforeAssignmentIds.filter((assignmentId) =>
+    !afterAssignmentIds.includes(assignmentId));
+  const retainedAssignmentIds = afterAssignmentIds.filter((assignmentId) =>
+    beforeAssignmentIds.includes(assignmentId));
+  const operations = [];
+
+  if (addedAssignmentIds.length > 0) {
+    const request = buildLessonPushRequest({
+      lesson: after,
+      groupId,
+      lessonId,
+      reason: "new_assignment",
+    });
+    const userIds = await resolveAssignmentIdsToUserIds(addedAssignmentIds);
+    operations.push({
+      userIds,
+      title: request.title,
+      body: request.body,
+      data: request.data,
+      preferenceKey: NOTIFICATION_PREFERENCE_KEYS.lessonAssigned,
+    });
+  }
+
+  if (removedAssignmentIds.length > 0) {
+    const request = buildLessonPushRequest({
+      lesson: after,
+      groupId,
+      lessonId,
+      reason: "lesson_removed",
+    });
+    const userIds = await resolveAssignmentIdsToUserIds(removedAssignmentIds);
+    operations.push({
+      userIds,
+      title: request.title,
+      body: request.body,
+      data: request.data,
+      preferenceKey: NOTIFICATION_PREFERENCE_KEYS.lessonRemoved,
+    });
+  }
+
+  if (retainedAssignmentIds.length > 0 &&
+      hasRelevantLessonFieldChange(before, after)) {
+    const request = buildLessonPushRequest({
+      lesson: after,
+      groupId,
+      lessonId,
+      reason: "critical_change",
+    });
+    const userIds = await resolveAssignmentIdsToUserIds(retainedAssignmentIds);
+    operations.push({
+      userIds,
+      title: request.title,
+      body: request.body,
+      data: request.data,
+      preferenceKey: NOTIFICATION_PREFERENCE_KEYS.lessonCriticalChanged,
+    });
+  }
+
+  return operations.filter((operation) =>
+    Array.isArray(operation.userIds) && operation.userIds.length > 0);
+}
+
+function createEmptySummary() {
+  return {
+    userCount: 0,
+    tokenCount: 0,
+    successCount: 0,
+    failureCount: 0,
+  };
+}
+
+function mergeSummaries(target, source) {
+  target.userCount += source.userCount || 0;
+  target.tokenCount += source.tokenCount || 0;
+  target.successCount += source.successCount || 0;
+  target.failureCount += source.failureCount || 0;
+
+  return target;
+}
+
+function detectNewAcknowledgement(before, after) {
+  const beforeAcknowledgements = normalizeAcknowledgementsMap(
+      before.instructorAcknowledgements,
+  );
+  const afterAcknowledgements = normalizeAcknowledgementsMap(
+      after.instructorAcknowledgements,
+  );
+
+  for (const [assignmentId, currentRecord] of Object.entries(afterAcknowledgements)) {
+    const previousRecord = beforeAcknowledgements[assignmentId];
+    if (isNewAcknowledgementRecord(previousRecord, currentRecord)) {
+      return {
+        assignmentId,
+        acknowledgedAt: asString(currentRecord.acknowledgedAt),
+        acknowledgedByUid: asString(currentRecord.acknowledgedByUid),
+        acknowledgedByName: asString(currentRecord.acknowledgedByName),
+      };
+    }
+  }
+
+  return null;
+}
+
+function normalizeAcknowledgementsMap(raw) {
+  if (!raw || typeof raw !== "object") {
+    return {};
+  }
+
+  return raw;
+}
+
+function isNewAcknowledgementRecord(previousRecord, currentRecord) {
+  if (!currentRecord || typeof currentRecord !== "object") {
+    return false;
+  }
+
+  const currentAcknowledgedAt = asString(currentRecord.acknowledgedAt);
+  const currentAcknowledgedByUid = asString(currentRecord.acknowledgedByUid);
+  if (!currentAcknowledgedAt || !currentAcknowledgedByUid) {
+    return false;
+  }
+
+  if (!previousRecord || typeof previousRecord !== "object") {
+    return true;
+  }
+
+  return asString(previousRecord.acknowledgedAt) !== currentAcknowledgedAt ||
+    asString(previousRecord.acknowledgedByUid) !== currentAcknowledgedByUid;
 }
 
 function formatLessonDateTime(date) {

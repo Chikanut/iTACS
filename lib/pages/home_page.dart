@@ -521,6 +521,10 @@ class _HomePageState extends State<HomePage> {
         return Icons.highlight_off;
       case GroupNotificationType.absenceCancelled:
         return Icons.person_off_outlined;
+      case GroupNotificationType.absenceAssigned:
+        return Icons.assignment_ind_outlined;
+      case GroupNotificationType.absenceUpdated:
+        return Icons.edit_calendar_outlined;
     }
   }
 
@@ -534,6 +538,10 @@ class _HomePageState extends State<HomePage> {
         return AppTheme.statusColors(AppStatusTone.danger);
       case GroupNotificationType.absenceCancelled:
         return AppTheme.statusColors(AppStatusTone.warning);
+      case GroupNotificationType.absenceAssigned:
+        return AppTheme.statusColors(AppStatusTone.info);
+      case GroupNotificationType.absenceUpdated:
+        return AppTheme.statusColors(AppStatusTone.info);
     }
   }
 

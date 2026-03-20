@@ -406,6 +406,10 @@ class _NotificationsTabState extends State<NotificationsTab> {
         return Icons.cancel_outlined;
       case GroupNotificationType.absenceCancelled:
         return Icons.person_off_outlined;
+      case GroupNotificationType.absenceAssigned:
+        return Icons.assignment_ind_outlined;
+      case GroupNotificationType.absenceUpdated:
+        return Icons.edit_calendar_outlined;
     }
   }
 
@@ -419,6 +423,10 @@ class _NotificationsTabState extends State<NotificationsTab> {
         return Colors.red;
       case GroupNotificationType.absenceCancelled:
         return Colors.orange;
+      case GroupNotificationType.absenceAssigned:
+        return Colors.blueAccent;
+      case GroupNotificationType.absenceUpdated:
+        return Colors.deepPurple;
     }
   }
 }

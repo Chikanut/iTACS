@@ -59,15 +59,44 @@ class GroupNotificationsService {
     await _createAbsenceNotification(
       absence: absence,
       type: GroupNotificationType.absenceCancelled,
-      title: 'Відсутність скасовано',
+      title: absence.isAdminAssignment
+          ? '${absence.type.displayName} скасовано'
+          : 'Відсутність скасовано',
+      message: absence.isAdminAssignment
+          ? '${absence.type.displayName} для вас скасовано.'
+          : 'Відсутність ${absence.type.displayName.toLowerCase()} скасовано адміністратором.',
+    );
+  }
+
+  Future<void> notifyAbsenceAssigned(InstructorAbsence absence) async {
+    await _createAbsenceNotification(
+      absence: absence,
+      type: GroupNotificationType.absenceAssigned,
+      title: 'Вам призначили ${absence.type.displayName.toLowerCase()}',
       message:
-          'Відсутність ${absence.type.displayName.toLowerCase()} скасовано адміністратором.',
+          'Адміністратор призначив вам ${absence.type.displayName.toLowerCase()}.',
+    );
+  }
+
+  Future<void> notifyAbsenceUpdated({
+    required InstructorAbsence absence,
+    required String title,
+    required String message,
+  }) async {
+    await _createAbsenceNotification(
+      absence: absence,
+      type: GroupNotificationType.absenceUpdated,
+      title: title,
+      message: message,
     );
   }
 
   Future<List<GroupNotification>> getNotificationsForCurrentUser() async {
     final currentGroupId = Globals.profileManager.currentGroupId;
     final currentUserId = Globals.profileManager.currentUserId;
+    final currentUserEmail = Globals.profileManager.currentUserEmail
+        ?.trim()
+        .toLowerCase();
     if (currentGroupId == null) return [];
 
     try {
@@ -85,7 +114,9 @@ class GroupNotificationsService {
             (notification) =>
                 notification.isActive &&
                 (notification.targetUserId == null ||
-                    notification.targetUserId == currentUserId),
+                    notification.targetUserId == currentUserId ||
+                    notification.targetUserId?.trim().toLowerCase() ==
+                        currentUserEmail),
           )
           .toList();
 
@@ -174,6 +205,7 @@ class GroupNotificationsService {
       createdBy: currentUser.uid,
       targetUserId: absence.instructorId,
       relatedAbsenceId: absence.id,
+      relatedAbsenceCreationType: absence.creationType.value,
     );
 
     await _createNotification(notification);
