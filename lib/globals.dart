@@ -9,6 +9,7 @@ import 'services/file_manager/file_manager.dart';
 import 'services/firestore_manager.dart';
 import 'services/profile_manager.dart';
 import 'services/reports_service.dart';
+import 'services/report_templates_service.dart';
 import 'services/templates_service.dart';
 import 'services/calendar_service.dart';
 import 'services/absences_service.dart';
@@ -23,6 +24,8 @@ class Globals {
   static final FirestoreManager firestoreManager = FirestoreManager();
   static final ProfileManager profileManager = ProfileManager();
   static final ReportsService reportsService = ReportsService(); // 👈 ДОДАЄМО
+  static final ReportTemplatesService reportTemplatesService =
+      ReportTemplatesService();
   static final GroupTemplatesService groupTemplatesService =
       GroupTemplatesService();
   static final CalendarService calendarService =

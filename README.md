@@ -9,7 +9,8 @@ Flutter-застосунок для внутрішньої роботи навч
 - календар занять та dashboard для інструкторів;
 - матеріали та інструменти з доступом до файлів Google Drive;
 - локальне кешування профілю, групи та файлів;
-- базова адмін-панель і генерація Excel-звітів.
+- базова адмін-панель і генерація Excel-звітів;
+- динамічні шаблони звітів із Firestore, preview та серверною генерацією через Firebase Functions.
 
 ## Стек
 
@@ -89,6 +90,8 @@ firebase deploy --only firestore:rules
 - `lib/services/auth_service.dart` - Google/Firebase sign-in, silent restore, token access.
 - `lib/services/firestore_manager.dart` - групи, профілі, Firestore CRUD.
 - `lib/services/file_manager/` - кешування, завантаження та відкриття файлів.
+- `lib/services/report_templates_service.dart` - CRUD шаблонів звітів, preview/publish/generate через callable functions.
+- `functions/report_templates.js` - safe DSL для шаблонів звітів, enrich даних і генерація `.xlsx`.
 - `docs/` - setup, огляд архітектури та roadmap.
 - `scripts/` - допоміжні утиліти для міграцій і локалізації.
 

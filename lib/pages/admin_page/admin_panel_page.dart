@@ -3,6 +3,7 @@ import '../../globals.dart';
 import 'tabs/absences_grid_tab.dart';
 import 'tabs/group_members_tab.dart';
 import 'tabs/notifications_tab.dart';
+import 'tabs/report_templates_tab.dart';
 import 'tabs/templates_tab.dart';
 
 class AdminPanelPage extends StatefulWidget {
@@ -19,7 +20,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -127,6 +128,12 @@ class _AdminPanelPageState extends State<AdminPanelPage>
               icon: Icon(Icons.description, size: isCompactMobile ? 20 : 24),
               text: 'Шаблони',
             ),
+            Tab(
+              height: isCompactMobile ? 56 : null,
+              iconMargin: EdgeInsets.only(bottom: isCompactMobile ? 4 : 6),
+              icon: Icon(Icons.query_stats, size: isCompactMobile ? 20 : 24),
+              text: 'Звіти',
+            ),
           ],
         ),
       ),
@@ -137,6 +144,7 @@ class _AdminPanelPageState extends State<AdminPanelPage>
           GroupMembersTab(),
           NotificationsTab(),
           TemplatesTab(),
+          ReportTemplatesTab(),
         ],
       ),
     );

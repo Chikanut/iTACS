@@ -5,6 +5,7 @@ const admin = require("firebase-admin");
 const cors = require("cors")({origin: true});
 const functionsV1 = require("firebase-functions/v1");
 const logger = require("firebase-functions/logger");
+const reportTemplates = require("./report_templates");
 
 admin.initializeApp();
 
@@ -38,6 +39,18 @@ const REMINDER_JOB_STATUS = {
   failed: "failed",
   cancelled: "cancelled",
 };
+
+exports.previewReportTemplate = functionsV1.https.onCall(
+    reportTemplates.createPreviewHandler({db, admin, functionsV1}),
+);
+
+exports.publishReportTemplate = functionsV1.https.onCall(
+    reportTemplates.createPublishHandler({db, functionsV1}),
+);
+
+exports.generateReportTemplate = functionsV1.https.onCall(
+    reportTemplates.createGenerateHandler({db, admin, functionsV1}),
+);
 
 exports.proxyDownload = functionsV1.https.onRequest((req, res) => {
   cors(req, res, async () => {

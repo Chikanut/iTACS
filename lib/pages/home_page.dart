@@ -8,7 +8,9 @@ import '../services/dashboard_service.dart';
 import '../models/lesson_model.dart';
 import '../pages/calendar_page/calendar_utils.dart';
 import '../pages/calendar_page/widgets/lesson_details_dialog.dart';
+import '../models/report_template_model.dart';
 import '../services/reports_service.dart';
+import '../services/report_templates_service.dart';
 import '../services/reports/base_report.dart';
 import '../services/reports/quick_report_dialog.dart';
 import '../models/instructor_absence.dart';
@@ -817,10 +819,44 @@ class _StatItem extends StatelessWidget {
 }
 
 /// Картка генерації звітів
-class _ReportsCard extends StatelessWidget {
+class _ReportsCard extends StatefulWidget {
   final ReportsService reportsService;
 
   const _ReportsCard({required this.reportsService});
+
+  @override
+  State<_ReportsCard> createState() => _ReportsCardState();
+}
+
+class _ReportsCardState extends State<_ReportsCard> {
+  final ReportTemplatesService _reportTemplatesService =
+      Globals.reportTemplatesService;
+  List<ReportTemplate> _templates = [];
+  bool _isLoadingTemplates = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTemplates();
+  }
+
+  Future<void> _loadTemplates() async {
+    try {
+      final templates = await _reportTemplatesService
+          .getAccessibleActiveTemplates();
+      if (!mounted) return;
+      setState(() {
+        _templates = templates;
+        _isLoadingTemplates = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _templates = [];
+        _isLoadingTemplates = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -844,20 +880,61 @@ class _ReportsCard extends StatelessWidget {
                     fontWeight: FontWeight.bold,
                   ),
                 ),
+                const Spacer(),
+                if (_isLoadingTemplates)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  IconButton(
+                    tooltip: 'Оновити шаблони',
+                    onPressed: _loadTemplates,
+                    icon: const Icon(Icons.refresh),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
-
-            // Кнопки генерації
+            if (_templates.isNotEmpty) ...[
+              Text(
+                'Активні шаблони',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: _templates
+                    .map(
+                      (template) => _ReportButton(
+                        label: template.name,
+                        icon: Icons.auto_awesome_motion,
+                        onPressed: () =>
+                            _generateTemplateReport(context, template),
+                      ),
+                    )
+                    .toList(),
+              ),
+              const SizedBox(height: 16),
+            ],
+            Text(
+              'Legacy-звіти',
+              style: Theme.of(
+                context,
+              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 8),
             Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 _ReportButton(
                   label: 'Список занять',
-                  icon: Icons.list_alt, // Змінити іконку
-                  onPressed: () =>
-                      _generateLessonsList(context), // Прибрати параметр period
+                  icon: Icons.list_alt,
+                  onPressed: () => _generateLessonsList(context),
                 ),
                 _ReportButton(
                   label: 'Календарна сітка',
@@ -869,6 +946,66 @@ class _ReportsCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _generateTemplateReport(
+    BuildContext context,
+    ReportTemplate template,
+  ) async {
+    await showQuickReportDialog(
+      context: context,
+      reportTitle: template.name,
+      onGenerate: (startDate, endDate) async {
+        try {
+          showDialog(
+            context: context,
+            barrierDismissible: false,
+            builder: (context) => const Dialog(
+              child: Padding(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Генерація звіту по шаблону...'),
+                  ],
+                ),
+              ),
+            ),
+          );
+
+          final report = await _reportTemplatesService.generateTemplateReport(
+            templateId: template.id,
+            useDraft: false,
+            startDate: startDate,
+            endDate: endDate,
+          );
+
+          if (context.mounted) {
+            Navigator.of(context).pop();
+          }
+
+          await Globals.fileManager.shareFileByData(
+            report.fileName,
+            report.bytes,
+          );
+
+          if (context.mounted) {
+            Globals.errorNotificationManager.showSuccess(
+              'Звіт "${template.name}" згенеровано!\nПеріод: ${DateFormat('dd.MM.yyyy').format(startDate)} - ${DateFormat('dd.MM.yyyy').format(endDate)}',
+            );
+          }
+        } catch (e) {
+          if (context.mounted) {
+            Navigator.of(context).pop();
+            Globals.errorNotificationManager.showError(
+              'Помилка генерації шаблонного звіту: ${e.toString()}',
+            );
+          }
+        }
+      },
     );
   }
 
@@ -899,7 +1036,7 @@ class _ReportsCard extends StatelessWidget {
           );
 
           // Використовуємо новий ReportsService
-          final data = await Globals.reportsService.generateReport(
+          final data = await widget.reportsService.generateReport(
             reportId: 'lessons_list',
             format: ReportFormat.excel,
             startDate: startDate,
@@ -913,7 +1050,7 @@ class _ReportsCard extends StatelessWidget {
           }
 
           // Отримуємо ім'я файлу
-          final fileName = Globals.reportsService.getReportFileName(
+          final fileName = widget.reportsService.getReportFileName(
             reportId: 'lessons_list',
             format: ReportFormat.excel,
             startDate: startDate,
@@ -966,7 +1103,7 @@ class _ReportsCard extends StatelessWidget {
           );
 
           // Використовуємо новий ReportsService
-          final data = await Globals.reportsService.generateReport(
+          final data = await widget.reportsService.generateReport(
             reportId: 'calendar_grid',
             format: ReportFormat.excel,
             startDate: startDate,
@@ -980,7 +1117,7 @@ class _ReportsCard extends StatelessWidget {
           }
 
           // Отримуємо ім'я файлу
-          final fileName = Globals.reportsService.getReportFileName(
+          final fileName = widget.reportsService.getReportFileName(
             reportId: 'calendar_grid',
             format: ReportFormat.excel,
             startDate: startDate,
