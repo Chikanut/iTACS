@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:hive_flutter/hive_flutter.dart';
 import '../globals.dart';
 import '../models/notification_preferences.dart';
 
@@ -148,27 +147,20 @@ class CurrentGroup {
 }
 
 class ProfileManager {
-  static const String _profileBoxName = 'user_profile';
-  static const String _currentGroupBoxName = 'current_group';
-
-  static const String _profileKey = 'profile_data';
-  static const String _currentGroupKey = 'current_group_data';
-
-  Box<dynamic>? _profileBox;
-  Box<dynamic>? _currentGroupBox;
-
   UserProfile _profile = UserProfile.empty;
   CurrentGroup? _currentGroup;
+  bool _initialized = false;
 
   /// Ініціалізація Hive боксів
   Future<void> initialize() async {
-    try {
-      _profileBox = await Hive.openBox(_profileBoxName);
-      _currentGroupBox = await Hive.openBox(_currentGroupBoxName);
+    if (_initialized) {
+      return;
+    }
 
-      // Завантажуємо збережені дані
+    try {
       await _loadProfileFromBox();
       await _loadCurrentGroupFromBox();
+      _initialized = true;
     } catch (e) {
       if (kDebugMode) {
         print('Помилка ініціалізації ProfileManager: $e');
@@ -238,6 +230,35 @@ class ProfileManager {
     }
   }
 
+  Future<void> saveBootstrappedProfile({
+    required Map<String, dynamic> userData,
+    required String email,
+    required String uid,
+    required List<String> groups,
+    required Map<String, String> rolesPerGroup,
+    DateTime? syncedAt,
+  }) async {
+    final updatedProfile = UserProfile(
+      firstName: userData['firstName'],
+      lastName: userData['lastName'],
+      rank: userData['rank'],
+      position: userData['position'],
+      phone: userData['phone'],
+      email: email,
+      uid: uid,
+      groups: groups,
+      rolesPerGroup: rolesPerGroup,
+      notificationPreferences: NotificationPreferences.fromMap(
+        userData['notificationPreferences'] is Map
+            ? Map<String, dynamic>.from(userData['notificationPreferences'])
+            : null,
+      ),
+      lastUpdated: syncedAt ?? DateTime.now(),
+    );
+
+    await _saveProfile(updatedProfile);
+  }
+
   /// Оновити особисті дані користувача
   Future<bool> updatePersonalInfo({
     String? firstName,
@@ -296,8 +317,7 @@ class ProfileManager {
 
       _currentGroup = newGroup;
 
-      // Зберігаємо в Hive
-      await _currentGroupBox?.put(_currentGroupKey, newGroup.toMap());
+      await Globals.appSnapshotStore.saveCurrentGroupMap(newGroup.toMap());
       await Globals.groupTemplatesService.ensureInitializedForCurrentGroup();
       if (kDebugMode) {
         print(
@@ -352,7 +372,7 @@ class ProfileManager {
   Future<void> clearCurrentGroup() async {
     try {
       _currentGroup = null;
-      await _currentGroupBox?.delete(_currentGroupKey);
+      await Globals.appSnapshotStore.clearCurrentGroupMap();
     } catch (e) {
       if (kDebugMode) {
         print('Помилка очищення поточної групи: $e');
@@ -365,9 +385,10 @@ class ProfileManager {
     try {
       _profile = UserProfile.empty;
       _currentGroup = null;
+      _initialized = false;
 
-      await _profileBox?.clear();
-      await _currentGroupBox?.clear();
+      await Globals.appSnapshotStore.clearProfileMap();
+      await Globals.appSnapshotStore.clearCurrentGroupMap();
     } catch (e) {
       if (kDebugMode) {
         print('Помилка очищення профілю: $e');
@@ -414,9 +435,9 @@ class ProfileManager {
   /// Завантажити профіль з Hive
   Future<void> _loadProfileFromBox() async {
     try {
-      final data = _profileBox?.get(_profileKey);
+      final data = Globals.appSnapshotStore.getProfileMap();
       if (data != null) {
-        _profile = UserProfile.fromMap(Map<String, dynamic>.from(data));
+        _profile = UserProfile.fromMap(data);
       }
     } catch (e) {
       if (kDebugMode) {
@@ -428,9 +449,9 @@ class ProfileManager {
   /// Завантажити поточну групу з Hive
   Future<void> _loadCurrentGroupFromBox() async {
     try {
-      final data = _currentGroupBox?.get(_currentGroupKey);
+      final data = Globals.appSnapshotStore.getCurrentGroupMap();
       if (data != null) {
-        _currentGroup = CurrentGroup.fromMap(Map<String, dynamic>.from(data));
+        _currentGroup = CurrentGroup.fromMap(data);
       }
     } catch (e) {
       if (kDebugMode) {
@@ -443,7 +464,7 @@ class ProfileManager {
   Future<void> _saveProfile(UserProfile profile) async {
     try {
       _profile = profile;
-      await _profileBox?.put(_profileKey, profile.toMap());
+      await Globals.appSnapshotStore.saveProfileMap(profile.toMap());
     } catch (e) {
       if (kDebugMode) {
         print('Помилка збереження профілю у Hive: $e');
@@ -453,14 +474,7 @@ class ProfileManager {
 
   /// Закрити Hive бокси
   Future<void> dispose() async {
-    try {
-      await _profileBox?.close();
-      await _currentGroupBox?.close();
-    } catch (e) {
-      if (kDebugMode) {
-        print('Помилка закриття Hive боксів: $e');
-      }
-    }
+    _initialized = false;
   }
 
   @override

@@ -1,5 +1,7 @@
 // lib/pages/calendar_page/widgets/calendar_grid.dart
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../models/calendar_view_type.dart';
 import '../models/calendar_filters.dart';
@@ -45,7 +47,8 @@ class _CalendarGridState extends State<CalendarGrid> {
   @override
   void initState() {
     super.initState();
-    _loadLessons();
+    _hydrateCachedLessons();
+    unawaited(_loadLessons());
   }
 
   @override
@@ -54,12 +57,14 @@ class _CalendarGridState extends State<CalendarGrid> {
     if (oldWidget.selectedDate != widget.selectedDate ||
         oldWidget.viewType != widget.viewType ||
         oldWidget.filters != widget.filters) {
-      _loadLessons();
+      _hydrateCachedLessons();
+      unawaited(_loadLessons());
     }
   }
 
   Future<void> _loadLessons() async {
-    setState(() => _isLoading = true);
+    final shouldShowBlockingLoader = _lessons.isEmpty;
+    setState(() => _isLoading = shouldShowBlockingLoader);
 
     try {
       List<LessonModel> lessons;
@@ -118,6 +123,51 @@ class _CalendarGridState extends State<CalendarGrid> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  void _hydrateCachedLessons() {
+    final range = _resolveRequestedRange();
+    final cachedLessons = _calendarService.getCachedLessonsForPeriod(
+      startDate: range.start,
+      endDate: range.end,
+    );
+    if (cachedLessons.isEmpty) {
+      return;
+    }
+
+    final filteredLessons = _applyFilters(cachedLessons);
+    setState(() {
+      _lessons = filteredLessons;
+      if (filteredLessons.isNotEmpty) {
+        _minHour = CalendarUtils.getMinHourFromLessons(filteredLessons);
+        _maxHour = CalendarUtils.getMaxHourFromLessons(filteredLessons);
+      } else {
+        _minHour = 8.0;
+        _maxHour = 20.0;
+      }
+      _isLoading = false;
+    });
+  }
+
+  ({DateTime start, DateTime end}) _resolveRequestedRange() {
+    switch (widget.viewType) {
+      case CalendarViewType.day:
+      case CalendarViewType.week:
+        return (
+          start: CalendarUtils.getStartOfWeek(widget.selectedDate),
+          end: CalendarUtils.getEndOfWeek(widget.selectedDate),
+        );
+      case CalendarViewType.month:
+        return (
+          start: CalendarUtils.getStartOfMonth(widget.selectedDate),
+          end: CalendarUtils.getEndOfMonth(widget.selectedDate),
+        );
+      case CalendarViewType.year:
+        return (
+          start: DateTime(widget.selectedDate.year, 1, 1),
+          end: DateTime(widget.selectedDate.year, 12, 31),
+        );
     }
   }
 

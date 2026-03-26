@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../../../globals.dart';
-import '../../../mixins/loading_state_mixin.dart';
-import '../../../widgets/loading_indicator.dart';
+import '../../globals.dart';
+import '../../mixins/loading_state_mixin.dart';
+import '../../services/tools_service.dart';
+import '../../widgets/loading_indicator.dart';
 import 'tool_dialog.dart';
 import 'tool_tile.dart';
 
@@ -128,6 +131,7 @@ class ToolsPage extends StatefulWidget {
 }
 
 class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
+  final ToolsService _toolsService = ToolsService();
   List<String> pathStack = ['root'];
   List<Map<String, dynamic>> pathMeta = [];
   List<Map<String, dynamic>> currentItems = [];
@@ -137,7 +141,8 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
   @override
   void initState() {
     super.initState();
-    fetchItems();
+    _hydrateCachedItems();
+    unawaited(fetchItems());
   }
 
   @override
@@ -156,19 +161,14 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
 
         if (groupId == null) return;
 
-        final docs = await Globals.firestoreManager.getDocumentsForGroup(
+        final items = await _toolsService.getItems(
           groupId: groupId,
-          collection: 'tools_by_group',
-          whereEqual: {'parentId': parentId},
-          orderBy: 'modifiedAt',
+          parentId: parentId,
+          forceRefresh: true,
         );
 
         if (mounted) {
-          setState(() {
-            currentItems = docs
-                .map((d) => {...d.data() as Map<String, dynamic>, 'id': d.id})
-                .toList();
-          });
+          setState(() => currentItems = items);
 
           debugPrint('[tools] documents loaded: ${currentItems.length}');
         }
@@ -183,13 +183,41 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
     }
   }
 
+  void _hydrateCachedItems() {
+    final groupId = Globals.profileManager.currentGroupId;
+    if (groupId == null) {
+      return;
+    }
+
+    final cachedItems = _toolsService.getCachedItems(
+      groupId: groupId,
+      parentId: pathStack.last,
+    );
+    if (cachedItems.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      currentItems = cachedItems;
+    });
+  }
+
   Future<void> navigateToFolder(String folderId) async {
     try {
       await withLoading('navigate', () async {
         pathStack.add(folderId);
+        Map<String, dynamic>? currentFolder;
+        for (final item in currentItems) {
+          if (item['id'] == folderId) {
+            currentFolder = item;
+            break;
+          }
+        }
+        final fallbackTitle =
+            (currentFolder?['title'] as String?) ?? 'Невідома папка';
 
         final groupId = Globals.profileManager.currentGroupId;
-        if (groupId != null) {
+        if (groupId != null && !Globals.appRuntimeState.isReadOnlyOffline) {
           final snapshot = await FirebaseFirestore.instance
               .collection('tools_by_group')
               .doc(groupId)
@@ -200,10 +228,13 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
           if (snapshot.exists) {
             pathMeta.add({'id': folderId, 'title': snapshot['title']});
           } else {
-            pathMeta.add({'id': folderId, 'title': 'Невідома папка'});
+            pathMeta.add({'id': folderId, 'title': fallbackTitle});
           }
+        } else {
+          pathMeta.add({'id': folderId, 'title': fallbackTitle});
         }
 
+        _hydrateCachedItems();
         await fetchItems();
       });
     } catch (e) {
@@ -217,7 +248,8 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
     if (pathStack.length > 1) {
       pathStack.removeLast();
       pathMeta.removeLast();
-      fetchItems();
+      _hydrateCachedItems();
+      unawaited(fetchItems());
     }
   }
 
@@ -516,7 +548,9 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
       );
     }
 
-    final isAdmin = Globals.profileManager.currentRole != 'viewer';
+    final isReadOnlyOffline = Globals.appRuntimeState.isReadOnlyOffline;
+    final isAdmin =
+        !isReadOnlyOffline && Globals.profileManager.currentRole != 'viewer';
 
     return Center(
       child: Column(
@@ -529,14 +563,18 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
           ),
           const SizedBox(height: 16),
           Text(
-            'Інструменти відсутні',
+            isReadOnlyOffline
+                ? 'Офлайн-копія інструментів відсутня'
+                : 'Інструменти відсутні',
             style: Theme.of(
               context,
             ).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
           ),
           const SizedBox(height: 8),
           Text(
-            'Додайте перший інструмент або папку',
+            isReadOnlyOffline
+                ? 'Під час наступного онлайн-сеансу каталог буде збережено для швидкого відкриття.'
+                : 'Додайте перший інструмент або папку',
             style: Theme.of(
               context,
             ).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
@@ -556,8 +594,11 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final isAdmin = Globals.profileManager.currentRole != 'viewer';
+    final isAdmin =
+        !Globals.appRuntimeState.isReadOnlyOffline &&
+        Globals.profileManager.currentRole != 'viewer';
     final isNavigating = isLoading('navigate');
+    final showBlockingLoader = isLoading('fetch') && currentItems.isEmpty;
 
     return Scaffold(
       appBar: AppBar(title: const Text("Інструменти")),
@@ -568,7 +609,7 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
           _buildStatsInfo(),
 
           Expanded(
-            child: isLoading('fetch')
+            child: showBlockingLoader
                 ? const Center(
                     child: LoadingIndicator(
                       message: 'Завантаження інструментів...',

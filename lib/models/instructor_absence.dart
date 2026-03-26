@@ -223,6 +223,27 @@ class InstructorAbsence {
     };
   }
 
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'instructorId': instructorId,
+      'instructorName': instructorName,
+      'instructorEmail': instructorEmail,
+      'type': type.value,
+      'startDate': startDate.toIso8601String(),
+      'endDate': endDate.toIso8601String(),
+      'reason': reason,
+      'documentNumber': documentNumber,
+      'status': status.value,
+      'creationType': creationType.value,
+      'assignmentDetails': assignmentDetails?.toMap(),
+      'createdAt': createdAt.toIso8601String(),
+      'createdBy': createdBy,
+      'modifiedAt': modifiedAt?.toIso8601String(),
+      'affectedLessons': affectedLessons,
+    };
+  }
+
   factory InstructorAbsence.fromFirestore(
     Map<String, dynamic> data,
     String id,
@@ -252,6 +273,37 @@ class InstructorAbsence {
           ? (data['modifiedAt'] as Timestamp).toDate()
           : null,
       affectedLessons: List<String>.from(data['affectedLessons'] ?? []),
+    );
+  }
+
+  factory InstructorAbsence.fromMap(Map<String, dynamic> data) {
+    return InstructorAbsence(
+      id: (data['id'] ?? '').toString(),
+      instructorId: (data['instructorId'] ?? '').toString(),
+      instructorName: (data['instructorName'] ?? '').toString(),
+      instructorEmail: (data['instructorEmail'] ?? '').toString(),
+      type: AbsenceType.fromString((data['type'] ?? 'sick_leave').toString()),
+      startDate: DateTime.parse(data['startDate'].toString()),
+      endDate: DateTime.parse(data['endDate'].toString()),
+      reason: (data['reason'] ?? '').toString(),
+      documentNumber: data['documentNumber']?.toString(),
+      status: AbsenceStatus.fromString(
+        (data['status'] ?? 'pending').toString(),
+      ),
+      creationType: CreationType.fromString(
+        (data['creationType'] ?? 'user_request').toString(),
+      ),
+      assignmentDetails: data['assignmentDetails'] is Map
+          ? AssignmentDetails.fromMap(
+              Map<String, dynamic>.from(data['assignmentDetails']),
+            )
+          : null,
+      createdAt: DateTime.parse(data['createdAt'].toString()),
+      createdBy: (data['createdBy'] ?? '').toString(),
+      modifiedAt: data['modifiedAt'] != null
+          ? DateTime.parse(data['modifiedAt'].toString())
+          : null,
+      affectedLessons: List<String>.from(data['affectedLessons'] ?? const []),
     );
   }
 

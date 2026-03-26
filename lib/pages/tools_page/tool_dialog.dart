@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../globals.dart';
+import '../../globals.dart';
 import 'tools_page.dart';
-import '../../../mixins/loading_state_mixin.dart';
-import '../../../widgets/loading_indicator.dart';
+import '../../mixins/loading_state_mixin.dart';
+import '../../widgets/loading_indicator.dart';
 
 class ToolDialog extends StatefulWidget {
   final bool isEditing;

@@ -547,7 +547,9 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton.icon(
-              onPressed: _isLoading ? null : _acknowledgeLesson,
+              onPressed: _isLoading || _isReadOnlyOffline
+                  ? null
+                  : _acknowledgeLesson,
               icon: _isLoading
                   ? const SizedBox(
                       width: 16,
@@ -570,7 +572,9 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: _isLoading ? null : () => _takeLesson(),
+                onPressed: _isLoading || _isReadOnlyOffline
+                    ? null
+                    : () => _takeLesson(),
                 icon: _isLoading
                     ? const SizedBox(
                         width: 16,
@@ -589,7 +593,9 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
             SizedBox(
               width: double.infinity,
               child: OutlinedButton.icon(
-                onPressed: _isLoading ? null : () => _releaseLesson(),
+                onPressed: _isLoading || _isReadOnlyOffline
+                    ? null
+                    : () => _releaseLesson(),
                 icon: _isLoading
                     ? const SizedBox(
                         width: 16,
@@ -669,16 +675,19 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   }
 
   bool _canManageOwnInstructorAssignment() {
-    return !_canAssignOthers() && Globals.firebaseAuth.currentUser != null;
+    return !_isReadOnlyOffline &&
+        !_canAssignOthers() &&
+        Globals.firebaseAuth.currentUser != null;
   }
 
   bool _canEditCustomFieldValues() {
-    return Globals.profileManager.isCurrentGroupEditor ||
-        _calendarService.isUserInstructorForLesson(_lesson);
+    return !_isReadOnlyOffline &&
+        (Globals.profileManager.isCurrentGroupEditor ||
+            _calendarService.isUserInstructorForLesson(_lesson));
   }
 
   bool _canAssignOthers() {
-    return Globals.profileManager.currentRole == 'admin';
+    return !_isReadOnlyOffline && Globals.profileManager.currentRole == 'admin';
   }
 
   Future<void> _loadAssignableInstructors() async {
@@ -702,6 +711,10 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   }
 
   Future<void> _takeLesson() async {
+    if (_showOfflineWriteUnavailable()) {
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -735,6 +748,10 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   }
 
   Future<void> _releaseLesson() async {
+    if (_showOfflineWriteUnavailable()) {
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -767,6 +784,10 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   }
 
   Future<void> _showAssignInstructorDialog() async {
+    if (_showOfflineWriteUnavailable()) {
+      return;
+    }
+
     if (_availableInstructors.isEmpty) {
       await _loadAssignableInstructors();
     }
@@ -890,6 +911,10 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   }
 
   void _createLessonAtThisTime() {
+    if (_showOfflineWriteUnavailable()) {
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) => LessonFormDialog(
@@ -907,10 +932,14 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   }
 
   bool _canEditLesson() {
-    return Globals.profileManager.isCurrentGroupEditor;
+    return !_isReadOnlyOffline && Globals.profileManager.isCurrentGroupEditor;
   }
 
   Future<void> _registerForLesson() async {
+    if (_showOfflineWriteUnavailable()) {
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -942,6 +971,10 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   }
 
   Future<void> _unregisterFromLesson() async {
+    if (_showOfflineWriteUnavailable()) {
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -971,6 +1004,10 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   }
 
   void _editLesson() {
+    if (_showOfflineWriteUnavailable()) {
+      return;
+    }
+
     Navigator.of(context).pop(); // Закриваємо поточний діалог
     showDialog(
       context: context,
@@ -984,6 +1021,10 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   }
 
   void _duplicateLesson() {
+    if (_showOfflineWriteUnavailable()) {
+      return;
+    }
+
     Navigator.of(context).pop();
     showDialog(
       context: context,
@@ -1026,6 +1067,10 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   }
 
   void _deleteLesson() {
+    if (_showOfflineWriteUnavailable()) {
+      return;
+    }
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -1138,6 +1183,10 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   }
 
   Future<void> _editCustomFieldValues() async {
+    if (_showOfflineWriteUnavailable()) {
+      return;
+    }
+
     final values = await showCustomFieldValuesDialog(
       context,
       title: 'Поля для заповнення',
@@ -1194,6 +1243,10 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   }
 
   Future<void> _acknowledgeLesson() async {
+    if (_showOfflineWriteUnavailable()) {
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
@@ -1241,5 +1294,23 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
     }
 
     return candidates;
+  }
+
+  bool get _isReadOnlyOffline => Globals.appRuntimeState.isReadOnlyOffline;
+
+  bool _showOfflineWriteUnavailable() {
+    if (!_isReadOnlyOffline || !mounted) {
+      return false;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text(
+          'Ця дія недоступна без інтернету. Зараз відкрито read-only offline режим.',
+        ),
+        backgroundColor: Colors.orange,
+      ),
+    );
+    return true;
   }
 }

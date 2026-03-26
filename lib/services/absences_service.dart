@@ -7,6 +7,22 @@ import '../globals.dart';
 class AbsencesService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  List<InstructorAbsence> getCachedCurrentUserAbsences() {
+    final snapshot = Globals.appSnapshotStore.getCachedSnapshot(
+      _currentUserAbsencesCacheKey(),
+    );
+    final data = snapshot?.data;
+    if (data is! List) {
+      return const [];
+    }
+
+    return data
+        .map(
+          (item) => InstructorAbsence.fromMap(Map<String, dynamic>.from(item)),
+        )
+        .toList(growable: false);
+  }
+
   /// Створити запит на відсутність (користувач)
   Future<bool> createAbsenceRequest({
     required AbsenceType type,
@@ -208,11 +224,21 @@ class AbsencesService {
     final startOfMonth = DateTime(now.year, now.month, 1);
     final endOfMonth = DateTime(now.year, now.month + 1, 0);
 
-    return getAbsencesForPeriod(
-      startDate: startOfMonth,
-      endDate: endOfMonth,
-      instructorId: currentUser.uid,
-    );
+    try {
+      final absences = await getAbsencesForPeriod(
+        startDate: startOfMonth,
+        endDate: endOfMonth,
+        instructorId: currentUser.uid,
+      );
+      await Globals.appSnapshotStore.saveCachedSnapshot(
+        _currentUserAbsencesCacheKey(),
+        absences.map((absence) => absence.toMap()).toList(),
+      );
+      return absences;
+    } catch (e) {
+      debugPrint('AbsencesService: fallback to cached absences due to $e');
+      return getCachedCurrentUserAbsences();
+    }
   }
 
   /// Отримати відсутності на конкретну дату
@@ -412,5 +438,14 @@ class AbsencesService {
     if (!success) {
       throw Exception('Не вдалося оновити статус відсутності');
     }
+  }
+
+  String _currentUserAbsencesCacheKey() {
+    final groupId = Globals.profileManager.currentGroupId ?? 'no-group';
+    final userScope =
+        Globals.profileManager.currentUserEmail ??
+        Globals.profileManager.currentUserId ??
+        'anonymous';
+    return 'cache::absences::$groupId::$userScope';
   }
 }

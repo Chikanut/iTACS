@@ -65,6 +65,22 @@ class GroupNotification {
     };
   }
 
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'groupId': groupId,
+      'title': title,
+      'message': message,
+      'type': type.value,
+      'createdAt': createdAt.toIso8601String(),
+      'expiresAt': expiresAt.toIso8601String(),
+      'createdBy': createdBy,
+      'targetUserId': targetUserId,
+      'relatedAbsenceId': relatedAbsenceId,
+      'relatedAbsenceCreationType': relatedAbsenceCreationType,
+    };
+  }
+
   factory GroupNotification.fromFirestore(
     Map<String, dynamic> data,
     String id,
@@ -83,6 +99,25 @@ class GroupNotification {
       targetUserId: data['targetUserId'],
       relatedAbsenceId: data['relatedAbsenceId'],
       relatedAbsenceCreationType: data['relatedAbsenceCreationType'],
+    );
+  }
+
+  factory GroupNotification.fromMap(Map<String, dynamic> data) {
+    return GroupNotification(
+      id: (data['id'] ?? '').toString(),
+      groupId: (data['groupId'] ?? '').toString(),
+      title: (data['title'] ?? '').toString(),
+      message: (data['message'] ?? '').toString(),
+      type: GroupNotificationType.fromString(
+        (data['type'] ?? GroupNotificationType.announcement.value).toString(),
+      ),
+      createdAt: DateTime.parse(data['createdAt'].toString()),
+      expiresAt: DateTime.parse(data['expiresAt'].toString()),
+      createdBy: (data['createdBy'] ?? '').toString(),
+      targetUserId: data['targetUserId']?.toString(),
+      relatedAbsenceId: data['relatedAbsenceId']?.toString(),
+      relatedAbsenceCreationType: data['relatedAbsenceCreationType']
+          ?.toString(),
     );
   }
 

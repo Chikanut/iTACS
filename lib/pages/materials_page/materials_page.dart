@@ -1,11 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'material_tile.dart';
 import 'material_dialogs.dart';
 
-import '../../../globals.dart';
-import '../../../mixins/loading_state_mixin.dart';
-import '../../../widgets/loading_indicator.dart';
+import '../../globals.dart';
+import '../../mixins/loading_state_mixin.dart';
+import '../../services/materials_service.dart';
+import '../../widgets/loading_indicator.dart';
 
 class MaterialsPage extends StatefulWidget {
   const MaterialsPage({super.key});
@@ -15,6 +18,7 @@ class MaterialsPage extends StatefulWidget {
 }
 
 class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
+  final MaterialsService _materialsService = MaterialsService();
   List<Map<String, dynamic>> materials = [];
   List<String> selectedTags = [];
   Set<String> allTags = {};
@@ -30,7 +34,8 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
   @override
   void initState() {
     super.initState();
-    fetchMaterials();
+    _hydrateCachedMaterials();
+    unawaited(fetchMaterials());
   }
 
   @override
@@ -43,30 +48,14 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
   Future<void> fetchMaterials() async {
     try {
       await withLoading('fetch_materials', () async {
-        final user = Globals.firebaseAuth.currentUser;
-        if (user == null) return;
-
-        final email = user.email!;
-        final userData = await Globals.firestoreManager.getOrCreateUserData();
-        if (userData == null) return;
-
         final groupId = Globals.profileManager.currentGroupId;
         if (groupId == null) return;
 
-        final docs = await Globals.firestoreManager.getDocumentsForGroup(
+        final data = await _materialsService.getMaterials(
           groupId: groupId,
-          collection: 'materials',
+          forceRefresh: true,
         );
-        final data = docs.map((doc) {
-          final d = doc.data() as Map<String, dynamic>;
-          d['id'] = doc.id;
-          return d;
-        }).toList();
-
-        final roles = await Globals.firestoreManager.getUserRolesPerGroup(
-          email,
-        );
-        final currentUserRole = roles[groupId] ?? 'viewer';
+        final currentUserRole = Globals.profileManager.currentRole ?? 'viewer';
 
         // Збираємо всі теги і сортуємо за популярністю
         final tagCounts = <String, int>{};
@@ -85,7 +74,9 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
             materials = data;
             allTags = sortedTags.map((e) => e.key).toSet();
             userRole = currentUserRole;
-            canEdit = currentUserRole == 'admin' || currentUserRole == 'editor';
+            canEdit =
+                !Globals.appRuntimeState.isReadOnlyOffline &&
+                (currentUserRole == 'admin' || currentUserRole == 'editor');
           });
         }
       });
@@ -96,6 +87,40 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
         );
       }
     }
+  }
+
+  void _hydrateCachedMaterials() {
+    final groupId = Globals.profileManager.currentGroupId;
+    if (groupId == null) {
+      return;
+    }
+
+    final cachedMaterials = _materialsService.getCachedMaterials(
+      groupId: groupId,
+    );
+    if (cachedMaterials.isEmpty) {
+      return;
+    }
+
+    final tagCounts = <String, int>{};
+    for (final item in cachedMaterials) {
+      final tagsList = List<String>.from(item['tags'] ?? const []);
+      for (final tag in tagsList) {
+        tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
+      }
+    }
+
+    final sortedTags = tagCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    setState(() {
+      materials = cachedMaterials;
+      allTags = sortedTags.map((entry) => entry.key).toSet();
+      userRole = Globals.profileManager.currentRole ?? 'viewer';
+      canEdit =
+          !Globals.appRuntimeState.isReadOnlyOffline &&
+          (userRole == 'admin' || userRole == 'editor');
+    });
   }
 
   void toggleTag(String tag) {
@@ -321,6 +346,12 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final canEditNow =
+        !Globals.appRuntimeState.isReadOnlyOffline &&
+        (userRole == 'admin' || userRole == 'editor');
+    final showBlockingLoader =
+        isLoading('fetch_materials') && materials.isEmpty;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Методичні матеріали')),
       body: Column(
@@ -331,7 +362,7 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
 
           // Список матеріалів
           Expanded(
-            child: isLoading('fetch_materials')
+            child: showBlockingLoader
                 ? const Center(
                     child: LoadingIndicator(
                       message: 'Завантаження матеріалів...',
@@ -354,14 +385,14 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
                               material: filteredMaterials[index],
                               onRefresh: fetchMaterials,
                               isWeb: kIsWeb,
-                              userRole: userRole,
+                              userRole: canEditNow ? userRole : 'viewer',
                             ),
                           ),
                   ),
           ),
         ],
       ),
-      floatingActionButton: canEdit
+      floatingActionButton: canEditNow
           ? FloatingActionButton(
               onPressed: () => showAddMaterialDialog(context, fetchMaterials),
               tooltip: 'Додати матеріал',
@@ -372,6 +403,11 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
   }
 
   Widget _buildEmptyState() {
+    final canEditNow =
+        !Globals.appRuntimeState.isReadOnlyOffline &&
+        (userRole == 'admin' || userRole == 'editor');
+    final isReadOnlyOffline = Globals.appRuntimeState.isReadOnlyOffline;
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -386,7 +422,9 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
             const SizedBox(height: 16),
             Text(
               materials.isEmpty
-                  ? 'Матеріали відсутні'
+                  ? isReadOnlyOffline
+                        ? 'Офлайн-копія матеріалів відсутня'
+                        : 'Матеріали відсутні'
                   : hasActiveFilters
                   ? 'Нічого не знайдено'
                   : 'Матеріали не завантажилися',
@@ -397,7 +435,9 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
             const SizedBox(height: 8),
             Text(
               materials.isEmpty
-                  ? 'Додайте перший методичний матеріал'
+                  ? isReadOnlyOffline
+                        ? 'Під час наступного онлайн-сеансу матеріали збережуться для швидкого відкриття.'
+                        : 'Додайте перший методичний матеріал'
                   : hasActiveFilters
                   ? 'Спробуйте змінити критерії пошуку'
                   : 'Потягніть вниз для оновлення',
@@ -414,7 +454,7 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
                 label: const Text('Очистити фільтри'),
               ),
             ],
-            if (materials.isEmpty && canEdit) ...[
+            if (materials.isEmpty && canEditNow) ...[
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: () => showAddMaterialDialog(context, fetchMaterials),

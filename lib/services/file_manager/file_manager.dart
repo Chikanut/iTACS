@@ -1,5 +1,6 @@
 // file_manager.dart
 
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_application_1/services/file_manager/file_metadata_service.dart';
 import 'dart:convert';
@@ -22,23 +23,11 @@ class FileManager {
   late final FileOpener _fileOpenerService;
   late final FileSharer _fileSharerService;
 
-  static FileManager? _instance;
+  Future<void>? _initializationFuture;
+  bool _isReady = false;
 
-  static Future<FileManager> create({required AuthService authService}) async {
-    final manager = FileManager._internal(authService: authService);
-    await manager._cacheService.init();
-    _instance = manager;
-    return manager;
-  }
-
-  factory FileManager({required AuthService authService}) {
-    if (_instance != null) {
-      return _instance!;
-    }
-    throw Exception(
-      'FileManager must be initialized using FileManager.create()',
-    );
-  }
+  factory FileManager({required AuthService authService}) =>
+      FileManager._internal(authService: authService);
 
   FileManager._internal({required AuthService authService}) {
     _metadataService = FileMetadataService(authService: authService);
@@ -49,12 +38,25 @@ class FileManager {
     );
     _fileOpenerService = FileOpener();
     _fileSharerService = FileSharer();
+  }
 
-    cleanupCache();
+  Future<void> ensureReady() {
+    return _initializationFuture ??= _initialize();
+  }
+
+  void warmUp() {
+    unawaited(ensureReady());
+  }
+
+  Future<void> _initialize() async {
+    await _cacheService.init();
+    _isReady = true;
+    await _cleanupCacheInternal();
   }
 
   /// Головна функція відкриття файлу
   Future<void> openFile(String fileId) async {
+    await ensureReady();
     try {
       debugPrint('FileManager: Відкриття файлу $fileId');
 
@@ -93,6 +95,7 @@ class FileManager {
   }
 
   Future<Uint8List?> cacheFile(String fileId) async {
+    await ensureReady();
     try {
       debugPrint('FileManager: Кешування файлу $fileId');
 
@@ -166,6 +169,7 @@ class FileManager {
 
   /// Завантажує файл з оптимізованою логікою
   Future<Uint8List?> loadFile(String fileId) async {
+    await ensureReady();
     try {
       // Спочатку перевіряємо кеш
       if (await _cacheService.isCached(fileId)) {
@@ -187,6 +191,7 @@ class FileManager {
   }
 
   Future<bool> shouldRefreshFile(String fileId) async {
+    await ensureReady();
     try {
       // Отримуємо метадані
       final metadata = await _metadataService.getFileMetadata(fileId);
@@ -212,6 +217,7 @@ class FileManager {
 
   /// Перевіряє актуальність файлу та оновлює при необхідності
   Future<bool> refreshFileIfNeeded(String fileId) async {
+    await ensureReady();
     try {
       final shouldUpdate = await shouldRefreshFile(fileId);
 
@@ -246,6 +252,7 @@ class FileManager {
 
   /// Примусово оновлює файл з Google Drive
   Future<bool> forceRefreshFile(String fileId) async {
+    await ensureReady();
     try {
       debugPrint('FileManager: Примусове оновлення файлу $fileId');
 
@@ -281,6 +288,7 @@ class FileManager {
 
   /// Пакетне кешування файлів
   Future<List<String>> cacheMultipleFiles(List<String> fileIds) async {
+    await ensureReady();
     final successfullycached = <String>[];
 
     for (final fileId in fileIds) {
@@ -301,6 +309,7 @@ class FileManager {
 
   /// Попереднє завантаження файлів
   Future<void> preloadFiles(List<String> fileIds) async {
+    await ensureReady();
     debugPrint(
       'FileManager: Починаємо попереднє завантаження ${fileIds.length} файлів',
     );
@@ -362,6 +371,7 @@ class FileManager {
   }
 
   Future<Map<String, dynamic>> getFileStatus(String fileId) async {
+    await ensureReady();
     try {
       final isCached = await this.isCached(fileId);
       final metadata = _cacheService.getFileMetadata(fileId);
@@ -384,11 +394,13 @@ class FileManager {
 
   /// Перевіряє, чи файл доступний локально
   Future<bool> isFileAvailable(String fileId) async {
+    await ensureReady();
     return await _cacheService.isCached(fileId);
   }
 
   /// Видаляє файл з кешу
   Future<void> removeFileFromCache(String fileId) async {
+    await ensureReady();
     await _cacheService.removeCachedFile(fileId);
     debugPrint('FileManager: Файл $fileId видалено з кешу');
   }
@@ -397,6 +409,19 @@ class FileManager {
   Future<void> cleanupCache({
     Duration maxAge = const Duration(days: 30),
     int maxSizeBytes = 100 * 1024 * 1024, // 100MB
+    List<String> importantFileIds = const [],
+  }) async {
+    await ensureReady();
+    await _cleanupCacheInternal(
+      maxAge: maxAge,
+      maxSizeBytes: maxSizeBytes,
+      importantFileIds: importantFileIds,
+    );
+  }
+
+  Future<void> _cleanupCacheInternal({
+    Duration maxAge = const Duration(days: 30),
+    int maxSizeBytes = 100 * 1024 * 1024,
     List<String> importantFileIds = const [],
   }) async {
     debugPrint('FileManager: Починаємо очищення кешу');
@@ -443,6 +468,7 @@ class FileManager {
   }
 
   Future<FileCacheEntry> getFileMetadata(String fileId) async {
+    await ensureReady();
     var metadata = _cacheService.getFileMetadata(fileId);
     if (metadata == null) {
       metadata = await _metadataService.getFileMetadata(fileId);
@@ -458,6 +484,7 @@ class FileManager {
 
   /// Поділитися файлом
   Future<void> shareFile(String fileId) async {
+    await ensureReady();
     final (bytes, name) = await _cacheService.getCachedFile(fileId);
     if (bytes == null || name == null) {
       throw FileAccessException(
@@ -470,19 +497,36 @@ class FileManager {
 
   /// Поділитися файлом безпосередньо по даті та імені
   Future<void> shareFileByData(String fileName, Uint8List data) async {
+    await ensureReady();
     await FileSharer().shareFile(data, fileName);
   }
 
   /// Перевірка наявності файлу в кеші
-  Future<bool> isCached(String fileId) async =>
-      await _cacheService.isCached(fileId);
+  Future<bool> isCached(String fileId) async {
+    await ensureReady();
+    return _cacheService.isCached(fileId);
+  }
 
   /// Очищення кешу
-  Future<void> clearCache() async => await _cacheService.clearCache();
+  Future<void> clearCache() async {
+    await ensureReady();
+    await _cacheService.clearCache();
+  }
 
   /// Видалення одного файлу з кешу
-  Future<void> removeFromCache(String fileId) async =>
-      await _cacheService.removeCachedFile(fileId);
+  Future<void> removeFromCache(String fileId) async {
+    await ensureReady();
+    await _cacheService.removeCachedFile(fileId);
+  }
+
+  Future<void> clearCacheIfInitialized() async {
+    if (!_isReady && _initializationFuture == null) {
+      return;
+    }
+
+    await ensureReady();
+    await _cacheService.clearCache();
+  }
 
   String? extractFileId(String url) {
     final RegExp pattern = RegExp(

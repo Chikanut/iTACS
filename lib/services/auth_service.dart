@@ -96,12 +96,14 @@ class AuthService {
         _tokenExpirationTime = DateTime.now().add(const Duration(hours: 1));
         await _saveSignInState(true);
       } else if (firebaseUser == null) {
-        debugPrint('⚠️ Тихий вхід не вдався, користувач має увійти знову');
-        await _saveSignInState(false);
+        debugPrint(
+          '⚠️ Тихий вхід не вдався, але локальний marker входу збережено',
+        );
       }
     } catch (e) {
       debugPrint('🚫 Помилка відновлення авторизації: $e');
-      if (Globals.firebaseAuth.currentUser == null) {
+      if (Globals.firebaseAuth.currentUser == null &&
+          !(await AuthService.isSignedIn())) {
         await _saveSignInState(false);
       }
     }
@@ -127,7 +129,6 @@ class AuthService {
 
       if (account == null) {
         debugPrint('🛑 Користувач не авторизований');
-        await _saveSignInState(false);
         return null;
       }
 
@@ -144,7 +145,6 @@ class AuthService {
         account = await _googleSignInWithDrive.signIn();
 
         if (account == null) {
-          await _saveSignInState(false);
           return null;
         }
 
@@ -164,7 +164,6 @@ class AuthService {
       return _cachedAccessToken;
     } catch (e) {
       debugPrint('🚫 Помилка отримання AccessToken: $e');
-      await _saveSignInState(false);
       return null;
     }
   }
@@ -190,8 +189,8 @@ class AuthService {
       await Globals.pushNotificationsService.handleSignOut();
       await _googleSignInWithDrive.signOut();
       await Globals.firebaseAuth.signOut();
-      await Globals.profileManager.clearProfile();
       await _saveSignInState(false);
+      await Globals.clearLocalUserState();
 
       // Очищаємо кеш
       _cachedAccessToken = null;

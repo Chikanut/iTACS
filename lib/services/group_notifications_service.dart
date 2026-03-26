@@ -8,6 +8,22 @@ import '../models/instructor_absence.dart';
 class GroupNotificationsService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  List<GroupNotification> getCachedNotificationsForCurrentUser() {
+    final snapshot = Globals.appSnapshotStore.getCachedSnapshot(
+      _notificationsCacheKey(),
+    );
+    final data = snapshot?.data;
+    if (data is! List) {
+      return const [];
+    }
+
+    return data
+        .map(
+          (item) => GroupNotification.fromMap(Map<String, dynamic>.from(item)),
+        )
+        .toList(growable: false);
+  }
+
   Future<String?> createGroupAnnouncement({
     required String title,
     required String message,
@@ -120,10 +136,14 @@ class GroupNotificationsService {
           )
           .toList();
 
+      await Globals.appSnapshotStore.saveCachedSnapshot(
+        _notificationsCacheKey(),
+        notifications.map((notification) => notification.toMap()).toList(),
+      );
       return notifications;
     } catch (e) {
       debugPrint('GroupNotificationsService: Помилка завантаження: $e');
-      return [];
+      return getCachedNotificationsForCurrentUser();
     }
   }
 
@@ -209,5 +229,14 @@ class GroupNotificationsService {
     );
 
     await _createNotification(notification);
+  }
+
+  String _notificationsCacheKey() {
+    final groupId = Globals.profileManager.currentGroupId ?? 'no-group';
+    final userScope =
+        Globals.profileManager.currentUserEmail ??
+        Globals.profileManager.currentUserId ??
+        'anonymous';
+    return 'cache::notifications::$groupId::$userScope';
   }
 }

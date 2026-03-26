@@ -13,18 +13,26 @@ class FileCacheService {
   late Box<FileCacheEntry> _metadataBox;
   late Box<String>
   _fileDataBox; // Файли зберігаються як Base64 на всіх платформах
+  bool _initialized = false;
 
   FileCacheService._internal();
 
   Future<void> init() async {
-    await Hive.initFlutter();
+    if (_initialized) {
+      return;
+    }
 
     if (!Hive.isAdapterRegistered(0)) {
       Hive.registerAdapter(FileCacheEntryAdapter());
     }
 
-    _metadataBox = await Hive.openBox<FileCacheEntry>('file_metadata');
-    _fileDataBox = await Hive.openBox<String>('file_data');
+    _metadataBox = Hive.isBoxOpen('file_metadata')
+        ? Hive.box<FileCacheEntry>('file_metadata')
+        : await Hive.openBox<FileCacheEntry>('file_metadata');
+    _fileDataBox = Hive.isBoxOpen('file_data')
+        ? Hive.box<String>('file_data')
+        : await Hive.openBox<String>('file_data');
+    _initialized = true;
 
     debugPrint(
       'FileCacheService: Ініціалізовано для ${kIsWeb ? 'Web' : 'Native'} платформи',

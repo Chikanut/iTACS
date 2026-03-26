@@ -30,6 +30,28 @@ class UserStats {
     incompleteCount: 0,
     completionRate: 0.0,
   );
+
+  Map<String, dynamic> toMap() {
+    return {
+      'conductedLessons': conductedLessons,
+      'totalLessons': totalLessons,
+      'thisWeekLessons': thisWeekLessons,
+      'thisMonthLessons': thisMonthLessons,
+      'incompleteCount': incompleteCount,
+      'completionRate': completionRate,
+    };
+  }
+
+  factory UserStats.fromMap(Map<String, dynamic> map) {
+    return UserStats(
+      conductedLessons: (map['conductedLessons'] ?? 0) as int,
+      totalLessons: (map['totalLessons'] ?? 0) as int,
+      thisWeekLessons: (map['thisWeekLessons'] ?? 0) as int,
+      thisMonthLessons: (map['thisMonthLessons'] ?? 0) as int,
+      incompleteCount: (map['incompleteCount'] ?? 0) as int,
+      completionRate: (map['completionRate'] ?? 0).toDouble(),
+    );
+  }
 }
 
 class DashboardFeed {
@@ -57,6 +79,57 @@ class DashboardFeed {
     userStats: UserStats.empty,
     lastUpdated: DateTime(1970),
   );
+
+  Map<String, dynamic> toMap() {
+    return {
+      'nextLesson': nextLesson?.toMap(),
+      'lessonsRequiringAcknowledgement': lessonsRequiringAcknowledgement
+          .map((lesson) => lesson.toMap())
+          .toList(),
+      'todayWithoutInstructor': todayWithoutInstructor
+          .map((lesson) => lesson.toMap())
+          .toList(),
+      'tomorrowWithoutInstructor': tomorrowWithoutInstructor
+          .map((lesson) => lesson.toMap())
+          .toList(),
+      'userStats': userStats.toMap(),
+      'lastUpdated': lastUpdated.toIso8601String(),
+    };
+  }
+
+  factory DashboardFeed.fromMap(Map<String, dynamic> map) {
+    return DashboardFeed(
+      nextLesson: map['nextLesson'] is Map
+          ? LessonModel.fromMap(Map<String, dynamic>.from(map['nextLesson']))
+          : null,
+      lessonsRequiringAcknowledgement:
+          (map['lessonsRequiringAcknowledgement'] as List<dynamic>? ??
+                  const <dynamic>[])
+              .map(
+                (item) => LessonModel.fromMap(Map<String, dynamic>.from(item)),
+              )
+              .toList(),
+      todayWithoutInstructor:
+          (map['todayWithoutInstructor'] as List<dynamic>? ?? const <dynamic>[])
+              .map(
+                (item) => LessonModel.fromMap(Map<String, dynamic>.from(item)),
+              )
+              .toList(),
+      tomorrowWithoutInstructor:
+          (map['tomorrowWithoutInstructor'] as List<dynamic>? ??
+                  const <dynamic>[])
+              .map(
+                (item) => LessonModel.fromMap(Map<String, dynamic>.from(item)),
+              )
+              .toList(),
+      userStats: map['userStats'] is Map
+          ? UserStats.fromMap(Map<String, dynamic>.from(map['userStats']))
+          : UserStats.empty,
+      lastUpdated:
+          DateTime.tryParse((map['lastUpdated'] ?? '').toString()) ??
+          DateTime.fromMillisecondsSinceEpoch(0),
+    );
+  }
 }
 
 enum StatsPeriod { week, month, quarter, year }
@@ -67,6 +140,25 @@ class DashboardService {
 
   DashboardFeed? _cachedFeed;
   DateTime? _lastCacheTime;
+
+  DashboardFeed? getCachedDashboardFeed() {
+    final snapshot = Globals.appSnapshotStore.getCachedSnapshot(
+      _dashboardCacheKey(),
+    );
+    final data = snapshot?.data;
+    if (data is! Map) {
+      return null;
+    }
+
+    try {
+      return DashboardFeed.fromMap(Map<String, dynamic>.from(data));
+    } catch (e) {
+      if (kDebugMode) {
+        print('Помилка читання dashboard snapshot: $e');
+      }
+      return null;
+    }
+  }
 
   /// Отримати найближчі заняття користувача в межах наступного місяця
   Future<List<LessonModel>> getCurrentUserUpcomingLessons() async {
@@ -291,12 +383,24 @@ class DashboardService {
       // Кешуємо результат
       _cachedFeed = feed;
       _lastCacheTime = DateTime.now();
+      await Globals.appSnapshotStore.saveCachedSnapshot(
+        _dashboardCacheKey(),
+        feed.toMap(),
+      );
 
       return feed;
     } catch (e) {
       if (kDebugMode) {
         print('Помилка отримання фіду дашборду: $e');
       }
+
+      final cachedFeed = getCachedDashboardFeed();
+      if (cachedFeed != null) {
+        _cachedFeed = cachedFeed;
+        _lastCacheTime = DateTime.now();
+        return cachedFeed;
+      }
+
       return DashboardFeed.empty;
     }
   }
@@ -305,6 +409,15 @@ class DashboardService {
   void clearCache() {
     _cachedFeed = null;
     _lastCacheTime = null;
+  }
+
+  String _dashboardCacheKey() {
+    final groupId = Globals.profileManager.currentGroupId ?? 'no-group';
+    final userScope =
+        Globals.profileManager.currentUserEmail ??
+        Globals.profileManager.currentUserId ??
+        'anonymous';
+    return 'cache::$_cacheKey::$groupId::$userScope';
   }
 
   /// Отримати заняття за певний період для звітів

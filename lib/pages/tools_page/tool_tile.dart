@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../mixins/loading_state_mixin.dart';
-import '../../../widgets/loading_indicator.dart';
-import '../../../globals.dart';
+import '../../mixins/loading_state_mixin.dart';
+import '../../widgets/loading_indicator.dart';
+import '../../globals.dart';
 
 class ToolTile extends StatefulWidget {
   final String title;

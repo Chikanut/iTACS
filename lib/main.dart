@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -16,8 +19,26 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 }
 
+Future<void> _configureFirestorePersistence() async {
+  final firestore = FirebaseFirestore.instance;
+
+  if (kIsWeb) {
+    try {
+      await firestore.enablePersistence(
+        const PersistenceSettings(synchronizeTabs: true),
+      );
+    } catch (error) {
+      debugPrint('Firestore web persistence setup skipped: $error');
+    }
+    return;
+  }
+
+  firestore.settings = const Settings(persistenceEnabled: true);
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  Globals.startupTelemetry.startIfNeeded();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
@@ -38,9 +59,13 @@ void main() async {
     await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
   }
 
+  await _configureFirestorePersistence();
   await Globals.init();
 
   runApp(const MyApp());
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    unawaited(Globals.warmUpInBackground());
+  });
 }
 
 class MyApp extends StatelessWidget {

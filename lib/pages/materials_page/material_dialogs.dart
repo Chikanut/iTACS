@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../globals.dart';
-import '../../../mixins/loading_state_mixin.dart';
-import '../../../widgets/loading_indicator.dart';
+import '../../globals.dart';
+import '../../mixins/loading_state_mixin.dart';
+import '../../widgets/loading_indicator.dart';
 
 class MaterialDialog extends StatefulWidget {
   final Map<String, dynamic>? material; // null для створення нового

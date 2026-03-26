@@ -30,11 +30,15 @@ class _MainScaffoldState extends State<MainScaffold> {
   bool _groupsLoaded = false;
   bool _isHandlingPushNavigation = false;
 
+  bool get _hasAdminAccess =>
+      !Globals.appRuntimeState.isReadOnlyOffline &&
+      Globals.profileManager.currentRole == 'admin';
+
   // 🚀 Динамічний масив сторінок залежно від ролі
   List<Widget> get _pages {
     final pages = <Widget>[];
 
-    if (Globals.profileManager.currentRole == 'admin') {
+    if (_hasAdminAccess) {
       pages.add(const AdminPanelPage());
     }
 
@@ -52,7 +56,7 @@ class _MainScaffoldState extends State<MainScaffold> {
   List<BottomNavigationBarItem> get _navigationItems {
     final items = <BottomNavigationBarItem>[];
 
-    if (Globals.profileManager.currentRole == 'admin') {
+    if (_hasAdminAccess) {
       items.add(
         const BottomNavigationBarItem(
           icon: Icon(Icons.admin_panel_settings),
@@ -84,7 +88,7 @@ class _MainScaffoldState extends State<MainScaffold> {
   List<PopupMenuEntry<String>> get _menuItems {
     final items = <PopupMenuEntry<String>>[];
 
-    if (Globals.profileManager.currentRole == 'admin') {
+    if (_hasAdminAccess) {
       items.add(
         const PopupMenuItem(value: 'admin_panel', child: Text('Адмін-панель')),
       );
@@ -109,10 +113,14 @@ class _MainScaffoldState extends State<MainScaffold> {
   @override
   void initState() {
     super.initState();
+    _hydrateCachedGroups();
     Globals.pushNotificationsService.addListener(_handlePushNavigationChanged);
     _hydrateWebPushFromUrl();
     _initGroups();
     unawaited(_initializePushNotifications());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Globals.startupTelemetry.markShellShown();
+    });
   }
 
   @override
@@ -124,18 +132,44 @@ class _MainScaffoldState extends State<MainScaffold> {
   }
 
   Future<void> _initGroups() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (groupNames.isNotEmpty) {
+      await Globals.profileManager.loadSavedGroupWithFallback(groupNames);
+      if (mounted) {
+        setState(() => _groupsLoaded = true);
+      }
+      await _handlePendingPushNavigation();
+      return;
+    }
 
-    final email = user.email!;
-    groupNames = await Globals.firestoreManager.getGroupNamesForUser(email);
-    await Globals.profileManager.loadSavedGroupWithFallback(groupNames);
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      return;
+    }
+
+    try {
+      groupNames = await Globals.firestoreManager.getGroupNamesForUser(
+        user.email!,
+      );
+      await Globals.profileManager.loadSavedGroupWithFallback(groupNames);
+    } catch (e) {
+      debugPrint('MainScaffold: group refresh failed, using cached groups: $e');
+    }
 
     if (mounted) {
       setState(() => _groupsLoaded = true);
     }
 
     await _handlePendingPushNavigation();
+  }
+
+  void _hydrateCachedGroups() {
+    final sessionSnapshot = Globals.appSnapshotStore.getSessionSnapshot();
+    if (sessionSnapshot == null || sessionSnapshot.groupNames.isEmpty) {
+      return;
+    }
+
+    groupNames = Map<String, String>.from(sessionSnapshot.groupNames);
+    _groupsLoaded = true;
   }
 
   Future<void> _initializePushNotifications() async {
@@ -157,8 +191,7 @@ class _MainScaffoldState extends State<MainScaffold> {
     WebPushEnvironment.clearPushQueryParameters();
   }
 
-  int get _homeTabIndex =>
-      Globals.profileManager.currentRole == 'admin' ? 1 : 0;
+  int get _homeTabIndex => _hasAdminAccess ? 1 : 0;
 
   Future<void> _handlePendingPushNavigation() async {
     if (!mounted || !_groupsLoaded || _isHandlingPushNavigation) {
@@ -296,7 +329,7 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   // 🔄 Оновлена логіка навігації з урахуванням динамічних індексів
   Future<void> _onMenuSelect(String value) async {
-    final isAdmin = Globals.profileManager.currentRole == 'admin';
+    final isAdmin = _hasAdminAccess;
     int newIndex = 0;
 
     switch (value) {
@@ -334,9 +367,7 @@ class _MainScaffoldState extends State<MainScaffold> {
     if (_currentIndex > maxIndex) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         setState(() {
-          _currentIndex = Globals.profileManager.currentRole == 'admin'
-              ? 1
-              : 0; // HomePage
+          _currentIndex = _homeTabIndex;
         });
       });
     }
@@ -349,7 +380,9 @@ class _MainScaffoldState extends State<MainScaffold> {
     final initials =
         user?.displayName != null && user!.displayName!.contains(' ')
         ? user.displayName!.split(' ').map((e) => e[0]).take(2).join()
-        : user?.email?.substring(0, 2).toUpperCase() ?? '?';
+        : (Globals.profileManager.currentUserInitials.isNotEmpty
+              ? Globals.profileManager.currentUserInitials
+              : user?.email?.substring(0, 2).toUpperCase() ?? '?');
 
     // Перевіряємо валідність поточного індексу
     _validateCurrentIndex();
@@ -466,6 +499,51 @@ class _MainScaffoldState extends State<MainScaffold> {
       body: Column(
         children: [
           const WebPushInstallBanner(),
+          AnimatedBuilder(
+            animation: Globals.appRuntimeState,
+            builder: (context, _) {
+              if (!Globals.appRuntimeState.isReadOnlyOffline) {
+                return const SizedBox.shrink();
+              }
+
+              final lastSyncAt = Globals.appRuntimeState.lastSuccessfulSyncAt;
+              final subtitle = lastSyncAt == null
+                  ? 'Показано останній збережений стан. Дії редагування тимчасово вимкнені.'
+                  : 'Показано стан на ${lastSyncAt.day.toString().padLeft(2, '0')}.'
+                        '${lastSyncAt.month.toString().padLeft(2, '0')}.'
+                        '${lastSyncAt.year} '
+                        '${lastSyncAt.hour.toString().padLeft(2, '0')}:'
+                        '${lastSyncAt.minute.toString().padLeft(2, '0')}. '
+                        'Дії редагування тимчасово вимкнені.';
+
+              return Material(
+                color: Colors.amber.shade100,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.cloud_off, size: 18),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          subtitle,
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      TextButton(
+                        onPressed: () => widget.sessionController.revalidate(),
+                        child: const Text('Спробувати онлайн'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
           Expanded(
             child: _pages.isNotEmpty && _currentIndex < _pages.length
                 ? _pages[_currentIndex]

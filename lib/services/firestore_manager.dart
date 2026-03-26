@@ -5,6 +5,28 @@ import 'package:flutter/foundation.dart';
 import '../globals.dart';
 import '../models/notification_preferences.dart';
 
+class SessionBootstrapResult {
+  const SessionBootstrapResult({
+    required this.isAllowed,
+    required this.isFromCache,
+    required this.email,
+    required this.uid,
+    required this.groupNames,
+    required this.rolesByGroup,
+    required this.userData,
+  });
+
+  final bool isAllowed;
+  final bool isFromCache;
+  final String email;
+  final String uid;
+  final Map<String, String> groupNames;
+  final Map<String, String> rolesByGroup;
+  final Map<String, dynamic> userData;
+
+  List<String> get groups => groupNames.keys.toList(growable: false);
+}
+
 class FirestoreManager {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -677,22 +699,74 @@ class FirestoreManager {
     return await _ensureUserDocForAuthenticatedUser(uid: uid, email: email);
   }
 
-  Future<bool> ensureUserProfileSynced() async {
+  Future<SessionBootstrapResult> bootstrapAuthenticatedUser() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return false;
+    if (user == null || user.email == null) {
+      throw StateError('Користувач не авторизований');
+    }
 
     final email = user.email!.toLowerCase();
     final uid = user.uid;
+    final allowedUsersSnapshot = await _firestore
+        .collection('allowed_users')
+        .get();
+    final access = _extractAllowedUserAccess(
+      allowedUsersSnapshot: allowedUsersSnapshot,
+      normalizedEmail: email,
+    );
 
-    final groupNames = await getGroupNamesForUser(email);
-    await Globals.profileManager.loadSavedGroupWithFallback(groupNames);
+    if (access.groupNames.isEmpty) {
+      return SessionBootstrapResult(
+        isAllowed: false,
+        isFromCache: access.isFromCache,
+        email: email,
+        uid: uid,
+        groupNames: const {},
+        rolesByGroup: const {},
+        userData: const {},
+      );
+    }
 
-    final groups = await getUserGroups(email);
-    final isAllowed = groups.isNotEmpty;
-    if (!isAllowed) return false;
+    final userData = access.isFromCache
+        ? await _loadCachedUserData(uid: uid, email: email)
+        : await _ensureUserDocForAuthenticatedUser(
+            uid: uid,
+            email: email,
+            groups: access.groupNames.keys.toList(growable: false),
+          );
 
-    await _ensureUserDocForAuthenticatedUser(uid: uid, email: email);
+    return SessionBootstrapResult(
+      isAllowed: true,
+      isFromCache: access.isFromCache,
+      email: email,
+      uid: uid,
+      groupNames: access.groupNames,
+      rolesByGroup: access.rolesByGroup,
+      userData: _mergeUserDataWithLocalFallback(
+        userData: userData,
+        email: email,
+        uid: uid,
+        groups: access.groupNames.keys.toList(growable: false),
+        rolesByGroup: access.rolesByGroup,
+      ),
+    );
+  }
 
+  Future<bool> ensureUserProfileSynced() async {
+    final result = await bootstrapAuthenticatedUser();
+    if (!result.isAllowed) {
+      return false;
+    }
+
+    await Globals.profileManager.loadSavedGroupWithFallback(result.groupNames);
+    await Globals.profileManager.saveBootstrappedProfile(
+      userData: result.userData,
+      email: result.email,
+      uid: result.uid,
+      groups: result.groups,
+      rolesPerGroup: result.rolesByGroup,
+      syncedAt: DateTime.now(),
+    );
     return true;
   }
 
@@ -860,15 +934,16 @@ class FirestoreManager {
   Future<Map<String, dynamic>> _ensureUserDocForAuthenticatedUser({
     required String uid,
     required String email,
+    List<String>? groups,
   }) async {
     final docRef = _firestore.collection('users').doc(uid);
     final docSnap = await docRef.get();
-    final groups = await getUserGroups(email);
+    final resolvedGroups = groups ?? await getUserGroups(email);
 
     if (docSnap.exists) {
       await docRef.set({
         'email': email,
-        'groups': groups,
+        'groups': resolvedGroups,
         'notificationPreferences': _normalizeNotificationPreferencesMap(
           docSnap.data()?['notificationPreferences'],
         ),
@@ -884,7 +959,7 @@ class FirestoreManager {
 
     await docRef.set({
       'email': email,
-      'groups': groups,
+      'groups': resolvedGroups,
       'firstName': (pendingData['firstName'] as String?) ?? '',
       'lastName': (pendingData['lastName'] as String?) ?? '',
       'rank': (pendingData['rank'] as String?) ?? '',
@@ -904,6 +979,103 @@ class FirestoreManager {
 
     final refreshedDoc = await docRef.get();
     return refreshedDoc.data() ?? {};
+  }
+
+  Future<Map<String, dynamic>> _loadCachedUserData({
+    required String uid,
+    required String email,
+  }) async {
+    try {
+      final docSnap = await _firestore
+          .collection('users')
+          .doc(uid)
+          .get(const GetOptions(source: Source.cache));
+      if (docSnap.exists) {
+        return docSnap.data() ?? {};
+      }
+    } catch (_) {}
+
+    try {
+      final snapshot = await _firestore
+          .collection('users')
+          .where('email', isEqualTo: email)
+          .limit(1)
+          .get(const GetOptions(source: Source.cache));
+      if (snapshot.docs.isNotEmpty) {
+        return snapshot.docs.first.data();
+      }
+    } catch (_) {}
+
+    return const {};
+  }
+
+  Map<String, dynamic> _mergeUserDataWithLocalFallback({
+    required Map<String, dynamic> userData,
+    required String email,
+    required String uid,
+    required List<String> groups,
+    required Map<String, String> rolesByGroup,
+  }) {
+    final cachedProfile = Globals.profileManager.profile;
+
+    String fallbackText(dynamic remoteValue, String? localValue) {
+      final remoteText = (remoteValue as String?)?.trim();
+      if (remoteText != null && remoteText.isNotEmpty) {
+        return remoteText;
+      }
+      return localValue?.trim() ?? '';
+    }
+
+    return {
+      'firstName': fallbackText(userData['firstName'], cachedProfile.firstName),
+      'lastName': fallbackText(userData['lastName'], cachedProfile.lastName),
+      'rank': fallbackText(userData['rank'], cachedProfile.rank),
+      'position': fallbackText(userData['position'], cachedProfile.position),
+      'phone': fallbackText(userData['phone'], cachedProfile.phone),
+      'email': email,
+      'uid': uid,
+      'groups': groups,
+      'rolesPerGroup': rolesByGroup,
+      'notificationPreferences':
+          userData['notificationPreferences'] ??
+          cachedProfile.notificationPreferences.toMap(),
+    };
+  }
+
+  _AllowedUserAccess _extractAllowedUserAccess({
+    required QuerySnapshot<Map<String, dynamic>> allowedUsersSnapshot,
+    required String normalizedEmail,
+  }) {
+    final groupNames = <String, String>{};
+    final rolesByGroup = <String, String>{};
+
+    for (final doc in allowedUsersSnapshot.docs) {
+      final data = doc.data();
+      final members = Map<String, dynamic>.from(data['members'] ?? {});
+      final malformedMember = _extractMalformedMemberEntry(
+        members,
+        normalizedEmail,
+      );
+      final memberValue = members[normalizedEmail] ?? malformedMember;
+      if (memberValue == null) {
+        continue;
+      }
+
+      groupNames[doc.id] = (data['name'] ?? doc.id).toString();
+      if (memberValue is String) {
+        rolesByGroup[doc.id] = memberValue;
+      } else if (memberValue is Map<String, dynamic>) {
+        rolesByGroup[doc.id] = (memberValue['role'] ?? 'viewer').toString();
+      } else {
+        rolesByGroup[doc.id] = 'viewer';
+      }
+    }
+
+    return _AllowedUserAccess(
+      groupNames: groupNames,
+      rolesByGroup: rolesByGroup,
+      isFromCache: allowedUsersSnapshot.metadata.isFromCache,
+    );
   }
 
   Future<QueryDocumentSnapshot<Map<String, dynamic>>?> _findUserDocByEmail(
@@ -962,4 +1134,16 @@ class FirestoreManager {
 
     return groupNames;
   }
+}
+
+class _AllowedUserAccess {
+  const _AllowedUserAccess({
+    required this.groupNames,
+    required this.rolesByGroup,
+    required this.isFromCache,
+  });
+
+  final Map<String, String> groupNames;
+  final Map<String, String> rolesByGroup;
+  final bool isFromCache;
 }

@@ -3,7 +3,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/lesson_model.dart';
-import '../../../globals.dart';
+import '../globals.dart';
 import '../pages/calendar_page/calendar_utils.dart';
 
 class CalendarService {
@@ -19,19 +19,42 @@ class CalendarService {
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
+  List<LessonModel> getCachedLessonsForPeriod({
+    required DateTime startDate,
+    required DateTime endDate,
+    String? groupId,
+  }) {
+    final currentGroupId = groupId ?? Globals.profileManager.currentGroupId;
+    if (currentGroupId == null) {
+      return const [];
+    }
+
+    final snapshot = Globals.appSnapshotStore.getCachedSnapshot(
+      _cacheKeyForPeriod(currentGroupId, startDate, endDate),
+    );
+    final data = snapshot?.data;
+    if (data is! List) {
+      return const [];
+    }
+
+    return data
+        .map((item) => LessonModel.fromMap(Map<String, dynamic>.from(item)))
+        .toList(growable: false);
+  }
+
   /// Отримати заняття для поточної групи на вказаний період
   Future<List<LessonModel>> getLessonsForPeriod({
     required DateTime startDate,
     required DateTime endDate,
     String? groupId,
   }) async {
-    try {
-      final currentGroupId = groupId ?? Globals.profileManager.currentGroupId;
-      if (currentGroupId == null) {
-        debugPrint('CalendarService: Немає активної групи');
-        return [];
-      }
+    final currentGroupId = groupId ?? Globals.profileManager.currentGroupId;
+    if (currentGroupId == null) {
+      debugPrint('CalendarService: Немає активної групи');
+      return [];
+    }
 
+    try {
       debugPrint(
         'CalendarService: Завантаження занять для групи $currentGroupId від $startDate до $endDate',
       );
@@ -53,11 +76,20 @@ class CalendarService {
           .map((doc) => LessonModel.fromFirestore(doc.data(), doc.id))
           .toList();
 
+      await Globals.appSnapshotStore.saveCachedSnapshot(
+        _cacheKeyForPeriod(currentGroupId, startDate, endDate),
+        lessons.map((lesson) => lesson.toMap()).toList(),
+      );
+
       debugPrint('CalendarService: Знайдено ${lessons.length} занять');
       return lessons;
     } catch (e) {
       debugPrint('CalendarService: Помилка завантаження занять: $e');
-      return [];
+      return getCachedLessonsForPeriod(
+        startDate: startDate,
+        endDate: endDate,
+        groupId: currentGroupId,
+      );
     }
   }
 
@@ -121,6 +153,11 @@ class CalendarService {
 
   /// Створити нове заняття
   Future<String?> createLesson(LessonModel lesson) async {
+    if (_isReadOnlyOfflineMode) {
+      debugPrint('CalendarService: createLesson blocked in read-only offline');
+      return null;
+    }
+
     try {
       final currentGroupId = Globals.profileManager.currentGroupId;
       if (currentGroupId == null) {
@@ -189,10 +226,10 @@ class CalendarService {
   }
 
   Future<LessonModel?> getLessonById(String lessonId, {String? groupId}) async {
-    try {
-      final currentGroupId = groupId ?? Globals.profileManager.currentGroupId;
-      if (currentGroupId == null) return null;
+    final currentGroupId = groupId ?? Globals.profileManager.currentGroupId;
+    if (currentGroupId == null) return null;
 
+    try {
       final lessonDoc = await _firestore
           .collection('lessons')
           .doc(currentGroupId)
@@ -208,7 +245,7 @@ class CalendarService {
       return LessonModel.fromFirestore(data, lessonDoc.id);
     } catch (e) {
       debugPrint('CalendarService: Помилка отримання заняття: $e');
-      return null;
+      return _findCachedLessonById(currentGroupId, lessonId);
     }
   }
 
@@ -217,6 +254,11 @@ class CalendarService {
     String lessonId,
     Map<String, dynamic> updates,
   ) async {
+    if (_isReadOnlyOfflineMode) {
+      debugPrint('CalendarService: updateLesson blocked in read-only offline');
+      return false;
+    }
+
     try {
       final currentGroupId = Globals.profileManager.currentGroupId;
       if (currentGroupId == null) return false;
@@ -243,6 +285,11 @@ class CalendarService {
 
   /// Видалити заняття
   Future<bool> deleteLesson(String lessonId) async {
+    if (_isReadOnlyOfflineMode) {
+      debugPrint('CalendarService: deleteLesson blocked in read-only offline');
+      return false;
+    }
+
     try {
       final currentGroupId = Globals.profileManager.currentGroupId;
       if (currentGroupId == null) return false;
@@ -264,6 +311,13 @@ class CalendarService {
 
   /// Зареєструватися на заняття
   Future<bool> registerForLesson(String lessonId) async {
+    if (_isReadOnlyOfflineMode) {
+      debugPrint(
+        'CalendarService: registerForLesson blocked in read-only offline',
+      );
+      return false;
+    }
+
     try {
       final currentGroupId = Globals.profileManager.currentGroupId;
       final currentUser = Globals.firebaseAuth.currentUser;
@@ -314,6 +368,13 @@ class CalendarService {
 
   /// Скасувати реєстрацію на заняття
   Future<bool> unregisterFromLesson(String lessonId) async {
+    if (_isReadOnlyOfflineMode) {
+      debugPrint(
+        'CalendarService: unregisterFromLesson blocked in read-only offline',
+      );
+      return false;
+    }
+
     try {
       final currentGroupId = Globals.profileManager.currentGroupId;
       final currentUser = Globals.firebaseAuth.currentUser;
@@ -711,6 +772,13 @@ class CalendarService {
   }
 
   Future<bool> acknowledgeLesson(String lessonId) async {
+    if (_isReadOnlyOfflineMode) {
+      debugPrint(
+        'CalendarService: acknowledgeLesson blocked in read-only offline',
+      );
+      return false;
+    }
+
     try {
       final currentGroupId = Globals.profileManager.currentGroupId;
       final currentUser = Globals.firebaseAuth.currentUser;
@@ -773,4 +841,35 @@ class CalendarService {
   String _normalizeInstructorAssignmentId(String instructorId) {
     return LessonModel.normalizeInstructorAssignmentId(instructorId);
   }
+
+  LessonModel? _findCachedLessonById(String groupId, String lessonId) {
+    final cachePrefix = 'cache::calendar::$groupId::';
+    for (final key in Globals.appSnapshotStore.keysWithPrefix(cachePrefix)) {
+      final snapshot = Globals.appSnapshotStore.getCachedSnapshot(key);
+      final data = snapshot?.data;
+      if (data is! List) {
+        continue;
+      }
+
+      for (final item in data) {
+        final lesson = LessonModel.fromMap(Map<String, dynamic>.from(item));
+        if (lesson.id == lessonId) {
+          return lesson;
+        }
+      }
+    }
+
+    return null;
+  }
+
+  String _cacheKeyForPeriod(
+    String groupId,
+    DateTime startDate,
+    DateTime endDate,
+  ) {
+    return 'cache::calendar::$groupId::'
+        '${startDate.toIso8601String()}::${endDate.toIso8601String()}';
+  }
+
+  bool get _isReadOnlyOfflineMode => Globals.appRuntimeState.isReadOnlyOffline;
 }

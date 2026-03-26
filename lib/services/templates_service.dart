@@ -331,10 +331,11 @@ class GroupTemplatesService {
   // Слухач змін в Firestore
   StreamSubscription<QuerySnapshot>? _templatesSubscription;
   StreamSubscription<QuerySnapshot>? _autocompleteSubscription;
+  bool _hiveInitialized = false;
 
   Future<void> initialize() async {
     try {
-      await _initializeHive();
+      await _ensureHiveInitialized();
       await _initializeForCurrentGroup();
       debugPrint('GroupTemplatesService: Ініціалізовано успішно');
     } catch (e) {
@@ -342,9 +343,14 @@ class GroupTemplatesService {
     }
   }
 
-  Future<void> _initializeHive() async {
+  Future<void> _ensureHiveInitialized() async {
+    if (_hiveInitialized) {
+      return;
+    }
+
     _templatesBox = await Hive.openBox<String>(_templatesBoxName);
     _autoCompleteBox = await Hive.openBox<String>(_autoCompleteBoxName);
+    _hiveInitialized = true;
   }
 
   Future<void> _initializeForCurrentGroup() async {
@@ -729,6 +735,7 @@ class GroupTemplatesService {
 
   // Публічні методи
   Future<void> ensureInitializedForCurrentGroup() async {
+    await _ensureHiveInitialized();
     final groupId = Globals.profileManager.currentGroupId;
     if (groupId != null && _currentGroupId != groupId) {
       await _switchToGroup(groupId);

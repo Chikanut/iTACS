@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../globals.dart';
@@ -47,7 +49,7 @@ class _AuthGateState extends State<AuthGate> {
           profileManager: Globals.profileManager,
         );
 
-    _controller.initialize();
+    unawaited(_controller.initialize());
   }
 
   @override
@@ -75,6 +77,7 @@ class _AuthGateState extends State<AuthGate> {
               _controller,
             );
           case SessionScreen.authenticated:
+          case SessionScreen.offlineAuthenticated:
             return (widget.homeBuilder ?? _defaultHomeBuilder)(
               context,
               _controller,

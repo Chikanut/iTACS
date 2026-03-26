@@ -17,6 +17,10 @@ class ReportsService {
 
   /// Ініціалізація сервісу з реєстрацією всіх звітів
   Future<void> initialize() async {
+    _initializeIfNeeded();
+  }
+
+  void _initializeIfNeeded() {
     if (_initialized) return;
 
     try {
@@ -235,11 +239,7 @@ class ReportsService {
 
   /// Перевірити чи ініціалізований сервіс
   void _ensureInitialized() {
-    if (!_initialized) {
-      throw Exception(
-        'ReportsService не ініціалізовано. Викличте initialize() спочатку.',
-      );
-    }
+    _initializeIfNeeded();
   }
 
   /// Перевірити чи має користувач потрібну роль (з урахуванням ієрархії)

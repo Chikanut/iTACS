@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import 'material_dialogs.dart';
-import '../../../globals.dart';
-import '../../../mixins/loading_state_mixin.dart';
-import '../../../widgets/loading_indicator.dart';
+import '../../globals.dart';
+import '../../mixins/loading_state_mixin.dart';
+import '../../widgets/loading_indicator.dart';
 
 class MaterialTile extends StatefulWidget {
   final Map<String, dynamic> material;
@@ -92,6 +92,13 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
       return;
     }
 
+    if (Globals.appRuntimeState.isReadOnlyOffline) {
+      Globals.errorNotificationManager.showInfo(
+        'Нові файли недоступні без інтернету. Можна відкривати лише вже збережені локально.',
+      );
+      return;
+    }
+
     try {
       await withLoading('download_$fileId', () async {
         await Globals.fileManager.cacheFile(fileId!);
@@ -113,6 +120,13 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
 
   Future<void> _openFile() async {
     if (fileId == null) return;
+
+    if (Globals.appRuntimeState.isReadOnlyOffline && !isSaved) {
+      Globals.errorNotificationManager.showInfo(
+        'Цей файл ще не був збережений локально, тому недоступний без інтернету.',
+      );
+      return;
+    }
 
     try {
       await withLoading('open_$fileId', () async {
@@ -306,8 +320,11 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
   Widget build(BuildContext context) {
     final title = widget.material['title'] ?? 'Без назви';
     final tags = List<String>.from(widget.material['tags'] ?? []);
-    final canEdit = widget.userRole == 'admin' || widget.userRole == 'editor';
-    final isAdmin = widget.userRole == 'admin';
+    final isReadOnlyOffline = Globals.appRuntimeState.isReadOnlyOffline;
+    final canEdit =
+        !isReadOnlyOffline &&
+        (widget.userRole == 'admin' || widget.userRole == 'editor');
+    final isAdmin = !isReadOnlyOffline && widget.userRole == 'admin';
 
     final isDownloading = isLoading('download_$fileId');
     final isOpening = isLoading('open_$fileId');
@@ -431,7 +448,7 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // Кнопка завантаження
-                  if (!widget.isWeb && !isSaved)
+                  if (!widget.isWeb && !isSaved && !isReadOnlyOffline)
                     isDownloading
                         ? const Padding(
                             padding: EdgeInsets.all(8),

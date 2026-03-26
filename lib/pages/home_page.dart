@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
@@ -37,13 +39,15 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
-    _loadFeed();
+    _hydrateCachedHomeState();
+    unawaited(_loadFeed());
   }
 
   Future<void> _loadFeed() async {
     try {
+      final shouldShowBlockingLoader = !_hasVisibleContent;
       setState(() {
-        _isLoading = true;
+        _isLoading = shouldShowBlockingLoader;
         _error = null;
       });
 
@@ -75,10 +79,19 @@ class _HomePageState extends State<HomePage> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _isLoading = false;
-        });
+        if (_hasVisibleContent) {
+          Globals.errorNotificationManager.showError(
+            'Не вдалося оновити дані. Показано останній збережений стан.',
+          );
+          setState(() {
+            _isLoading = false;
+          });
+        } else {
+          setState(() {
+            _error = e.toString();
+            _isLoading = false;
+          });
+        }
       }
     }
   }
@@ -110,12 +123,45 @@ class _HomePageState extends State<HomePage> {
       }
     } catch (e) {
       if (mounted) {
+        if (!_hasVisibleContent) {
+          setState(() {
+            _error = e.toString();
+          });
+        }
         Globals.errorNotificationManager.showError(
           'Помилка оновлення: ${e.toString()}',
         );
       }
     }
   }
+
+  void _hydrateCachedHomeState() {
+    final cachedFeed = _dashboardService.getCachedDashboardFeed();
+    final cachedAbsences = Globals.absencesService
+        .getCachedCurrentUserAbsences();
+    final cachedNotifications = Globals.groupNotificationsService
+        .getCachedNotificationsForCurrentUser();
+
+    if (cachedFeed == null &&
+        cachedAbsences.isEmpty &&
+        cachedNotifications.isEmpty) {
+      return;
+    }
+
+    setState(() {
+      if (cachedFeed != null) {
+        _feed = cachedFeed;
+      }
+      _userAbsences = cachedAbsences;
+      _notifications = cachedNotifications;
+      _isLoading = false;
+    });
+  }
+
+  bool get _hasVisibleContent =>
+      _feed.lastUpdated.year != 1970 ||
+      _userAbsences.isNotEmpty ||
+      _notifications.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -245,6 +291,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildAbsencesCard() {
+    final isReadOnlyOffline = Globals.appRuntimeState.isReadOnlyOffline;
     final warningColors = AppTheme.statusColors(AppStatusTone.warning);
     final infoColors = AppTheme.statusColors(AppStatusTone.info);
     final successColors = AppTheme.statusColors(AppStatusTone.success);
@@ -273,7 +320,9 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const Spacer(),
                 ElevatedButton.icon(
-                  onPressed: _showAbsenceRequestDialog,
+                  onPressed: isReadOnlyOffline
+                      ? null
+                      : _showAbsenceRequestDialog,
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Запросити'),
                   style: ElevatedButton.styleFrom(
@@ -841,6 +890,15 @@ class _ReportsCardState extends State<_ReportsCard> {
   }
 
   Future<void> _loadTemplates() async {
+    if (Globals.appRuntimeState.isReadOnlyOffline) {
+      if (!mounted) return;
+      setState(() {
+        _templates = [];
+        _isLoadingTemplates = false;
+      });
+      return;
+    }
+
     try {
       final templates = await _reportTemplatesService
           .getAccessibleActiveTemplates();
@@ -860,6 +918,8 @@ class _ReportsCardState extends State<_ReportsCard> {
 
   @override
   Widget build(BuildContext context) {
+    final isReadOnlyOffline = Globals.appRuntimeState.isReadOnlyOffline;
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Padding(
@@ -890,12 +950,29 @@ class _ReportsCardState extends State<_ReportsCard> {
                 else
                   IconButton(
                     tooltip: 'Оновити шаблони',
-                    onPressed: _loadTemplates,
+                    onPressed: isReadOnlyOffline ? null : _loadTemplates,
                     icon: const Icon(Icons.refresh),
                   ),
               ],
             ),
             const SizedBox(height: 12),
+            if (isReadOnlyOffline) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: AppTheme.statusDecoration(
+                  AppStatusTone.warning,
+                  radius: 12,
+                ),
+                child: Text(
+                  'Генерація звітів потребує інтернету й тимчасово недоступна в read-only offline режимі.',
+                  style: TextStyle(
+                    color: AppTheme.warningStatus.foreground,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
             if (_templates.isNotEmpty) ...[
               Text(
                 'Активні шаблони',
@@ -912,8 +989,9 @@ class _ReportsCardState extends State<_ReportsCard> {
                       (template) => _ReportButton(
                         label: template.name,
                         icon: Icons.auto_awesome_motion,
-                        onPressed: () =>
-                            _generateTemplateReport(context, template),
+                        onPressed: isReadOnlyOffline
+                            ? null
+                            : () => _generateTemplateReport(context, template),
                       ),
                     )
                     .toList(),
@@ -934,12 +1012,16 @@ class _ReportsCardState extends State<_ReportsCard> {
                 _ReportButton(
                   label: 'Список занять',
                   icon: Icons.list_alt,
-                  onPressed: () => _generateLessonsList(context),
+                  onPressed: isReadOnlyOffline
+                      ? null
+                      : () => _generateLessonsList(context),
                 ),
                 _ReportButton(
                   label: 'Календарна сітка',
                   icon: Icons.calendar_view_month,
-                  onPressed: () => _generateCalendarGrid(context),
+                  onPressed: isReadOnlyOffline
+                      ? null
+                      : () => _generateCalendarGrid(context),
                 ),
               ],
             ),
@@ -1149,7 +1231,7 @@ class _ReportsCardState extends State<_ReportsCard> {
 class _ReportButton extends StatelessWidget {
   final String label;
   final IconData icon;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
 
   const _ReportButton({
     required this.label,

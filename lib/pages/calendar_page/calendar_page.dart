@@ -213,7 +213,9 @@ class _CalendarPageState extends State<CalendarPage> {
   @override
   Widget build(BuildContext context) {
     final isOnMobileDevice = isMobile(context);
-    final canCreateLessons = Globals.profileManager.isCurrentGroupEditor;
+    final canCreateLessons =
+        Globals.profileManager.isCurrentGroupEditor &&
+        !Globals.appRuntimeState.isReadOnlyOffline;
 
     Widget content;
     switch (_viewType) {

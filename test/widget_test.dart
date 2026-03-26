@@ -51,6 +51,23 @@ void main() {
       expect(find.text('DENIED'), findsOneWidget);
     });
 
+    testWidgets('opens home in read-only offline mode from cached session', (
+      WidgetTester tester,
+    ) async {
+      final controller = FakeSessionController(
+        initialScreen: SessionScreen.loading,
+        onInitialize: (controller) async {
+          controller.setScreen(SessionScreen.offlineAuthenticated);
+        },
+        isReadOnlyOffline: true,
+      );
+
+      await tester.pumpWidget(buildHarness(controller));
+      await tester.pump();
+
+      expect(find.text('HOME'), findsOneWidget);
+    });
+
     testWidgets('returns to login after logout from the authenticated state', (
       WidgetTester tester,
     ) async {
@@ -99,9 +116,15 @@ class FakeSessionController extends SessionController {
   FakeSessionController({
     required SessionScreen initialScreen,
     this.onInitialize,
+    this.isReadOnlyOffline = false,
+    this.lastSuccessfulSyncAt,
   }) : _screen = initialScreen;
 
   final Future<void> Function(FakeSessionController controller)? onInitialize;
+  @override
+  final bool isReadOnlyOffline;
+  @override
+  final DateTime? lastSuccessfulSyncAt;
 
   SessionScreen _screen;
   int signOutCalls = 0;
