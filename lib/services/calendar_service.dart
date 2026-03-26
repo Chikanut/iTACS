@@ -17,7 +17,7 @@ class CalendarService {
   factory CalendarService() => _instance;
   CalendarService._internal();
 
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
   List<LessonModel> getCachedLessonsForPeriod({
     required DateTime startDate,

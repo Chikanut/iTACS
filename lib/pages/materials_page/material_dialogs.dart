@@ -1,14 +1,17 @@
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+
 import '../../globals.dart';
 import '../../mixins/loading_state_mixin.dart';
+import '../../services/local_file_picker_service.dart';
 import '../../widgets/loading_indicator.dart';
 
 class MaterialDialog extends StatefulWidget {
-  final Map<String, dynamic>? material; // null для створення нового
-  final VoidCallback onRefresh;
-
   const MaterialDialog({super.key, this.material, required this.onRefresh});
+
+  final Map<String, dynamic>? material;
+  final VoidCallback onRefresh;
 
   @override
   State<MaterialDialog> createState() => _MaterialDialogState();
@@ -16,33 +19,58 @@ class MaterialDialog extends StatefulWidget {
 
 class _MaterialDialogState extends State<MaterialDialog>
     with LoadingStateMixin {
+  final LocalFilePickerService _filePickerService = LocalFilePickerService();
+  final formKey = GlobalKey<FormState>();
+
   late final TextEditingController titleController;
   late final TextEditingController urlController;
   late final TextEditingController tagsController;
 
-  final formKey = GlobalKey<FormState>();
+  XFile? _selectedFile;
+  String? _materialsFolderId;
+  bool _useManualLink = false;
   bool _urlValidated = false;
   String? _urlError;
   List<String> _suggestedTags = [];
 
   bool get isEditing => widget.material != null;
 
+  String? get _existingFileId {
+    final material = widget.material;
+    if (material == null) {
+      return null;
+    }
+
+    final directFileId = material['fileId']?.toString().trim();
+    if (directFileId != null && directFileId.isNotEmpty) {
+      return directFileId;
+    }
+
+    return Globals.fileManager.extractFileId(
+      (material['url'] ?? '').toString(),
+    );
+  }
+
+  bool get _canUseDriveUpload =>
+      _materialsFolderId != null && _materialsFolderId!.isNotEmpty;
+
   @override
   void initState() {
     super.initState();
     titleController = TextEditingController(
-      text: widget.material?['title'] ?? '',
+      text: widget.material?['title']?.toString() ?? '',
     );
-    urlController = TextEditingController(text: widget.material?['url'] ?? '');
+    urlController = TextEditingController(
+      text: widget.material?['url']?.toString() ?? '',
+    );
     tagsController = TextEditingController(
       text: (widget.material?['tags'] as List<dynamic>?)?.join(', ') ?? '',
     );
 
-    // Додаємо лістенер для валідації URL в реальному часі
     urlController.addListener(_validateUrl);
-
-    // Завантажуємо популярні теги для автокомплиту
     _loadSuggestedTags();
+    _loadCatalogConfig();
+    _validateUrl();
   }
 
   @override
@@ -56,7 +84,9 @@ class _MaterialDialogState extends State<MaterialDialog>
   Future<void> _loadSuggestedTags() async {
     try {
       final groupId = Globals.profileManager.currentGroupId;
-      if (groupId == null) return;
+      if (groupId == null) {
+        return;
+      }
 
       final docs = await Globals.firestoreManager.getDocumentsForGroup(
         groupId: groupId,
@@ -66,7 +96,7 @@ class _MaterialDialogState extends State<MaterialDialog>
       final allTags = <String>{};
       for (final doc in docs) {
         final data = doc.data() as Map<String, dynamic>;
-        final tags = data['tags'] as List<dynamic>? ?? [];
+        final tags = data['tags'] as List<dynamic>? ?? const [];
         allTags.addAll(tags.cast<String>());
       }
 
@@ -75,9 +105,28 @@ class _MaterialDialogState extends State<MaterialDialog>
           _suggestedTags = allTags.toList()..sort();
         });
       }
-    } catch (e) {
-      // Ігноруємо помилки завантаження тегів
-    }
+    } catch (_) {}
+  }
+
+  Future<void> _loadCatalogConfig() async {
+    try {
+      final groupId = Globals.profileManager.currentGroupId;
+      if (groupId == null) {
+        return;
+      }
+
+      final config = await Globals.driveCatalogService.getConfig(groupId);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _materialsFolderId = config?.materialsFolderId;
+        if (!_canUseDriveUpload && !isEditing) {
+          _useManualLink = true;
+        }
+      });
+    } catch (_) {}
   }
 
   void _validateUrl() {
@@ -97,68 +146,143 @@ class _MaterialDialogState extends State<MaterialDialog>
     });
   }
 
+  Future<void> _pickLocalFile() async {
+    try {
+      await withLoading('pick_file', () async {
+        final file = await _filePickerService.pickSingleFile();
+        if (file == null || !mounted) {
+          return;
+        }
+
+        setState(() {
+          _selectedFile = file;
+          if (titleController.text.trim().isEmpty) {
+            titleController.text = _filePickerService.titleFromFileName(
+              file.name,
+            );
+          }
+        });
+      });
+    } catch (e) {
+      if (mounted) {
+        Globals.errorNotificationManager.showError(
+          'Не вдалося вибрати файл: $e',
+        );
+      }
+    }
+  }
+
   Future<void> _pasteFromClipboard() async {
     try {
       final clipboardData = await Clipboard.getData(Clipboard.kTextPlain);
       if (clipboardData?.text != null) {
         urlController.text = clipboardData!.text!;
       }
-    } catch (e) {
-      // Ігноруємо помилки буфера обміну
-    }
+    } catch (_) {}
   }
 
   Future<void> _saveMaterial() async {
-    if (!formKey.currentState!.validate()) return;
-
-    final title = titleController.text.trim();
-    final url = urlController.text.trim();
-    final tagsText = tagsController.text.trim();
-    final tags = tagsText.isEmpty
-        ? <String>[]
-        : tagsText
-              .split(',')
-              .map((e) => e.trim())
-              .where((e) => e.isNotEmpty)
-              .toList();
-
-    final fileId = Globals.fileManager.extractFileId(url);
-    if (fileId == null) {
-      setState(() {
-        _urlError = 'Невалідне посилання на Google Drive';
-      });
+    if (!formKey.currentState!.validate()) {
       return;
     }
 
+    final title = titleController.text.trim();
+    final tags = tagsController.text
+        .split(',')
+        .map((entry) => entry.trim())
+        .where((entry) => entry.isNotEmpty)
+        .toList(growable: false);
+
     try {
       await withLoading('save', () async {
-        final modifiedTime = DateTime.now().toIso8601String();
-        final data = {
-          'title': title,
-          'url': url,
-          'fileId': fileId,
-          'tags': tags,
-          'modifiedAt': modifiedTime,
-        };
+        final groupId = Globals.profileManager.currentGroupId;
+        if (groupId == null) {
+          throw Exception('Немає активної групи');
+        }
 
-        if (isEditing) {
-          // Отримуємо метадані для оновлення
-          try {
-            final metadata = await Globals.fileManager.getFileMetadata(fileId);
-            data['modifiedAt'] = metadata.modifiedDate ?? modifiedTime;
-          } catch (e) {
-            // Якщо не вдалося отримати метадані, використовуємо поточний час
+        String? fileId = _existingFileId;
+        String? url = urlController.text.trim().isEmpty
+            ? null
+            : urlController.text.trim();
+        String modifiedAt = DateTime.now().toIso8601String();
+
+        if (!_useManualLink && _canUseDriveUpload) {
+          if (_selectedFile != null) {
+            final pickedFile = _selectedFile!;
+            final bytes = await pickedFile.readAsBytes();
+            final mimeType = _filePickerService.inferMimeType(pickedFile.name);
+
+            final driveFile = isEditing && fileId != null && fileId.isNotEmpty
+                ? await Globals.googleDriveService.updateFileContent(
+                    fileId: fileId,
+                    fileName: pickedFile.name,
+                    bytes: bytes,
+                    mimeType: mimeType,
+                  )
+                : await Globals.googleDriveService.uploadFile(
+                    parentFolderId: _materialsFolderId!,
+                    fileName: pickedFile.name,
+                    bytes: bytes,
+                    mimeType: mimeType,
+                  );
+
+            fileId = driveFile.id;
+            url = Globals.googleDriveService.buildLegacyViewUrl(driveFile.id);
+            modifiedAt = driveFile.modifiedTime ?? modifiedAt;
+          } else if (!isEditing || fileId == null || fileId.isEmpty) {
+            throw Exception(
+              'Оберіть локальний файл для завантаження або ввімкніть legacy-посилання',
+            );
+          } else {
+            url = Globals.googleDriveService.buildLegacyViewUrl(fileId);
+            try {
+              final metadata = await Globals.fileManager.getFileMetadata(
+                fileId,
+              );
+              modifiedAt = metadata.modifiedDate;
+            } catch (_) {}
+          }
+        } else {
+          final manualUrl = urlController.text.trim();
+          if (manualUrl.isNotEmpty) {
+            fileId = Globals.fileManager.extractFileId(manualUrl);
+            if (fileId == null) {
+              throw Exception('Невалідне посилання на Google Drive');
+            }
+            url = manualUrl;
+          } else if (fileId != null && fileId.isNotEmpty) {
+            url = Globals.googleDriveService.buildLegacyViewUrl(fileId);
+          } else {
+            throw Exception('Потрібно вказати посилання на файл');
           }
 
+          try {
+            final metadata = await Globals.fileManager.getFileMetadata(fileId);
+            modifiedAt = metadata.modifiedDate;
+          } catch (_) {}
+        }
+
+        final data = <String, dynamic>{
+          'title': title,
+          'fileId': fileId,
+          'url': url,
+          'tags': tags,
+          'modifiedAt': modifiedAt,
+        };
+
+        final overlayId = widget.material?['overlayId']?.toString().trim();
+        final hasOverlayId = overlayId != null && overlayId.isNotEmpty;
+
+        if (isEditing && hasOverlayId) {
           await Globals.firestoreManager.updateDocument(
-            groupId: Globals.profileManager.currentGroupId!,
+            groupId: groupId,
             collection: 'materials',
-            docId: widget.material!['id'],
+            docId: overlayId,
             data: data,
           );
         } else {
           await Globals.firestoreManager.createDocument(
-            groupId: Globals.profileManager.currentGroupId!,
+            groupId: groupId,
             collection: 'materials',
             data: data,
           );
@@ -167,7 +291,6 @@ class _MaterialDialogState extends State<MaterialDialog>
         if (mounted) {
           Navigator.pop(context);
           widget.onRefresh();
-
           Globals.errorNotificationManager.showSuccess(
             isEditing ? 'Матеріал оновлено' : 'Матеріал додано',
           );
@@ -178,6 +301,102 @@ class _MaterialDialogState extends State<MaterialDialog>
         Globals.errorNotificationManager.showError('Помилка збереження: $e');
       }
     }
+  }
+
+  Widget _buildUploadModeSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Джерело файлу:',
+          style: TextStyle(fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 8),
+        SwitchListTile.adaptive(
+          value: _useManualLink,
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Використати legacy-посилання'),
+          subtitle: Text(
+            _canUseDriveUpload
+                ? 'За замовчуванням файл вантажиться напряму в Google Drive папку групи.'
+                : 'Drive folder config не знайдено, тому доступний лише legacy fallback.',
+          ),
+          onChanged: (!_canUseDriveUpload && !_useManualLink)
+              ? null
+              : (value) {
+                  setState(() {
+                    _useManualLink = value;
+                  });
+                },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilePickerCard() {
+    final existingFileId = _existingFileId;
+    final isPickingFile = isLoading('pick_file');
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.withOpacity(0.06),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.upload_file),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  _selectedFile != null
+                      ? _selectedFile!.name
+                      : existingFileId != null
+                      ? 'Файл уже прив\'язаний до матеріалу'
+                      : 'Локальний файл ще не обрано',
+                  style: const TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ),
+              if (_selectedFile != null)
+                IconButton(
+                  onPressed: isPickingFile
+                      ? null
+                      : () {
+                          setState(() {
+                            _selectedFile = null;
+                          });
+                        },
+                  icon: const Icon(Icons.clear),
+                  tooltip: 'Очистити вибір',
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ElevatedButton.icon(
+            onPressed: isPickingFile ? null : _pickLocalFile,
+            icon: isPickingFile
+                ? const LoadingIndicator(size: 16)
+                : const Icon(Icons.folder_open),
+            label: Text(
+              _selectedFile != null || existingFileId != null
+                  ? 'Замінити файл'
+                  : 'Обрати файл',
+            ),
+          ),
+          if (!_canUseDriveUpload) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Щоб працював прямий upload, додайте `materialsFolderId` у `drive_catalog_by_group/{groupId}`.',
+              style: TextStyle(fontSize: 12, color: Colors.orange[800]),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Widget _buildTagsField() {
@@ -193,7 +412,6 @@ class _MaterialDialogState extends State<MaterialDialog>
             suffixIcon: Icon(Icons.local_offer_outlined),
           ),
           maxLines: 2,
-          textInputAction: TextInputAction.done,
         ),
         if (_suggestedTags.isNotEmpty) ...[
           const SizedBox(height: 8),
@@ -205,18 +423,20 @@ class _MaterialDialogState extends State<MaterialDialog>
           Wrap(
             spacing: 6,
             runSpacing: 4,
-            children: _suggestedTags.take(10).map((tag) {
-              return ActionChip(
-                label: Text(tag),
-                onPressed: () {
-                  final currentTags = tagsController.text.trim();
-                  final newTags = currentTags.isEmpty
-                      ? tag
-                      : '$currentTags, $tag';
-                  tagsController.text = newTags;
-                },
-              );
-            }).toList(),
+            children: _suggestedTags
+                .take(10)
+                .map((tag) {
+                  return ActionChip(
+                    label: Text(tag),
+                    onPressed: () {
+                      final currentTags = tagsController.text.trim();
+                      tagsController.text = currentTags.isEmpty
+                          ? tag
+                          : '$currentTags, $tag';
+                    },
+                  );
+                })
+                .toList(growable: false),
           ),
         ],
       ],
@@ -244,9 +464,11 @@ class _MaterialDialogState extends State<MaterialDialog>
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Назва
+                _buildUploadModeSelector(),
+                const SizedBox(height: 16),
                 TextFormField(
                   controller: titleController,
+                  enabled: !isSaving,
                   decoration: const InputDecoration(
                     labelText: 'Назва матеріалу *',
                     border: OutlineInputBorder(),
@@ -258,84 +480,51 @@ class _MaterialDialogState extends State<MaterialDialog>
                     }
                     return null;
                   },
-                  textInputAction: TextInputAction.next,
-                  enabled: !isSaving,
                 ),
-
                 const SizedBox(height: 16),
-
-                // URL
-                TextFormField(
-                  controller: urlController,
-                  decoration: InputDecoration(
-                    labelText: 'Посилання на Google Drive *',
-                    hintText: 'https://drive.google.com/file/d/...',
-                    border: const OutlineInputBorder(),
-                    prefixIcon: const Icon(Icons.link),
-                    suffixIcon: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        if (_urlValidated)
-                          const Icon(Icons.check_circle, color: Colors.green)
-                        else if (_urlError != null)
-                          const Icon(Icons.error, color: Colors.red),
-                        IconButton(
-                          icon: const Icon(Icons.paste),
-                          onPressed: isSaving ? null : _pasteFromClipboard,
-                          tooltip: 'Вставити з буфера',
-                        ),
-                      ],
-                    ),
-                    errorText: _urlError,
-                  ),
-                  validator: (value) {
-                    if (value?.trim().isEmpty ?? true) {
-                      return 'Посилання обов\'язкове';
-                    }
-                    if (!_urlValidated) {
-                      return 'Невалідне посилання на Google Drive';
-                    }
-                    return null;
-                  },
-                  textInputAction: TextInputAction.next,
-                  enabled: !isSaving,
-                ),
-
-                const SizedBox(height: 16),
-
-                // Теги
-                _buildTagsField(),
-
-                const SizedBox(height: 8),
-
-                // Підказка
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.blue.withOpacity(0.2)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        size: 16,
-                        color: Colors.blue.shade700,
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Переконайтеся що файл має публічний доступ або доступ за посиланням',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.blue.shade700,
+                if (_useManualLink) ...[
+                  TextFormField(
+                    controller: urlController,
+                    enabled: !isSaving,
+                    decoration: InputDecoration(
+                      labelText: 'Посилання на Google Drive *',
+                      hintText: 'https://drive.google.com/file/d/...',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.link),
+                      suffixIcon: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (_urlValidated)
+                            const Icon(Icons.check_circle, color: Colors.green)
+                          else if (_urlError != null)
+                            const Icon(Icons.error, color: Colors.red),
+                          IconButton(
+                            icon: const Icon(Icons.paste),
+                            onPressed: isSaving ? null : _pasteFromClipboard,
+                            tooltip: 'Вставити з буфера',
                           ),
-                        ),
+                        ],
                       ),
-                    ],
+                      errorText: _urlError,
+                    ),
+                    validator: (value) {
+                      if (!_useManualLink) {
+                        return null;
+                      }
+                      if (value?.trim().isEmpty ?? true) {
+                        return 'Посилання обов\'язкове в legacy-режимі';
+                      }
+                      if (!_urlValidated) {
+                        return 'Невалідне посилання на Google Drive';
+                      }
+                      return null;
+                    },
                   ),
-                ),
+                ] else ...[
+                  _buildFilePickerCard(),
+                ],
+                const SizedBox(height: 16),
+                _buildTagsField(),
               ],
             ),
           ),
@@ -357,7 +546,6 @@ class _MaterialDialogState extends State<MaterialDialog>
   }
 }
 
-// Wrapper функції для зворотної сумісності
 Future<void> showAddMaterialDialog(
   BuildContext context,
   VoidCallback onRefresh,

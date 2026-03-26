@@ -26,7 +26,10 @@
 
 ### Файли та звіти
 
-- `FileManager` відповідає за Drive metadata, кешування, download/open/share.
+- `GoogleDriveService` виконує прямі list/get/export/upload/delete запити до Google Drive API від імені поточного користувача.
+- `DriveCatalogService` читає `drive_catalog_by_group/{groupId}` і визначає root-папки `materials` та `tools`.
+- `MaterialsService` і `ToolsService` будують hybrid-каталог: Drive є джерелом істини для доступу, Firestore доповнює елементи UI-полями.
+- `FileManager` відповідає за Drive metadata, кешування, download/open/share і працює поверх прямого Google Drive API.
 - `ReportsService` і `lib/services/reports/` генерують Excel-звіти.
 
 ## Зберігання стану
@@ -34,6 +37,12 @@
 - Firebase Auth зберігає основну сесію користувача.
 - `SharedPreferences` тримає допоміжний прапорець для silent restore Google sign-in.
 - Hive зберігає профіль, поточну групу і файловий кеш.
+
+## Доступ до матеріалів та інструментів
+
+- Видимість файлів і папок визначається правами доступу в Google Drive, а не лише Firestore-каталогом.
+- Якщо файл є у Firestore overlay, але недоступний у Drive для поточного користувача, клієнт його не показує.
+- Для нових upload-сценаріїв адмін або редактор завантажує файл одразу в налаштовану Drive-папку групи, а потім зберігає overlay-метадані.
 
 ## Поточні архітектурні ризики
 

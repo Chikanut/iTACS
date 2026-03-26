@@ -12,6 +12,12 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // Конфіг Google Drive каталогу для конкретної групи.
+    match /drive_catalog_by_group/{groupId} {
+      allow read: if isInGroup(groupId);
+      allow create, update, delete: if hasAdminRights(groupId);
+    }
+
     // Користувач може читати й редагувати тільки свій документ.
     match /users/{userId} {
       allow read: if request.auth != null;

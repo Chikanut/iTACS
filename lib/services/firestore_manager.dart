@@ -28,7 +28,7 @@ class SessionBootstrapResult {
 }
 
 class FirestoreManager {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   /// Отримати список груп, до яких належить email

@@ -31,8 +31,11 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
   @override
   void initState() {
     super.initState();
+    final directFileId = widget.material['fileId']?.toString().trim();
     final url = widget.material['url'] ?? '';
-    fileId = Globals.fileManager.extractFileId(url);
+    fileId = directFileId != null && directFileId.isNotEmpty
+        ? directFileId
+        : Globals.fileManager.extractFileId(url);
     _lastModified = _parseModifiedDate();
     _checkDownloaded();
   }
@@ -175,19 +178,42 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
 
     try {
       await withLoading('delete_global_$fileId', () async {
-        final docId = widget.material['id'];
-        final result = await Globals.firestoreManager
-            .deleteDocumentWhereAllowed(
-              docId: docId,
-              groupId: Globals.profileManager.currentGroupId!,
-              userRole: widget.userRole,
-              collection: 'materials',
-            );
+        var driveDeleted = false;
+        if (fileId != null) {
+          try {
+            await Globals.googleDriveService.deleteItem(fileId!);
+            driveDeleted = true;
+          } catch (e) {
+            debugPrint('MaterialTile: не вдалося видалити Drive-файл: $e');
+          }
+        }
 
-        final deleted = (result['deleted'] as List);
-        final skipped = (result['skipped'] as List);
+        final overlayId =
+            widget.material['overlayId']?.toString().trim().isNotEmpty == true
+            ? widget.material['overlayId'].toString()
+            : widget.material['id']?.toString();
+        List deleted = const [];
+        List skipped = const [];
+
+        if (overlayId != null && overlayId.isNotEmpty) {
+          final result = await Globals.firestoreManager
+              .deleteDocumentWhereAllowed(
+                docId: overlayId,
+                groupId: Globals.profileManager.currentGroupId!,
+                userRole: widget.userRole,
+                collection: 'materials',
+              );
+          deleted = (result['deleted'] as List? ?? const []);
+          skipped = (result['skipped'] as List? ?? const []);
+        }
 
         if (mounted) {
+          if (driveDeleted) {
+            Globals.errorNotificationManager.showSuccess(
+              'Файл видалено з Google Drive',
+            );
+          }
+
           if (deleted.isNotEmpty) {
             Globals.errorNotificationManager.showSuccess(
               'Видалено з ${deleted.length} ${deleted.length == 1 ? 'групи' : 'груп'}',
@@ -240,8 +266,22 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
   IconData _getFileIcon() {
     final title = widget.material['title']?.toString().toLowerCase() ?? '';
     final url = widget.material['url']?.toString().toLowerCase() ?? '';
+    final mimeType =
+        widget.material['mimeType']?.toString().toLowerCase() ?? '';
 
     // Визначаємо тип файлу за назвою або URL
+    if (mimeType.contains('pdf')) {
+      return Icons.picture_as_pdf;
+    } else if (mimeType.contains('presentation')) {
+      return Icons.slideshow;
+    } else if (mimeType.contains('spreadsheet') || mimeType.contains('excel')) {
+      return Icons.table_chart;
+    } else if (mimeType.contains('word') || mimeType.contains('document')) {
+      return Icons.description;
+    } else if (mimeType.startsWith('image/')) {
+      return Icons.image;
+    }
+
     if (title.contains('презентац') || url.contains('presentation')) {
       return Icons.slideshow;
     } else if (title.contains('документ') || url.contains('document')) {

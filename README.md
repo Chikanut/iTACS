@@ -7,7 +7,7 @@ Flutter-застосунок для внутрішньої роботи навч
 - авторизація через Google + Firebase Auth;
 - перевірка доступу до груп через Firestore;
 - календар занять та dashboard для інструкторів;
-- матеріали та інструменти з доступом до файлів Google Drive;
+- матеріали та інструменти з приватним доступом до файлів Google Drive;
 - локальне кешування профілю, групи та файлів;
 - базова адмін-панель і генерація Excel-звітів;
 - динамічні шаблони звітів із Firestore, preview та серверною генерацією через Firebase Functions.
@@ -19,6 +19,14 @@ Flutter-застосунок для внутрішньої роботи навч
 - якщо мережі немає, застосунок може відкритися у `read-only offline` режимі зі станом на момент останньої синхронізації;
 - write-операції та генерація звітів без інтернету не виконуються: UI лишається стабільним і показує останній збережений стан;
 - web-версія використовує Flutter app-shell service worker і Firestore persistence для швидшого повторного старту та офлайн-відкриття.
+
+## Google Drive каталог
+
+- `MaterialsPage` і `ToolsPage` працюють у hybrid-режимі: реальний список файлів і папок береться напряму з Google Drive API, а Firestore лишається overlay-шаром для назв, описів, тегів, іконок та інших UI-полів.
+- Доступ до файлів визначається самим Google Drive. Якщо користувач не має доступу до shared folder або файла, він не побачить цей елемент у списку.
+- Для кожної групи використовується документ `drive_catalog_by_group/{groupId}` з полями `materialsFolderId` і `toolsRootFolderId`.
+- Завантаження, метадані, створення папок та upload ідуть напряму через Google Drive API з bearer token у header; старий зовнішній proxy більше не є частиною основного flow.
+- Для читання використовується `drive.readonly`, а для admin/editor upload-операцій застосунок також просить `drive.file`.
 
 ## Стек
 
@@ -96,8 +104,10 @@ firebase deploy --only firestore:rules
 - `lib/pages/auth_gate.dart` - кореневий session router.
 - `lib/services/app_session_controller.dart` - bootstrap, persisted auth, logout.
 - `lib/services/auth_service.dart` - Google/Firebase sign-in, silent restore, token access.
+- `lib/services/google_drive_service.dart` - прямі list/get/export/upload/delete запити до Google Drive API.
+- `lib/services/drive_catalog_service.dart` - конфіг групового Drive-каталогу з Firestore.
 - `lib/services/firestore_manager.dart` - групи, профілі, Firestore CRUD.
-- `lib/services/file_manager/` - кешування, завантаження та відкриття файлів.
+- `lib/services/file_manager/` - кешування, завантаження та відкриття файлів через прямий Google Drive API.
 - `lib/services/report_templates_service.dart` - CRUD шаблонів звітів, preview/publish/generate через callable functions.
 - `functions/report_templates.js` - safe DSL для шаблонів звітів, enrich даних і генерація `.xlsx`.
 - `docs/` - setup, огляд архітектури та roadmap.

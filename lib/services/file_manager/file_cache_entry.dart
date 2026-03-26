@@ -33,7 +33,18 @@ class FileCacheEntry extends HiveObject {
     this.mimeType,
   });
 
-  String get filename => '$fileId.$extension';
+  String get filename {
+    final normalizedName = name.trim();
+    if (normalizedName.isNotEmpty) {
+      return normalizedName;
+    }
+
+    if (extension.trim().isEmpty) {
+      return fileId;
+    }
+
+    return '$fileId.$extension';
+  }
 
   /// Перевіряє, чи є файл зображенням
   bool get isImage => mimeType?.startsWith('image/') ?? false;

@@ -1,13 +1,40 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../globals.dart';
 import '../../mixins/loading_state_mixin.dart';
 import '../../services/tools_service.dart';
 import '../../widgets/loading_indicator.dart';
 import 'tool_dialog.dart';
 import 'tool_tile.dart';
+
+class _ToolPathNode {
+  const _ToolPathNode({
+    required this.parentId,
+    required this.title,
+    this.driveFolderId,
+  });
+
+  final String parentId;
+  final String title;
+  final String? driveFolderId;
+
+  bool get isRoot => parentId == 'root';
+
+  _ToolPathNode copyWith({
+    String? parentId,
+    String? title,
+    String? driveFolderId,
+  }) {
+    return _ToolPathNode(
+      parentId: parentId ?? this.parentId,
+      title: title ?? this.title,
+      driveFolderId: driveFolderId ?? this.driveFolderId,
+    );
+  }
+}
 
 IconData iconFromData(Map<String, dynamic> item, bool isFolder) {
   if (item['icon'] != null && item['iconFontFamily'] != null) {
@@ -16,14 +43,20 @@ IconData iconFromData(Map<String, dynamic> item, bool isFolder) {
       final fontFamily = item['iconFontFamily'];
 
       if (iconCode is int && fontFamily == 'MaterialIcons') {
-        // Повертаємо константну іконку з Map
-        return _iconMap[iconCode] ?? (isFolder ? Icons.folder : Icons.web);
+        return _iconMap[iconCode] ??
+            (isFolder ? Icons.folder : _fallbackIconForType(item));
       }
-    } catch (e) {
-      // Fallback
-    }
+    } catch (_) {}
   }
-  return isFolder ? Icons.folder : Icons.web;
+  return isFolder ? Icons.folder : _fallbackIconForType(item);
+}
+
+IconData _fallbackIconForType(Map<String, dynamic> item) {
+  final type = (item['type'] ?? 'tool').toString();
+  if (type == 'external_link') {
+    return Icons.open_in_new;
+  }
+  return Icons.web;
 }
 
 const Map<int, IconData> _iconMap = {
@@ -47,6 +80,7 @@ const Map<int, IconData> _iconMap = {
   0xe3c9: Icons.edit,
   0xe87a: Icons.explore,
   0xe173: Icons.file_copy,
+  0xe89e: Icons.open_in_new,
 };
 
 Future<IconData?> showIconPickerDialog(BuildContext context) async {
@@ -71,6 +105,7 @@ Future<IconData?> showIconPickerDialog(BuildContext context) async {
     Icons.edit,
     Icons.explore,
     Icons.file_copy,
+    Icons.open_in_new,
   ];
 
   return showDialog<IconData>(
@@ -132,11 +167,15 @@ class ToolsPage extends StatefulWidget {
 
 class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
   final ToolsService _toolsService = ToolsService();
-  List<String> pathStack = ['root'];
-  List<Map<String, dynamic>> pathMeta = [];
+
+  List<_ToolPathNode> _pathStack = const [
+    _ToolPathNode(parentId: 'root', title: 'Головна'),
+  ];
   List<Map<String, dynamic>> currentItems = [];
   String? searchQuery;
   final TextEditingController searchController = TextEditingController();
+
+  _ToolPathNode get _currentNode => _pathStack.last;
 
   @override
   void initState() {
@@ -151,26 +190,45 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
     super.dispose();
   }
 
+  Future<void> _ensureRootDriveFolderId(String groupId) async {
+    if (!_currentNode.isRoot && _currentNode.driveFolderId != null) {
+      return;
+    }
+
+    final rootDriveFolderId = await _toolsService.getToolsRootFolderId(groupId);
+    if (!mounted || rootDriveFolderId == null || !_currentNode.isRoot) {
+      return;
+    }
+
+    setState(() {
+      _pathStack = [
+        _pathStack.first.copyWith(driveFolderId: rootDriveFolderId),
+        ..._pathStack.skip(1),
+      ];
+    });
+  }
+
   Future<void> fetchItems() async {
     try {
       await withLoading('fetch', () async {
         final groupId = Globals.profileManager.currentGroupId;
-        final parentId = pathStack.last;
+        if (groupId == null) {
+          return;
+        }
 
-        debugPrint('[tools] fetchItems: groupId=$groupId, parentId=$parentId');
-
-        if (groupId == null) return;
-
+        await _ensureRootDriveFolderId(groupId);
+        final currentNode = _currentNode;
         final items = await _toolsService.getItems(
           groupId: groupId,
-          parentId: parentId,
+          parentId: currentNode.parentId,
+          driveFolderId: currentNode.driveFolderId,
           forceRefresh: true,
         );
 
         if (mounted) {
-          setState(() => currentItems = items);
-
-          debugPrint('[tools] documents loaded: ${currentItems.length}');
+          setState(() {
+            currentItems = items;
+          });
         }
       });
     } catch (e) {
@@ -191,7 +249,7 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
 
     final cachedItems = _toolsService.getCachedItems(
       groupId: groupId,
-      parentId: pathStack.last,
+      parentId: _currentNode.parentId,
     );
     if (cachedItems.isEmpty) {
       return;
@@ -202,60 +260,77 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
     });
   }
 
-  Future<void> navigateToFolder(String folderId) async {
-    try {
-      await withLoading('navigate', () async {
-        pathStack.add(folderId);
-        Map<String, dynamic>? currentFolder;
-        for (final item in currentItems) {
-          if (item['id'] == folderId) {
-            currentFolder = item;
-            break;
-          }
-        }
-        final fallbackTitle =
-            (currentFolder?['title'] as String?) ?? 'Невідома папка';
-
-        final groupId = Globals.profileManager.currentGroupId;
-        if (groupId != null && !Globals.appRuntimeState.isReadOnlyOffline) {
-          final snapshot = await FirebaseFirestore.instance
-              .collection('tools_by_group')
-              .doc(groupId)
-              .collection('items')
-              .doc(folderId)
-              .get();
-
-          if (snapshot.exists) {
-            pathMeta.add({'id': folderId, 'title': snapshot['title']});
-          } else {
-            pathMeta.add({'id': folderId, 'title': fallbackTitle});
-          }
-        } else {
-          pathMeta.add({'id': folderId, 'title': fallbackTitle});
-        }
-
-        _hydrateCachedItems();
-        await fetchItems();
-      });
-    } catch (e) {
-      if (mounted) {
-        Globals.errorNotificationManager.showError('Помилка навігації: $e');
-      }
+  Future<void> navigateToFolder(Map<String, dynamic> folderItem) async {
+    final driveFolderId = folderItem['driveFolderId']?.toString().trim();
+    if (driveFolderId == null || driveFolderId.isEmpty) {
+      Globals.errorNotificationManager.showError(
+        'Не вдалося визначити Google Drive папку для цього елемента',
+      );
+      return;
     }
+
+    final overlayId = folderItem['overlayId']?.toString().trim();
+    final parentId = overlayId != null && overlayId.isNotEmpty
+        ? overlayId
+        : '__drive__:$driveFolderId';
+
+    setState(() {
+      _pathStack = [
+        ..._pathStack,
+        _ToolPathNode(
+          parentId: parentId,
+          title: folderItem['title']?.toString() ?? 'Невідома папка',
+          driveFolderId: driveFolderId,
+        ),
+      ];
+    });
+
+    _hydrateCachedItems();
+    await fetchItems();
   }
 
   void goBack() {
-    if (pathStack.length > 1) {
-      pathStack.removeLast();
-      pathMeta.removeLast();
-      _hydrateCachedItems();
-      unawaited(fetchItems());
+    if (_pathStack.length <= 1) {
+      return;
     }
+
+    setState(() {
+      _pathStack = _pathStack
+          .take(_pathStack.length - 1)
+          .toList(growable: false);
+    });
+    _hydrateCachedItems();
+    unawaited(fetchItems());
   }
 
   Future<void> openTool(Map<String, dynamic> item) async {
+    final type = (item['type'] ?? 'tool').toString();
+    if (type == 'external_link') {
+      final rawUrl = (item['url'] ?? '').toString().trim();
+      final uri = Uri.tryParse(rawUrl);
+      if (uri == null) {
+        Globals.errorNotificationManager.showError(
+          'Посилання інструмента має некоректний формат',
+        );
+        return;
+      }
+
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+      if (!launched && mounted) {
+        Globals.errorNotificationManager.showError(
+          'Не вдалося відкрити зовнішнє посилання',
+        );
+      }
+      return;
+    }
+
     final fileId = item['fileId'] as String?;
-    if (fileId == null) return;
+    if (fileId == null || fileId.trim().isEmpty) {
+      return;
+    }
 
     try {
       await withLoading('open_${item['id']}', () async {
@@ -264,7 +339,7 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
     } catch (e) {
       if (mounted) {
         Globals.errorNotificationManager.showError(
-          "Не вдалося відкрити файл: $e",
+          'Не вдалося відкрити файл: $e',
         );
       }
     }
@@ -276,7 +351,8 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
       builder: (_) => ToolDialog(
         isEditing: true,
         item: item,
-        parentId: pathStack.last,
+        parentId: _currentNode.parentId,
+        currentDriveFolderId: _currentNode.driveFolderId,
         onSave: fetchItems,
       ),
     );
@@ -287,13 +363,14 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
       await withLoading('delete_${item['id']}', () async {
         final groupId = Globals.profileManager.currentGroupId;
         final userRole = Globals.profileManager.currentRole;
-        if (groupId == null || userRole == null) return;
+        if (groupId == null || userRole == null) {
+          return;
+        }
 
-        debugPrint(
-          '[tools] deleteItem: id=${item['id']}, groupId=$groupId, role=$userRole',
-        );
+        final overlayId = item['overlayId']?.toString().trim();
+        final type = (item['type'] ?? 'tool').toString();
 
-        Future<void> deleteRecursively(String docId) async {
+        Future<void> deleteOverlayTree(String docId) async {
           final children = await Globals.firestoreManager.getDocumentsForGroup(
             groupId: groupId,
             collection: 'tools_by_group',
@@ -301,18 +378,7 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
           );
 
           for (final child in children) {
-            final childData = child.data() as Map<String, dynamic>;
-            final childId = child.id;
-            if (childData['type'] == 'folder') {
-              await deleteRecursively(childId);
-            }
-            await Globals.firestoreManager.deleteDocumentWhereAllowed(
-              docId: childId,
-              groupId: groupId,
-              userRole: userRole,
-              collection: 'tools_by_group',
-            );
-            debugPrint('[tools] deleted child: ${childData['title']}');
+            await deleteOverlayTree(child.id);
           }
 
           await Globals.firestoreManager.deleteDocumentWhereAllowed(
@@ -323,20 +389,80 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
           );
         }
 
-        await deleteRecursively(item['id']);
-        debugPrint('[tools] deleteItem success: ${item['title']}');
+        Future<void> deleteOverlayChildrenForParent(String parentDocId) async {
+          final children = await Globals.firestoreManager.getDocumentsForGroup(
+            groupId: groupId,
+            collection: 'tools_by_group',
+            whereEqual: {'parentId': parentDocId},
+          );
+
+          for (final child in children) {
+            final childData = Map<String, dynamic>.from(
+              child.data() as Map<String, dynamic>,
+            );
+            final childType = (childData['type'] ?? 'tool').toString();
+
+            if (childType == 'folder') {
+              await deleteOverlayTree(child.id);
+              continue;
+            }
+
+            await Globals.firestoreManager.deleteDocumentWhereAllowed(
+              docId: child.id,
+              groupId: groupId,
+              userRole: userRole,
+              collection: 'tools_by_group',
+            );
+          }
+        }
+
+        if (type == 'folder') {
+          final driveFolderId = item['driveFolderId']?.toString().trim();
+          if (driveFolderId != null && driveFolderId.isNotEmpty) {
+            await Globals.googleDriveService.deleteItem(driveFolderId);
+          }
+
+          if (overlayId != null && overlayId.isNotEmpty) {
+            await deleteOverlayTree(overlayId);
+          } else if (driveFolderId != null && driveFolderId.isNotEmpty) {
+            await deleteOverlayChildrenForParent('__drive__:$driveFolderId');
+          }
+        } else if (type == 'external_link') {
+          if (overlayId != null && overlayId.isNotEmpty) {
+            await Globals.firestoreManager.deleteDocumentWhereAllowed(
+              docId: overlayId,
+              groupId: groupId,
+              userRole: userRole,
+              collection: 'tools_by_group',
+            );
+          }
+        } else {
+          final fileId = item['fileId']?.toString().trim();
+          if (fileId != null && fileId.isNotEmpty) {
+            await Globals.googleDriveService.deleteItem(fileId);
+          }
+
+          if (overlayId != null && overlayId.isNotEmpty) {
+            await Globals.firestoreManager.deleteDocumentWhereAllowed(
+              docId: overlayId,
+              groupId: groupId,
+              userRole: userRole,
+              collection: 'tools_by_group',
+            );
+          }
+        }
 
         if (mounted) {
           await fetchItems();
           Globals.errorNotificationManager.showSuccess(
-            '${item['type'] == 'folder' ? 'Папку' : 'Інструмент'} "${item['title']}" видалено',
+            '${type == 'folder' ? 'Папку' : 'Інструмент'} "${item['title']}" видалено',
           );
         }
       });
     } catch (e) {
       debugPrint('[tools] deleteItem ERROR: $e');
       if (mounted) {
-        Globals.errorNotificationManager.showError("Не вдалося видалити: $e");
+        Globals.errorNotificationManager.showError('Не вдалося видалити: $e');
       }
     }
   }
@@ -344,7 +470,11 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
   Future<void> showAddDialog() async {
     await showDialog(
       context: context,
-      builder: (_) => ToolDialog(parentId: pathStack.last, onSave: fetchItems),
+      builder: (_) => ToolDialog(
+        parentId: _currentNode.parentId,
+        currentDriveFolderId: _currentNode.driveFolderId,
+        onSave: fetchItems,
+      ),
     );
   }
 
@@ -353,82 +483,67 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
       return currentItems;
     }
 
-    return currentItems.where((item) {
-      final title = (item['title'] ?? '').toString().toLowerCase();
-      final description = (item['description'] ?? '').toString().toLowerCase();
-      final query = searchQuery!.toLowerCase();
-
-      return title.contains(query) || description.contains(query);
-    }).toList();
+    final query = searchQuery!.toLowerCase();
+    return currentItems
+        .where((item) {
+          final title = (item['title'] ?? '').toString().toLowerCase();
+          final description = (item['description'] ?? '')
+              .toString()
+              .toLowerCase();
+          return title.contains(query) || description.contains(query);
+        })
+        .toList(growable: false);
   }
 
   Widget _buildBreadcrumbs() {
-    final List<Widget> parts = [];
+    final parts = <Widget>[];
 
-    parts.add(
-      Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: isLoading('navigate')
-              ? null
-              : () {
-                  pathStack = ['root'];
-                  pathMeta = [];
-                  fetchItems();
-                },
-          borderRadius: BorderRadius.circular(4),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.home, size: 16, color: Colors.blue[700]),
-                const SizedBox(width: 4),
-                Text(
-                  'Головна',
-                  style: TextStyle(
-                    color: Colors.blue[700],
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
+    for (int i = 0; i < _pathStack.length; i++) {
+      final node = _pathStack[i];
+      final isLast = i == _pathStack.length - 1;
+
+      if (i > 0) {
+        parts.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Icon(Icons.chevron_right, size: 16, color: Colors.grey[600]),
           ),
-        ),
-      ),
-    );
-
-    for (int i = 0; i < pathMeta.length; i++) {
-      parts.add(
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
-          child: Icon(Icons.chevron_right, size: 16, color: Colors.grey[600]),
-        ),
-      );
+        );
+      }
 
       parts.add(
         Material(
           color: Colors.transparent,
           child: InkWell(
-            onTap: isLoading('navigate')
+            onTap: isLast || isLoading('navigate')
                 ? null
                 : () {
-                    pathStack = [
-                      'root',
-                      ...pathMeta.take(i + 1).map((e) => e['id']!),
-                    ];
-                    pathMeta = pathMeta.take(i + 1).toList();
-                    fetchItems();
+                    setState(() {
+                      _pathStack = _pathStack
+                          .take(i + 1)
+                          .toList(growable: false);
+                    });
+                    _hydrateCachedItems();
+                    unawaited(fetchItems());
                   },
             borderRadius: BorderRadius.circular(4),
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              child: Text(
-                pathMeta[i]['title'] ?? '?',
-                style: TextStyle(
-                  color: Colors.blue[700],
-                  fontWeight: FontWeight.w500,
-                ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (i == 0) ...[
+                    Icon(Icons.home, size: 16, color: Colors.blue[700]),
+                    const SizedBox(width: 4),
+                  ],
+                  Text(
+                    node.title,
+                    style: TextStyle(
+                      color: Colors.blue[700],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
@@ -491,7 +606,7 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
   Widget _buildStatsInfo() {
     final totalItems = currentItems.length;
     final folders = currentItems
-        .where((item) => item['type'] == 'folder')
+        .where((item) => (item['type'] ?? 'tool') == 'folder')
         .length;
     final tools = totalItems - folders;
     final filteredCount = filteredItems.length;
@@ -502,17 +617,16 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
         children: [
           Icon(Icons.info_outline, size: 16, color: Colors.grey[600]),
           const SizedBox(width: 8),
-          if (searchQuery != null && searchQuery!.isNotEmpty) ...[
+          if (searchQuery != null && searchQuery!.isNotEmpty)
             Text(
               'Знайдено $filteredCount з $totalItems елементів',
               style: TextStyle(color: Colors.grey[600], fontSize: 12),
-            ),
-          ] else ...[
+            )
+          else
             Text(
-              '$folders ${folders == 1 ? 'папка' : 'папок'} • $tools ${tools == 1 ? 'інструмент' : 'інструментів'}',
+              '$folders папок • $tools інструментів',
               style: TextStyle(color: Colors.grey[600], fontSize: 12),
             ),
-          ],
         ],
       ),
     );
@@ -601,13 +715,12 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
     final showBlockingLoader = isLoading('fetch') && currentItems.isEmpty;
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Інструменти")),
+      appBar: AppBar(title: const Text('Інструменти')),
       body: Column(
         children: [
           _buildBreadcrumbs(),
           _buildSearchBar(),
           _buildStatsInfo(),
-
           Expanded(
             child: showBlockingLoader
                 ? const Center(
@@ -634,17 +747,16 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
                                 ),
                             itemCount:
                                 filteredItems.length +
-                                (pathStack.length > 1 ? 1 : 0),
+                                (_pathStack.length > 1 ? 1 : 0),
                             itemBuilder: (context, index) {
-                              // Кнопка "Назад"
-                              if (pathStack.length > 1 && index == 0) {
+                              if (_pathStack.length > 1 && index == 0) {
                                 return Card(
                                   child: Material(
                                     color: Colors.transparent,
                                     child: InkWell(
                                       onTap: isNavigating ? null : goBack,
                                       borderRadius: BorderRadius.circular(12),
-                                      child: Container(
+                                      child: Padding(
                                         padding: const EdgeInsets.all(16),
                                         child: Column(
                                           mainAxisAlignment:
@@ -684,34 +796,61 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
                                 );
                               }
 
-                              // Інструменти та папки
-                              final itemIndex = pathStack.length > 1
+                              final itemIndex = _pathStack.length > 1
                                   ? index - 1
                                   : index;
                               final item = filteredItems[itemIndex];
-                              final isFolder = item['type'] == 'folder';
-                              final icon = iconFromData(item, isFolder);
+                              final itemType = (item['type'] ?? 'tool')
+                                  .toString();
+                              final isFolder = itemType == 'folder';
+                              final hasDriveBacking = isFolder
+                                  ? (item['driveFolderId']
+                                            ?.toString()
+                                            .trim()
+                                            .isNotEmpty ==
+                                        true)
+                                  : (item['fileId']
+                                            ?.toString()
+                                            .trim()
+                                            .isNotEmpty ==
+                                        true);
+                              final canEditItem =
+                                  itemType == 'external_link' ||
+                                  hasDriveBacking;
+                              final canDeleteItem =
+                                  itemType == 'external_link' ||
+                                  hasDriveBacking;
 
                               return ToolTile(
-                                title: item['title'] ?? '',
-                                description: item['description'],
-                                icon: icon,
+                                title: item['title']?.toString() ?? '',
+                                description: item['description']?.toString(),
+                                icon: iconFromData(item, isFolder),
                                 isFolder: isFolder,
+                                itemType: itemType,
                                 isAdmin: isAdmin,
-                                fileId: isFolder ? null : item['fileId'],
-                                isFileLoading: isLoading(
-                                  'open_${item['id']}',
-                                ), // 👈 Передаємо стан
+                                canEdit: canEditItem,
+                                canDelete: canDeleteItem,
+                                fileId: isFolder
+                                    ? null
+                                    : item['fileId']?.toString(),
+                                linkUrl: itemType == 'external_link'
+                                    ? item['url']?.toString()
+                                    : null,
+                                isFileLoading: isLoading('open_${item['id']}'),
                                 onTap: () async {
                                   if (isFolder) {
-                                    await navigateToFolder(item['id']);
+                                    await navigateToFolder(item);
                                   } else {
                                     await openTool(item);
                                     await fetchItems();
                                   }
                                 },
-                                onEdit: () => editItem(item),
-                                onDelete: () => deleteItem(item),
+                                onEdit: canEditItem
+                                    ? () => editItem(item)
+                                    : null,
+                                onDelete: canDeleteItem
+                                    ? () => deleteItem(item)
+                                    : null,
                                 onStatusChanged: () => setState(() {}),
                               );
                             },

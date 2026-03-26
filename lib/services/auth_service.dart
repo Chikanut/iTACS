@@ -8,13 +8,28 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../globals.dart';
 
 class AuthService {
+  static const String _driveReadonlyScope =
+      'https://www.googleapis.com/auth/drive.readonly';
+  static const String _driveFileScope =
+      'https://www.googleapis.com/auth/drive.file';
+  static const List<String> _driveReadScopes = <String>[_driveReadonlyScope];
+  static const List<String> _driveWriteScopes = <String>[
+    _driveReadonlyScope,
+    _driveFileScope,
+  ];
+  static const List<String> _googleSignInScopes = <String>[
+    'email',
+    _driveReadonlyScope,
+    _driveFileScope,
+  ];
+
   static GoogleSignInAccount? _currentGoogleUser;
   static String? _cachedAccessToken;
   static DateTime? _tokenExpirationTime;
 
   // Додаємо необхідні scopes для Google Drive
   static final GoogleSignIn _googleSignInWithDrive = GoogleSignIn(
-    scopes: ['email', 'https://www.googleapis.com/auth/drive.readonly'],
+    scopes: _googleSignInScopes,
   );
 
   GoogleSignInAccount? get currentGoogleUser => _currentGoogleUser;
@@ -110,6 +125,26 @@ class AuthService {
   }
 
   Future<String?> getAccessToken() async {
+    return _getAccessTokenForScopes(
+      _driveReadScopes,
+      allowInteractiveRecovery: false,
+      requireScopeConfirmation: false,
+    );
+  }
+
+  Future<String?> getDriveWriteAccessToken() async {
+    return _getAccessTokenForScopes(
+      _driveWriteScopes,
+      allowInteractiveRecovery: true,
+      requireScopeConfirmation: true,
+    );
+  }
+
+  Future<String?> _getAccessTokenForScopes(
+    List<String> requiredScopes, {
+    required bool allowInteractiveRecovery,
+    required bool requireScopeConfirmation,
+  }) async {
     try {
       // Перевіряємо чи є закешований токен і чи не закінчився
       if (_cachedAccessToken != null &&
@@ -119,7 +154,8 @@ class AuthService {
         return _cachedAccessToken;
       }
 
-      GoogleSignInAccount? account = _googleSignInWithDrive.currentUser;
+      GoogleSignInAccount? account =
+          _currentGoogleUser ?? _googleSignInWithDrive.currentUser;
 
       // Якщо немає поточного користувача, спробуємо тихий вхід
       if (account == null) {
@@ -127,13 +163,37 @@ class AuthService {
         account = await _googleSignInWithDrive.signInSilently();
       }
 
+      if (account == null &&
+          Globals.firebaseAuth.currentUser != null &&
+          allowInteractiveRecovery) {
+        debugPrint(
+          '🔄 Google session не відновилась тихо, пробуємо інтерактивно відновити Drive доступ...',
+        );
+        account = await _googleSignInWithDrive.signIn();
+      }
+
       if (account == null) {
         debugPrint('🛑 Користувач не авторизований');
         return null;
       }
 
+      _currentGoogleUser = account;
+
+      if (requireScopeConfirmation) {
+        final hasRequiredScopes = await _ensureRequiredScopes(
+          requiredScopes,
+          interactive: allowInteractiveRecovery,
+        );
+        if (!hasRequiredScopes) {
+          debugPrint(
+            '🛑 Не вдалося підтвердити потрібні Google Drive scopes: $requiredScopes',
+          );
+          return null;
+        }
+      }
+
       // Оновлюємо токен
-      final auth = await account.authentication;
+      var auth = await account.authentication;
 
       if (auth.accessToken == null) {
         debugPrint(
@@ -148,9 +208,24 @@ class AuthService {
           return null;
         }
 
-        final newAuth = await account.authentication;
-        _cachedAccessToken = newAuth.accessToken;
-        _tokenExpirationTime = DateTime.now().add(Duration(hours: 1));
+        _currentGoogleUser = account;
+
+        if (requireScopeConfirmation) {
+          final hasScopesAfterReauth = await _ensureRequiredScopes(
+            requiredScopes,
+            interactive: allowInteractiveRecovery,
+          );
+          if (!hasScopesAfterReauth) {
+            debugPrint(
+              '🛑 Після повторної авторизації потрібні Google Drive scopes так і не були надані',
+            );
+            return null;
+          }
+        }
+
+        auth = await account.authentication;
+        _cachedAccessToken = auth.accessToken;
+        _tokenExpirationTime = DateTime.now().add(const Duration(hours: 1));
 
         return _cachedAccessToken;
       }
@@ -205,6 +280,57 @@ class AuthService {
   Future<String?> forceRefreshToken() async {
     _cachedAccessToken = null;
     _tokenExpirationTime = null;
-    return await getAccessToken();
+    return _getAccessTokenForScopes(
+      _driveReadScopes,
+      allowInteractiveRecovery: false,
+      requireScopeConfirmation: false,
+    );
+  }
+
+  Future<String?> forceRefreshDriveWriteAccessToken() async {
+    _cachedAccessToken = null;
+    _tokenExpirationTime = null;
+    return _getAccessTokenForScopes(
+      _driveWriteScopes,
+      allowInteractiveRecovery: true,
+      requireScopeConfirmation: true,
+    );
+  }
+
+  Future<bool> _ensureRequiredScopes(
+    List<String> requiredScopes, {
+    required bool interactive,
+  }) async {
+    final existingAccess = await _canAccessScopes(requiredScopes);
+    if (existingAccess == true) {
+      return true;
+    }
+
+    if (!interactive) {
+      return false;
+    }
+
+    try {
+      debugPrint('🔐 Запитуємо Google Drive scopes: $requiredScopes');
+      return await _googleSignInWithDrive.requestScopes(requiredScopes);
+    } catch (e) {
+      debugPrint('🚫 Не вдалося запросити Google Drive scopes: $e');
+      return false;
+    }
+  }
+
+  Future<bool?> _canAccessScopes(
+    List<String> scopes, {
+    String? accessToken,
+  }) async {
+    try {
+      return await _googleSignInWithDrive.canAccessScopes(
+        scopes,
+        accessToken: accessToken,
+      );
+    } catch (e) {
+      debugPrint('⚠️ Не вдалося перевірити Google Drive scopes: $e');
+      return null;
+    }
   }
 }

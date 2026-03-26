@@ -5,7 +5,7 @@ import '../models/lesson_model.dart';
 import '../globals.dart';
 
 class AbsencesService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
   List<InstructorAbsence> getCachedCurrentUserAbsences() {
     final snapshot = Globals.appSnapshotStore.getCachedSnapshot(

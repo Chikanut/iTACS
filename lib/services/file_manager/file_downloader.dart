@@ -1,24 +1,31 @@
 // file_downloader.dart
 
 import 'package:flutter/foundation.dart';
-import 'package:http/http.dart' as http;
 import 'file_metadata_service.dart';
 import 'file_exceptions.dart';
 import '../auth_service.dart';
+import '../google_drive_service.dart';
 
 class FileDownloader {
   final FileMetadataService metadataService;
-  final AuthService authService;
+  final GoogleDriveService _driveService;
 
-  FileDownloader({required this.metadataService, required this.authService});
+  FileDownloader({
+    required this.metadataService,
+    required AuthService authService,
+  }) : _driveService = GoogleDriveService(authService: authService);
 
   Future<Uint8List> downloadFile(String fileId) async {
     try {
       return await _downloadFileWithRetry(fileId);
+    } on MetadataException {
+      rethrow;
+    } on WebDownloadException {
+      rethrow;
     } catch (e) {
       debugPrint('FileDownloader: Остаточна помилка завантаження: $e');
       throw WebDownloadException(
-        'Не вдалося завантажити файл через проксі',
+        'Не вдалося завантажити файл напряму з Google Drive',
         fileId,
       );
     }
@@ -39,44 +46,14 @@ class FileDownloader {
           );
         }
 
-        final titleEncoded = Uri.encodeComponent(metadata.filename);
-        final ext = metadata.extension;
-
-        final proxyUrl =
-            'https://itacs-webservice.onrender.com/proxy?fileId=$fileId&title=$titleEncoded&ext=$ext';
-
         debugPrint(
-          'FileDownloader: Завантаження через проксі (спроба ${attempt + 1}): $proxyUrl',
+          'FileDownloader: Завантаження напряму з Google Drive (спроба ${attempt + 1}) для ${metadata.filename}',
         );
-        final response = await http.get(Uri.parse(proxyUrl));
-
-        if (response.statusCode == 200) {
-          debugPrint('FileDownloader: Успішно отримано файл через проксі');
-          return response.bodyBytes;
-        } else if (response.statusCode == 401 || response.statusCode == 403) {
-          // Токен можливо застарів
-          debugPrint(
-            'FileDownloader: Токен застарів (${response.statusCode}), оновлюємо...',
-          );
-
-          if (attempt < maxRetries - 1) {
-            // Примусово оновлюємо токен
-            await authService.forceRefreshToken();
-            continue; // Спробуємо знову
-          }
-
-          throw WebDownloadException(
-            'Проблема з авторизацією: ${response.statusCode}',
-            fileId,
-            proxyUrl,
-          );
-        } else {
-          throw WebDownloadException(
-            'Проксі повернув помилку: ${response.statusCode}',
-            fileId,
-            proxyUrl,
-          );
-        }
+        final bytes = await _driveService.downloadFileBytes(fileId);
+        debugPrint(
+          'FileDownloader: Успішно отримано файл напряму з Google Drive',
+        );
+        return bytes;
       } catch (e) {
         debugPrint('FileDownloader: Спроба ${attempt + 1} не вдалася: $e');
 
@@ -84,8 +61,6 @@ class FileDownloader {
           // Остання спроба
           rethrow;
         }
-
-        // Чекаємо трохи перед наступною спробою
         await Future.delayed(Duration(seconds: 1));
       }
     }

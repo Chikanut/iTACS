@@ -8,12 +8,16 @@ class ToolTile extends StatefulWidget {
   final IconData icon;
   final VoidCallback onTap;
   final bool isAdmin;
+  final bool canEdit;
+  final bool canDelete;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
   final bool isFolder;
+  final String itemType;
   final String? description;
-  final String? fileId; // Додано для операцій з файлами
-  final VoidCallback? onStatusChanged; // Callback для оновлення статусу
+  final String? fileId;
+  final String? linkUrl;
+  final VoidCallback? onStatusChanged;
   final bool isFileLoading;
 
   const ToolTile({
@@ -22,11 +26,15 @@ class ToolTile extends StatefulWidget {
     required this.icon,
     required this.onTap,
     this.isAdmin = false,
+    this.canEdit = false,
+    this.canDelete = false,
     this.onEdit,
     this.onDelete,
     this.isFolder = false,
+    this.itemType = 'tool',
     this.description,
     this.fileId,
+    this.linkUrl,
     this.onStatusChanged,
     this.isFileLoading = false,
   });
@@ -47,7 +55,7 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
   @override
   void initState() {
     super.initState();
-    if (!widget.isFolder && widget.fileId != null) {
+    if (widget.itemType == 'tool' && widget.fileId != null) {
       _checkFileStatus();
     }
   }
@@ -284,7 +292,7 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
   }
 
   Widget _buildStatusIndicator() {
-    if (widget.isFolder || !_statusChecked || widget.fileId == null) {
+    if (widget.itemType != 'tool' || !_statusChecked || widget.fileId == null) {
       return const SizedBox.shrink();
     }
 
@@ -325,7 +333,7 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
   }
 
   Widget _buildFileSize() {
-    if (widget.isFolder || _fileSize == null) {
+    if (widget.itemType != 'tool' || _fileSize == null) {
       return const SizedBox.shrink();
     }
 
@@ -386,10 +394,11 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
   }
 
   Widget _buildPopupMenu() {
-    // Показуємо меню для всіх користувачів (не тільки адмінів)
     final hasAdminActions =
-        widget.isAdmin && (widget.onEdit != null || widget.onDelete != null);
-    final hasFileActions = !widget.isFolder && widget.fileId != null;
+        widget.isAdmin &&
+        ((widget.canEdit && widget.onEdit != null) ||
+            (widget.canDelete && widget.onDelete != null));
+    final hasFileActions = widget.itemType == 'tool' && widget.fileId != null;
 
     if (!hasAdminActions && !hasFileActions) {
       return const SizedBox.shrink();
@@ -447,7 +456,7 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
                 },
                 itemBuilder: (context) => [
                   // Адміністративні дії
-                  if (widget.isAdmin && widget.onEdit != null)
+                  if (widget.isAdmin && widget.canEdit && widget.onEdit != null)
                     const PopupMenuItem(
                       value: 'edit',
                       child: ListTile(
@@ -482,12 +491,15 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
 
                   // Розділювач перед видаленням
                   if (widget.isAdmin &&
+                      widget.canDelete &&
                       widget.onDelete != null &&
                       hasFileActions)
                     const PopupMenuDivider(),
 
                   // Видалення (тільки для адмінів)
-                  if (widget.isAdmin && widget.onDelete != null)
+                  if (widget.isAdmin &&
+                      widget.canDelete &&
+                      widget.onDelete != null)
                     const PopupMenuItem(
                       value: 'delete',
                       child: ListTile(
@@ -516,6 +528,27 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
         isLoading('delete') ||
         isLoading('refresh') ||
         isLoading('clear_cache');
+
+    final typeLabel = switch (widget.itemType) {
+      'folder' => 'папка',
+      'external_link' => 'посилання',
+      _ => 'файл',
+    };
+    final typeColor = switch (widget.itemType) {
+      'folder' => Colors.amber[700]!,
+      'external_link' => Colors.teal[700]!,
+      _ => Colors.blue[700]!,
+    };
+    final typeBackground = switch (widget.itemType) {
+      'folder' => Colors.amber.withOpacity(0.15),
+      'external_link' => Colors.teal.withOpacity(0.15),
+      _ => Colors.blue.withOpacity(0.15),
+    };
+    final typeIcon = switch (widget.itemType) {
+      'folder' => Icons.folder,
+      'external_link' => Icons.open_in_new,
+      _ => Icons.build,
+    };
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -605,29 +638,19 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
                               vertical: 1,
                             ),
                             decoration: BoxDecoration(
-                              color: widget.isFolder
-                                  ? Colors.amber.withOpacity(0.15)
-                                  : Colors.blue.withOpacity(0.15),
+                              color: typeBackground,
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(
-                                  widget.isFolder ? Icons.folder : Icons.build,
-                                  size: 10,
-                                  color: widget.isFolder
-                                      ? Colors.amber[700]
-                                      : Colors.blue[700],
-                                ),
+                                Icon(typeIcon, size: 10, color: typeColor),
                                 const SizedBox(width: 2),
                                 Text(
-                                  widget.isFolder ? 'папка' : 'файл',
+                                  typeLabel,
                                   style: TextStyle(
                                     fontSize: 8,
-                                    color: widget.isFolder
-                                        ? Colors.amber[700]
-                                        : Colors.blue[700],
+                                    color: typeColor,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),

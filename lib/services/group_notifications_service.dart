@@ -6,7 +6,7 @@ import '../models/group_notification.dart';
 import '../models/instructor_absence.dart';
 
 class GroupNotificationsService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
   List<GroupNotification> getCachedNotificationsForCurrentUser() {
     final snapshot = Globals.appSnapshotStore.getCachedSnapshot(
