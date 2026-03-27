@@ -34,6 +34,8 @@ class AuthService {
 
   GoogleSignInAccount? get currentGoogleUser => _currentGoogleUser;
 
+  bool get isDriveSessionAvailable => _currentGoogleUser != null;
+
   Future<bool> signInWithGoogle(BuildContext context) async {
     try {
       final googleUser = await _googleSignInWithDrive.signIn();
@@ -127,7 +129,7 @@ class AuthService {
   Future<String?> getAccessToken() async {
     return _getAccessTokenForScopes(
       _driveReadScopes,
-      allowInteractiveRecovery: false,
+      allowInteractiveRecovery: true,  // was false — now allows popup recovery on user gesture
       requireScopeConfirmation: false,
     );
   }
@@ -295,6 +297,25 @@ class AuthService {
       allowInteractiveRecovery: true,
       requireScopeConfirmation: true,
     );
+  }
+
+  /// Explicitly reconnects Google Drive session via interactive sign-in.
+  /// Call this from UI when isDriveSessionAvailable is false.
+  Future<bool> reconnectDrive() async {
+    try {
+      final account = await _googleSignInWithDrive.signIn();
+      if (account == null) return false;
+      _currentGoogleUser = account;
+      final auth = await account.authentication;
+      _cachedAccessToken = auth.accessToken;
+      _tokenExpirationTime = DateTime.now().add(const Duration(hours: 1));
+      await _saveSignInState(true);
+      debugPrint('AuthService: Drive session reconnected');
+      return true;
+    } catch (e) {
+      debugPrint('AuthService: reconnectDrive failed: $e');
+      return false;
+    }
   }
 
   Future<bool> _ensureRequiredScopes(
