@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../globals.dart';
 import '../../mixins/loading_state_mixin.dart';
 import '../../services/tools_service.dart';
+import '../../widgets/drive_session_banner.dart';
 import '../../widgets/loading_indicator.dart';
 import 'tool_dialog.dart';
 import 'tool_tile.dart';
@@ -718,6 +719,11 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
       appBar: AppBar(title: const Text('Інструменти')),
       body: Column(
         children: [
+          DriveSessionBanner(
+            onReconnected: () {
+              unawaited(fetchItems());
+            },
+          ),
           _buildBreadcrumbs(),
           _buildSearchBar(),
           _buildStatsInfo(),
