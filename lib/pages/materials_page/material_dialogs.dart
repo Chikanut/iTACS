@@ -105,7 +105,9 @@ class _MaterialDialogState extends State<MaterialDialog>
           _suggestedTags = allTags.toList()..sort();
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('MaterialDialog: failed to load suggested tags: $e');
+    }
   }
 
   Future<void> _loadCatalogConfig() async {
@@ -126,7 +128,10 @@ class _MaterialDialogState extends State<MaterialDialog>
           _useManualLink = true;
         }
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('MaterialDialog: failed to load catalog config: $e');
+      if (mounted) setState(() => _useManualLink = true);
+    }
   }
 
   void _validateUrl() {
@@ -178,7 +183,9 @@ class _MaterialDialogState extends State<MaterialDialog>
       if (clipboardData?.text != null) {
         urlController.text = clipboardData!.text!;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('MaterialDialog: clipboard read failed: $e');
+    }
   }
 
   Future<void> _saveMaterial() async {
@@ -240,7 +247,10 @@ class _MaterialDialogState extends State<MaterialDialog>
                 fileId,
               );
               modifiedAt = metadata.modifiedDate;
-            } catch (_) {}
+            } catch (e) {
+              debugPrint('MaterialDialog: could not fetch file metadata for $fileId: $e');
+              // modifiedAt stays as DateTime.now() — acceptable fallback
+            }
           }
         } else {
           final manualUrl = urlController.text.trim();
@@ -259,7 +269,10 @@ class _MaterialDialogState extends State<MaterialDialog>
           try {
             final metadata = await Globals.fileManager.getFileMetadata(fileId);
             modifiedAt = metadata.modifiedDate;
-          } catch (_) {}
+          } catch (e) {
+            debugPrint('MaterialDialog: could not fetch metadata for manual url: $e');
+            // modifiedAt stays as DateTime.now() — acceptable fallback
+          }
         }
 
         final data = <String, dynamic>{
