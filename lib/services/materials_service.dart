@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import '../globals.dart';
@@ -59,32 +60,44 @@ class MaterialsService {
       groupId: groupId,
       collection: 'materials',
     );
-
     return docs
-        .map((doc) {
-          final data = Map<String, dynamic>.from(
-            doc.data() as Map<String, dynamic>,
-          );
-          final fileId = (data['fileId'] as String?)?.trim().isNotEmpty == true
-              ? (data['fileId'] as String).trim()
-              : Globals.fileManager.extractFileId(
-                  (data['url'] ?? '').toString(),
-                );
-
-          return {
-            ...data,
-            'id': doc.id,
-            'overlayId': doc.id,
-            'fileId': fileId,
-            'url': fileId == null
-                ? data['url']
-                : (data['url'] ??
-                      Globals.googleDriveService.buildLegacyViewUrl(fileId)),
-            'tags': List<String>.from(data['tags'] as List? ?? const []),
-            'isOverlayBacked': true,
-          };
-        })
+        .cast<QueryDocumentSnapshot<Map<String, dynamic>>>()
+        .map(_mapDocToMaterial)
         .toList(growable: false);
+  }
+
+  /// Streams overlay materials from Firestore in real time.
+  /// Each emission is the full current list of overlay materials for the group.
+  /// Does NOT include Drive folder files — those are fetched separately on demand.
+  Stream<List<Map<String, dynamic>>> streamOverlayMaterials({
+    required String groupId,
+  }) {
+    return Globals.firestoreManager
+        .streamDocumentsForGroup(groupId: groupId, collection: 'materials')
+        .map((docs) => docs.map(_mapDocToMaterial).toList(growable: false));
+  }
+
+  Map<String, dynamic> _mapDocToMaterial(
+    QueryDocumentSnapshot<Map<String, dynamic>> doc,
+  ) {
+    final data = Map<String, dynamic>.from(doc.data());
+    final fileId = (data['fileId'] as String?)?.trim().isNotEmpty == true
+        ? (data['fileId'] as String).trim()
+        : Globals.fileManager.extractFileId(
+            (data['url'] ?? '').toString(),
+          );
+    return {
+      ...data,
+      'id': doc.id,
+      'overlayId': doc.id,
+      'fileId': fileId,
+      'url': fileId == null
+          ? data['url']
+          : (data['url'] ??
+                Globals.googleDriveService.buildLegacyViewUrl(fileId)),
+      'tags': List<String>.from(data['tags'] as List? ?? const []),
+      'isOverlayBacked': true,
+    };
   }
 
   List<Map<String, dynamic>> _mergeDriveFilesWithOverlay({
