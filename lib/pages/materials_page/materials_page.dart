@@ -8,6 +8,7 @@ import 'material_dialogs.dart';
 import '../../globals.dart';
 import '../../mixins/loading_state_mixin.dart';
 import '../../services/materials_service.dart';
+import '../../widgets/drive_session_banner.dart';
 import '../../widgets/loading_indicator.dart';
 
 class MaterialsPage extends StatefulWidget {
@@ -20,6 +21,10 @@ class MaterialsPage extends StatefulWidget {
 class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
   final MaterialsService _materialsService = MaterialsService();
   List<Map<String, dynamic>> materials = [];
+  List<Map<String, dynamic>> _overlayMaterials = [];
+  List<Map<String, dynamic>> _driveFiles = [];
+  StreamSubscription<List<Map<String, dynamic>>>? _overlaySubscription;
+
   List<String> selectedTags = [];
   Set<String> allTags = {};
 
@@ -35,44 +40,145 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
   void initState() {
     super.initState();
     _hydrateCachedMaterials();
-    unawaited(fetchMaterials());
+    _subscribeToOverlayStream();
+    unawaited(_loadDriveFolderFiles());
   }
 
   @override
   void dispose() {
+    _overlaySubscription?.cancel();
     searchController.dispose();
     searchFocusNode.dispose();
     super.dispose();
   }
 
+  void _subscribeToOverlayStream() {
+    final groupId = Globals.profileManager.currentGroupId;
+    if (groupId == null) return;
+
+    _overlaySubscription = _materialsService
+        .streamOverlayMaterials(groupId: groupId)
+        .listen(
+          (overlayItems) {
+            if (!mounted) return;
+            setState(() {
+              _overlayMaterials = overlayItems;
+              materials = _mergeOverlayWithDrive(overlayItems, _driveFiles);
+              _rebuildTags();
+            });
+          },
+          onError: (e) {
+            debugPrint('MaterialsPage: overlay stream error: $e');
+          },
+        );
+  }
+
+  Future<void> _loadDriveFolderFiles() async {
+    try {
+      await withLoading('fetch_drive', () async {
+        final groupId = Globals.profileManager.currentGroupId;
+        if (groupId == null) return;
+
+        final config = await Globals.driveCatalogService.getConfig(groupId);
+        if (config?.hasMaterialsFolder != true) return;
+
+        final driveFiles = await Globals.googleDriveService.listFolderChildren(
+          config!.materialsFolderId!,
+        );
+
+        if (!mounted) return;
+        setState(() {
+          _driveFiles = driveFiles
+              .where((f) => !f.isFolder && !f.isShortcut)
+              .map(
+                (f) => {
+                  'id': 'drive_material::${f.id}',
+                  'fileId': f.id,
+                  'url': Globals.googleDriveService.buildLegacyViewUrl(f.id),
+                  'title': f.displayTitle,
+                  'tags': <String>[],
+                  'modifiedAt':
+                      f.modifiedTime ?? DateTime.now().toIso8601String(),
+                  'driveName': f.normalizedName,
+                  'mimeType': f.exportMimeType ?? f.mimeType,
+                  'size': f.size,
+                  'isOverlayBacked': false,
+                },
+              )
+              .toList();
+          materials = _mergeOverlayWithDrive(_overlayMaterials, _driveFiles);
+          _rebuildTags();
+        });
+      });
+    } catch (e) {
+      debugPrint('MaterialsPage: failed to load Drive folder files: $e');
+      // Graceful degradation — show overlay-only materials
+    }
+  }
+
+  List<Map<String, dynamic>> _mergeOverlayWithDrive(
+    List<Map<String, dynamic>> overlayItems,
+    List<Map<String, dynamic>> driveItems,
+  ) {
+    final overlayByFileId = {
+      for (final m in overlayItems)
+        if (m['fileId'] != null) m['fileId'].toString(): m,
+    };
+
+    final merged = <Map<String, dynamic>>[];
+
+    // Drive items merged with overlay metadata
+    for (final drive in driveItems) {
+      final fileId = drive['fileId']?.toString();
+      final overlay = fileId != null ? overlayByFileId[fileId] : null;
+      merged.add(overlay != null ? {...drive, ...overlay} : drive);
+    }
+
+    // Overlay-only items (not in Drive folder)
+    final driveFileIds =
+        driveItems.map((d) => d['fileId']?.toString()).toSet();
+    for (final overlay in overlayItems) {
+      if (!driveFileIds.contains(overlay['fileId']?.toString())) {
+        merged.add(overlay);
+      }
+    }
+
+    merged.sort((a, b) {
+      final aDate = DateTime.tryParse((a['modifiedAt'] ?? '').toString());
+      final bDate = DateTime.tryParse((b['modifiedAt'] ?? '').toString());
+      if (aDate != null && bDate != null) return bDate.compareTo(aDate);
+      return (a['title'] ?? '').toString().compareTo(
+        (b['title'] ?? '').toString(),
+      );
+    });
+
+    return merged;
+  }
+
+  void _rebuildTags() {
+    final tagCounts = <String, int>{};
+    for (final item in materials) {
+      for (final tag in List<String>.from(item['tags'] ?? [])) {
+        tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
+      }
+    }
+    final sorted = tagCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    allTags = sorted.map((e) => e.key).toSet();
+  }
+
+  /// Reloads Drive folder files. Used by RefreshIndicator, DriveSessionBanner,
+  /// and MaterialTile callbacks. Overlay stream handles Firestore in real time.
   Future<void> fetchMaterials() async {
     try {
       await withLoading('fetch_materials', () async {
         final groupId = Globals.profileManager.currentGroupId;
         if (groupId == null) return;
 
-        final data = await _materialsService.getMaterials(
-          groupId: groupId,
-          forceRefresh: true,
-        );
-        final currentUserRole = Globals.profileManager.currentRole ?? 'viewer';
-
-        // Збираємо всі теги і сортуємо за популярністю
-        final tagCounts = <String, int>{};
-        for (var item in data) {
-          final tagsList = List<String>.from(item['tags'] ?? []);
-          for (final tag in tagsList) {
-            tagCounts[tag] = (tagCounts[tag] ?? 0) + 1;
-          }
-        }
-
-        final sortedTags = tagCounts.entries.toList()
-          ..sort((a, b) => b.value.compareTo(a.value));
-
+        final currentUserRole =
+            Globals.profileManager.currentRole ?? 'viewer';
         if (mounted) {
           setState(() {
-            materials = data;
-            allTags = sortedTags.map((e) => e.key).toSet();
             userRole = currentUserRole;
             canEdit =
                 !Globals.appRuntimeState.isReadOnlyOffline &&
@@ -80,6 +186,7 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
           });
         }
       });
+      await _loadDriveFolderFiles();
     } catch (e) {
       if (mounted) {
         Globals.errorNotificationManager.showError(
@@ -356,6 +463,11 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
       appBar: AppBar(title: const Text('Методичні матеріали')),
       body: Column(
         children: [
+          DriveSessionBanner(
+            onReconnected: () {
+              unawaited(_loadDriveFolderFiles());
+            },
+          ),
           _buildSearchBar(),
           _buildTagsFilter(),
           _buildResultsInfo(),
