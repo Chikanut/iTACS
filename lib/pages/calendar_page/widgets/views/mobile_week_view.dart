@@ -85,6 +85,7 @@ class _MobileWeekViewState extends State<MobileWeekView> {
     Key? key,
   }) {
     final isSelected = CalendarUtils.isSameDay(date, widget.selectedDate);
+    final isToday = CalendarUtils.isToday(date);
 
     return Container(
       key: key,
@@ -94,7 +95,11 @@ class _MobileWeekViewState extends State<MobileWeekView> {
           _buildDateHeader(context, date, isSelected: isSelected),
           const SizedBox(height: 8),
           if (lessonsForDay.isEmpty)
-            _buildEmptyDayCard(context, isSelected: isSelected)
+            _buildEmptyDayCard(
+              context,
+              isSelected: isSelected,
+              isToday: isToday,
+            )
           else
             ...lessonsForDay.map(
               (lesson) => Container(
@@ -117,15 +122,18 @@ class _MobileWeekViewState extends State<MobileWeekView> {
   }) {
     final isToday = CalendarUtils.isToday(date);
     final primaryColor = Theme.of(context).primaryColor;
+    final shouldHighlight = isSelected || isToday;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: isSelected ? primaryColor.withOpacity(0.08) : Colors.transparent,
+        color: shouldHighlight
+            ? primaryColor.withOpacity(isSelected ? 0.08 : 0.05)
+            : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isSelected
-              ? primaryColor.withOpacity(0.3)
+          color: shouldHighlight
+              ? primaryColor.withOpacity(isSelected ? 0.3 : 0.18)
               : Colors.grey.shade200,
         ),
       ),
@@ -137,7 +145,7 @@ class _MobileWeekViewState extends State<MobileWeekView> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: isSelected ? primaryColor : null,
+                color: shouldHighlight ? primaryColor : null,
               ),
             ),
           ),
@@ -185,28 +193,33 @@ class _MobileWeekViewState extends State<MobileWeekView> {
     );
   }
 
-  Widget _buildEmptyDayCard(BuildContext context, {required bool isSelected}) {
+  Widget _buildEmptyDayCard(
+    BuildContext context, {
+    required bool isSelected,
+    required bool isToday,
+  }) {
     final primaryColor = Theme.of(context).primaryColor;
+    final shouldHighlight = isSelected || isToday;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: isSelected
-            ? primaryColor.withOpacity(0.04)
+        color: shouldHighlight
+            ? primaryColor.withOpacity(isSelected ? 0.04 : 0.03)
             : Colors.grey.shade50,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isSelected
-              ? primaryColor.withOpacity(0.2)
+          color: shouldHighlight
+              ? primaryColor.withOpacity(isSelected ? 0.2 : 0.14)
               : Colors.grey.shade200,
         ),
       ),
       child: Text(
         'Немає занять на цей день',
         style: TextStyle(
-          color: isSelected ? primaryColor : Colors.grey.shade700,
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          color: shouldHighlight ? primaryColor : Colors.grey.shade700,
+          fontWeight: shouldHighlight ? FontWeight.w600 : FontWeight.normal,
         ),
       ),
     );

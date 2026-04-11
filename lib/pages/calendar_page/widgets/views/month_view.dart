@@ -211,6 +211,8 @@ class MonthView extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected
               ? AppTheme.successStatus.background
+              : isToday
+              ? AppTheme.infoStatus.background
               : isWeekend
               ? AppTheme.surfaceOverlay
               : AppTheme.surfaceRaised,
@@ -250,7 +252,7 @@ class MonthView extends StatelessWidget {
                       color: isSelected
                           ? AppTheme.successStatus.foreground
                           : isToday
-                          ? AppTheme.infoStatus.border
+                          ? AppTheme.infoStatus.foreground
                           : isWeekend
                           ? AppTheme.weekendStatus.badge
                           : AppTheme.textPrimary,

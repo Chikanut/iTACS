@@ -49,6 +49,7 @@ class DesktopWeekView extends StatelessWidget {
   Widget _buildDateHeader(BuildContext context) {
     final days = CalendarUtils.getWeekDays(selectedDate);
     final displayDays = showSingleDay ? [selectedDate] : days;
+    final primaryColor = Theme.of(context).primaryColor;
 
     return SizedBox(
       height: 60,
@@ -64,11 +65,15 @@ class DesktopWeekView extends StatelessWidget {
             return Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: isToday
-                      ? Theme.of(context).primaryColor.withOpacity(0.1)
-                      : null,
+                  color: isToday ? primaryColor.withOpacity(0.12) : null,
                   border: Border(
+                    top: isToday
+                        ? BorderSide(color: primaryColor, width: 3)
+                        : BorderSide.none,
                     right: BorderSide(color: Colors.grey.shade300),
+                    bottom: isToday
+                        ? BorderSide(color: primaryColor.withOpacity(0.25))
+                        : BorderSide.none,
                   ),
                 ),
                 child: Column(
@@ -79,7 +84,7 @@ class DesktopWeekView extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: Colors.grey.shade600,
+                        color: isToday ? primaryColor : Colors.grey.shade600,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -92,7 +97,7 @@ class DesktopWeekView extends StatelessWidget {
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: isToday
-                                ? Theme.of(context).primaryColor
+                                ? primaryColor
                                 : Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
@@ -102,7 +107,7 @@ class DesktopWeekView extends StatelessWidget {
                             width: 6,
                             height: 6,
                             decoration: BoxDecoration(
-                              color: Theme.of(context).primaryColor,
+                              color: primaryColor,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -133,17 +138,26 @@ class DesktopWeekView extends StatelessWidget {
                 children: showSingleDay
                     ? [
                         Expanded(
-                          child: _buildDayColumn(selectedDate.weekday - 1),
+                          child: _buildDayColumn(
+                            context,
+                            selectedDate.weekday - 1,
+                          ),
                         ),
                       ]
                     : [
-                        Expanded(child: _buildDayColumn(0)), // Понеділок
-                        Expanded(child: _buildDayColumn(1)), // Вівторок
-                        Expanded(child: _buildDayColumn(2)), // Середа
-                        Expanded(child: _buildDayColumn(3)), // Четвер
-                        Expanded(child: _buildDayColumn(4)), // П'ятниця
-                        Expanded(child: _buildDayColumn(5)), // Субота
-                        Expanded(child: _buildDayColumn(6)), // Неділя
+                        Expanded(
+                          child: _buildDayColumn(context, 0),
+                        ), // Понеділок
+                        Expanded(
+                          child: _buildDayColumn(context, 1),
+                        ), // Вівторок
+                        Expanded(child: _buildDayColumn(context, 2)), // Середа
+                        Expanded(child: _buildDayColumn(context, 3)), // Четвер
+                        Expanded(
+                          child: _buildDayColumn(context, 4),
+                        ), // П'ятниця
+                        Expanded(child: _buildDayColumn(context, 5)), // Субота
+                        Expanded(child: _buildDayColumn(context, 6)), // Неділя
                       ],
               ),
             ),
@@ -175,12 +189,31 @@ class DesktopWeekView extends StatelessWidget {
     );
   }
 
-  Widget _buildDayColumn(int dayIndex) {
+  Widget _buildDayColumn(BuildContext context, int dayIndex) {
     final dayLessons = getLessonsForDay(dayIndex);
+    final day = showSingleDay
+        ? selectedDate
+        : CalendarUtils.getWeekDays(selectedDate)[dayIndex];
+    final isToday = CalendarUtils.isToday(day);
+    final primaryColor = Theme.of(context).primaryColor;
 
     return Container(
       decoration: BoxDecoration(
-        border: Border(right: BorderSide(color: Colors.grey.shade300)),
+        color: isToday ? primaryColor.withOpacity(0.04) : null,
+        border: Border(
+          top: isToday
+              ? BorderSide(color: primaryColor.withOpacity(0.25), width: 1.5)
+              : BorderSide.none,
+          right: BorderSide(
+            color: isToday
+                ? primaryColor.withOpacity(0.3)
+                : Colors.grey.shade300,
+            width: isToday ? 1.5 : 1,
+          ),
+          left: isToday
+              ? BorderSide(color: primaryColor.withOpacity(0.3), width: 1.5)
+              : BorderSide.none,
+        ),
       ),
       child: Stack(
         children: [
@@ -194,7 +227,11 @@ class DesktopWeekView extends StatelessWidget {
               child: Container(
                 decoration: BoxDecoration(
                   border: Border(
-                    bottom: BorderSide(color: Colors.grey.shade200),
+                    bottom: BorderSide(
+                      color: isToday
+                          ? primaryColor.withOpacity(0.18)
+                          : Colors.grey.shade200,
+                    ),
                   ),
                 ),
               ),

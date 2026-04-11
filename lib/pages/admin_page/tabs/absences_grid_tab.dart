@@ -214,33 +214,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                 ),
               ),
               ...daysInMonth.map(
-                (day) => DataColumn(
-                  label: Container(
-                    width: 32,
-                    alignment: Alignment.center,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          '${day.day}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
-                          ),
-                        ),
-                        Text(
-                          DateFormat('E', 'uk_UA').format(day),
-                          style: TextStyle(
-                            fontSize: 10,
-                            color: _isWeekend(day)
-                                ? AppTheme.weekendStatus.badge
-                                : AppTheme.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                (day) => DataColumn(label: _buildDesktopDayHeader(day)),
               ),
             ],
             rows: _instructors.map((instructor) {
@@ -274,20 +248,11 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                         child: Container(
                           width: 32,
                           height: 32,
-                          decoration: BoxDecoration(
-                            color: _getCellBackgroundColor(
-                              absence,
-                              instructorId,
-                              lessons,
-                              day,
-                            ),
-                            borderRadius: BorderRadius.circular(4),
-                            border: absence != null || lessons.isNotEmpty
-                                ? Border.all(
-                                    color: AppTheme.borderSubtle,
-                                    width: 1,
-                                  )
-                                : null,
+                          decoration: _buildDayCellDecoration(
+                            absence: absence,
+                            instructorId: instructorId,
+                            lessons: lessons,
+                            day: day,
                           ),
                           child: Stack(
                             clipBehavior: Clip.none,
@@ -377,15 +342,11 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
           onTap: () =>
               _showCellMenu(context, day, instructorId, instructorName),
           child: Container(
-            decoration: BoxDecoration(
-              border: Border.all(color: AppTheme.borderSubtle),
-              borderRadius: BorderRadius.circular(4),
-              color: _getCellBackgroundColor(
-                absence,
-                instructorId,
-                lessons,
-                day,
-              ),
+            decoration: _buildDayCellDecoration(
+              absence: absence,
+              instructorId: instructorId,
+              lessons: lessons,
+              day: day,
             ),
             child: Stack(
               clipBehavior: Clip.none,
@@ -398,8 +359,12 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                         '${day.day}',
                         style: TextStyle(
                           fontSize: 10,
-                          fontWeight: FontWeight.w500,
-                          color: _isWeekend(day)
+                          fontWeight: _isToday(day)
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: _isToday(day)
+                              ? AppTheme.infoStatus.foreground
+                              : _isWeekend(day)
                               ? AppTheme.weekendStatus.foreground
                               : AppTheme.textPrimary,
                         ),
@@ -440,6 +405,80 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
 
   bool _isWeekend(DateTime day) {
     return day.weekday == DateTime.saturday || day.weekday == DateTime.sunday;
+  }
+
+  bool _isToday(DateTime day) {
+    return CalendarUtils.isToday(day);
+  }
+
+  Widget _buildDesktopDayHeader(DateTime day) {
+    final isToday = _isToday(day);
+
+    return Container(
+      width: 32,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: isToday ? AppTheme.infoStatus.background : null,
+        borderRadius: BorderRadius.circular(6),
+        border: isToday
+            ? Border.all(color: AppTheme.infoStatus.border, width: 1.5)
+            : null,
+      ),
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            '${day.day}',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+              color: isToday
+                  ? AppTheme.infoStatus.foreground
+                  : AppTheme.textPrimary,
+            ),
+          ),
+          Text(
+            DateFormat('E', 'uk_UA').format(day),
+            style: TextStyle(
+              fontSize: 10,
+              color: isToday
+                  ? AppTheme.infoStatus.foreground
+                  : _isWeekend(day)
+                  ? AppTheme.weekendStatus.badge
+                  : AppTheme.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  BoxDecoration _buildDayCellDecoration({
+    required InstructorAbsence? absence,
+    required String instructorId,
+    required List<LessonModel> lessons,
+    required DateTime day,
+  }) {
+    final isToday = _isToday(day);
+
+    return BoxDecoration(
+      color: _getCellBackgroundColor(absence, instructorId, lessons, day),
+      borderRadius: BorderRadius.circular(4),
+      border: Border.all(
+        color: isToday ? AppTheme.infoStatus.border : AppTheme.borderSubtle,
+        width: isToday ? 2 : 1,
+      ),
+      boxShadow: isToday
+          ? const [
+              BoxShadow(
+                color: Color(0x14000000),
+                blurRadius: 4,
+                offset: Offset(0, 1),
+              ),
+            ]
+          : null,
+    );
   }
 
   Color _getCellBackgroundColor(
