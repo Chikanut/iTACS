@@ -6,6 +6,19 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../globals.dart';
+import 'web_push_environment.dart';
+
+class DriveReconnectResult {
+  const DriveReconnectResult({
+    required this.success,
+    this.requiresBrowserFallback = false,
+    this.message,
+  });
+
+  final bool success;
+  final bool requiresBrowserFallback;
+  final String? message;
+}
 
 class AuthService {
   static const String _driveReadonlyScope =
@@ -35,6 +48,10 @@ class AuthService {
   GoogleSignInAccount? get currentGoogleUser => _currentGoogleUser;
 
   bool get isDriveSessionAvailable => _currentGoogleUser != null;
+
+  bool get requiresBrowserFallbackForDriveReconnect =>
+      WebPushEnvironment.isIosBrowser &&
+      WebPushEnvironment.isStandaloneDisplayMode;
 
   Future<bool> signInWithGoogle(BuildContext context) async {
     try {
@@ -303,19 +320,38 @@ class AuthService {
   /// Explicitly reconnects Google Drive session via interactive sign-in.
   /// Call this from UI when isDriveSessionAvailable is false.
   Future<bool> reconnectDrive() async {
+    final result = await reconnectDriveWithDetails();
+    return result.success;
+  }
+
+  Future<DriveReconnectResult> reconnectDriveWithDetails() async {
     try {
       final account = await _googleSignInWithDrive.signIn();
-      if (account == null) return false;
+      if (account == null) {
+        return DriveReconnectResult(
+          success: false,
+          requiresBrowserFallback: requiresBrowserFallbackForDriveReconnect,
+          message: requiresBrowserFallbackForDriveReconnect
+              ? 'У режимі додатка на домашньому екрані iPhone Google повторний вхід може блокуватись. Відкрийте iTACS у Safari та підключіть Google Drive там.'
+              : 'Не вдалося повторно відкрити Google-вхід для підключення Drive.',
+        );
+      }
       _currentGoogleUser = account;
       final auth = await account.authentication;
       _cachedAccessToken = auth.accessToken;
       _tokenExpirationTime = DateTime.now().add(const Duration(hours: 1));
       await _saveSignInState(true);
       debugPrint('AuthService: Drive session reconnected');
-      return true;
+      return const DriveReconnectResult(success: true);
     } catch (e) {
       debugPrint('AuthService: reconnectDrive failed: $e');
-      return false;
+      return DriveReconnectResult(
+        success: false,
+        requiresBrowserFallback: requiresBrowserFallbackForDriveReconnect,
+        message: requiresBrowserFallbackForDriveReconnect
+            ? 'Google Drive не зміг повторно авторизуватись у standalone-режимі iPhone. Відкрийте застосунок у Safari та повторіть вхід.'
+            : 'Не вдалося підключитися до Google Drive. Перевірте підключення та спробуйте знову.',
+      );
     }
   }
 

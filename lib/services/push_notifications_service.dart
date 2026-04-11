@@ -6,8 +6,10 @@ import "package:firebase_auth/firebase_auth.dart";
 import "package:firebase_messaging/firebase_messaging.dart";
 import "package:flutter/foundation.dart";
 import "package:flutter_local_notifications/flutter_local_notifications.dart";
+import "package:shared_preferences/shared_preferences.dart";
 
 import "../theme/app_theme.dart";
+import "web_push_environment.dart";
 
 enum PushNavigationKind { groupNotification, lesson }
 
@@ -151,6 +153,7 @@ class PushNotificationsService extends ChangeNotifier {
     defaultValue:
         "BBrQKA47NqwXeDM9RWs4l0MK6NkvT0gC-udHPAZQHZFZG37hn_s9PKUcI6O9blpSKGyQP3BBQqM-BoT9S6C3B_w",
   );
+  static const String _storedWebTokenKey = "push_notifications.web_token";
 
   final FirebaseMessaging _messaging = FirebaseMessaging.instance;
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
@@ -248,6 +251,7 @@ class PushNotificationsService extends ChangeNotifier {
     _foregroundMessageSubscription = null;
     _messageOpenedSubscription = null;
 
+    await _clearStoredWebToken();
     _resetSessionState();
   }
 
@@ -324,17 +328,23 @@ class PushNotificationsService extends ChangeNotifier {
       return;
     }
 
+    final authorizationStatus = settings.authorizationStatus;
+    final notificationsEnabled =
+        authorizationStatus == AuthorizationStatus.authorized ||
+        authorizationStatus == AuthorizationStatus.provisional;
+
+    await _prepareWebTokenForCurrentInstall(
+      uid: user.uid,
+      notificationsEnabled: notificationsEnabled,
+    );
+
     final token = await _getMessagingToken();
     if (token == null || token.isEmpty) {
       return;
     }
 
     _registeredToken = token;
-
-    final authorizationStatus = settings.authorizationStatus;
-    final notificationsEnabled =
-        authorizationStatus == AuthorizationStatus.authorized ||
-        authorizationStatus == AuthorizationStatus.provisional;
+    await _persistStoredWebToken(token);
 
     await _firestore
         .collection("users")
@@ -343,7 +353,7 @@ class PushNotificationsService extends ChangeNotifier {
         .doc(token)
         .set({
           "token": token,
-          "platform": kIsWeb ? "web" : "android",
+          "platform": _platformLabel,
           "lastSeenAt": FieldValue.serverTimestamp(),
           "notificationsEnabled": notificationsEnabled,
           "appVersion": AppTheme.appVersion,
@@ -364,6 +374,8 @@ class PushNotificationsService extends ChangeNotifier {
         previousToken != nextToken) {
       await _deleteDeviceTokenDocument(user.uid, previousToken);
     }
+
+    await _persistStoredWebToken(nextToken);
 
     final settings = await _messaging.getNotificationSettings();
     await _syncTokenWithFirestore(settings);
@@ -441,5 +453,74 @@ class PushNotificationsService extends ChangeNotifier {
     _registeredToken = null;
     _pendingNavigationRequest = null;
     notifyListeners();
+  }
+
+  String get _platformLabel {
+    if (!kIsWeb) {
+      return "android";
+    }
+
+    if (WebPushEnvironment.isIosBrowser &&
+        WebPushEnvironment.isStandaloneDisplayMode) {
+      return "web_ios_standalone";
+    }
+
+    if (WebPushEnvironment.isIosBrowser) {
+      return "web_ios_browser";
+    }
+
+    return "web";
+  }
+
+  Future<void> _prepareWebTokenForCurrentInstall({
+    required String uid,
+    required bool notificationsEnabled,
+  }) async {
+    if (!kIsWeb ||
+        !notificationsEnabled ||
+        !WebPushEnvironment.isIosBrowser ||
+        !WebPushEnvironment.isStandaloneDisplayMode) {
+      return;
+    }
+
+    final previousToken = _registeredToken ?? await _readStoredWebToken();
+
+    try {
+      await _messaging.deleteToken();
+    } catch (_) {
+      // На iOS PWA deleteToken може падати, якщо токен ще не встиг
+      // відновитись після перевстановлення. Це не блокує повторну реєстрацію.
+    }
+
+    if (previousToken != null && previousToken.isNotEmpty) {
+      await _deleteDeviceTokenDocument(uid, previousToken);
+    }
+  }
+
+  Future<void> _persistStoredWebToken(String token) async {
+    if (!kIsWeb) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_storedWebTokenKey, token);
+  }
+
+  Future<String?> _readStoredWebToken() async {
+    if (!kIsWeb) {
+      return null;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_storedWebTokenKey);
+  }
+
+  Future<void> _clearStoredWebToken() async {
+    if (!kIsWeb) {
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_storedWebTokenKey);
   }
 }
