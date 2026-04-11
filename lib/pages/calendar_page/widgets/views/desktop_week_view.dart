@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../../models/lesson_model.dart';
 import '../../calendar_utils.dart';
 import '../../../../services/calendar_service.dart';
+import '../../../../theme/app_theme.dart';
 
 class DesktopWeekView extends StatelessWidget {
   final DateTime selectedDate;
@@ -49,7 +50,7 @@ class DesktopWeekView extends StatelessWidget {
   Widget _buildDateHeader(BuildContext context) {
     final days = CalendarUtils.getWeekDays(selectedDate);
     final displayDays = showSingleDay ? [selectedDate] : days;
-    final primaryColor = Theme.of(context).primaryColor;
+    final todayColors = AppTheme.infoStatus;
 
     return SizedBox(
       height: 60,
@@ -65,14 +66,16 @@ class DesktopWeekView extends StatelessWidget {
             return Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: isToday ? primaryColor.withOpacity(0.12) : null,
+                  color: isToday ? todayColors.background : null,
                   border: Border(
                     top: isToday
-                        ? BorderSide(color: primaryColor, width: 3)
+                        ? BorderSide(color: todayColors.border, width: 3)
                         : BorderSide.none,
                     right: BorderSide(color: Colors.grey.shade300),
                     bottom: isToday
-                        ? BorderSide(color: primaryColor.withOpacity(0.25))
+                        ? BorderSide(
+                            color: todayColors.border.withOpacity(0.45),
+                          )
                         : BorderSide.none,
                   ),
                 ),
@@ -84,7 +87,9 @@ class DesktopWeekView extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
-                        color: isToday ? primaryColor : Colors.grey.shade600,
+                        color: isToday
+                            ? todayColors.foreground
+                            : Colors.grey.shade600,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -97,7 +102,7 @@ class DesktopWeekView extends StatelessWidget {
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                             color: isToday
-                                ? primaryColor
+                                ? todayColors.foreground
                                 : Theme.of(context).colorScheme.onSurface,
                           ),
                         ),
@@ -107,7 +112,9 @@ class DesktopWeekView extends StatelessWidget {
                             width: 6,
                             height: 6,
                             decoration: BoxDecoration(
-                              color: primaryColor,
+                              color: isToday
+                                  ? todayColors.badge
+                                  : Theme.of(context).primaryColor,
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -195,23 +202,29 @@ class DesktopWeekView extends StatelessWidget {
         ? selectedDate
         : CalendarUtils.getWeekDays(selectedDate)[dayIndex];
     final isToday = CalendarUtils.isToday(day);
-    final primaryColor = Theme.of(context).primaryColor;
+    final todayColors = AppTheme.infoStatus;
 
     return Container(
       decoration: BoxDecoration(
-        color: isToday ? primaryColor.withOpacity(0.04) : null,
+        color: isToday ? todayColors.background.withOpacity(0.4) : null,
         border: Border(
           top: isToday
-              ? BorderSide(color: primaryColor.withOpacity(0.25), width: 1.5)
+              ? BorderSide(
+                  color: todayColors.border.withOpacity(0.5),
+                  width: 1.5,
+                )
               : BorderSide.none,
           right: BorderSide(
             color: isToday
-                ? primaryColor.withOpacity(0.3)
+                ? todayColors.border.withOpacity(0.45)
                 : Colors.grey.shade300,
             width: isToday ? 1.5 : 1,
           ),
           left: isToday
-              ? BorderSide(color: primaryColor.withOpacity(0.3), width: 1.5)
+              ? BorderSide(
+                  color: todayColors.border.withOpacity(0.45),
+                  width: 1.5,
+                )
               : BorderSide.none,
         ),
       ),
@@ -229,7 +242,7 @@ class DesktopWeekView extends StatelessWidget {
                   border: Border(
                     bottom: BorderSide(
                       color: isToday
-                          ? primaryColor.withOpacity(0.18)
+                          ? todayColors.border.withOpacity(0.22)
                           : Colors.grey.shade200,
                     ),
                   ),

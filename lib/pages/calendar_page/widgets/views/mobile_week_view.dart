@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../models/lesson_model.dart';
+import '../../../../theme/app_theme.dart';
 import '../../calendar_utils.dart';
 import '../mobile_lesson_card.dart';
 
@@ -122,20 +123,39 @@ class _MobileWeekViewState extends State<MobileWeekView> {
   }) {
     final isToday = CalendarUtils.isToday(date);
     final primaryColor = Theme.of(context).primaryColor;
+    final todayColors = AppTheme.infoStatus;
     final shouldHighlight = isSelected || isToday;
+    final backgroundColor = isToday
+        ? todayColors.background
+        : isSelected
+        ? AppTheme.surfaceRaised
+        : AppTheme.surfaceOverlay;
+    final borderColor = isToday
+        ? todayColors.border
+        : isSelected
+        ? primaryColor.withOpacity(0.5)
+        : AppTheme.borderSubtle;
+    final foregroundColor = isToday
+        ? todayColors.foreground
+        : isSelected
+        ? primaryColor
+        : AppTheme.textPrimary;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: shouldHighlight
-            ? primaryColor.withOpacity(isSelected ? 0.08 : 0.05)
-            : Colors.transparent,
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: shouldHighlight
-              ? primaryColor.withOpacity(isSelected ? 0.3 : 0.18)
-              : Colors.grey.shade200,
-        ),
+        border: Border.all(color: borderColor, width: isToday ? 1.5 : 1),
+        boxShadow: shouldHighlight
+            ? const [
+                BoxShadow(
+                  color: Color(0x16000000),
+                  blurRadius: 6,
+                  offset: Offset(0, 2),
+                ),
+              ]
+            : null,
       ),
       child: Row(
         children: [
@@ -145,7 +165,7 @@ class _MobileWeekViewState extends State<MobileWeekView> {
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.bold,
-                color: shouldHighlight ? primaryColor : null,
+                color: foregroundColor,
               ),
             ),
           ),
@@ -153,8 +173,8 @@ class _MobileWeekViewState extends State<MobileWeekView> {
             _buildHeaderBadge(
               context,
               label: 'Сьогодні',
-              backgroundColor: primaryColor,
-              foregroundColor: Colors.white,
+              backgroundColor: todayColors.border,
+              foregroundColor: todayColors.foreground,
             ),
             const SizedBox(width: 8),
           ],
@@ -199,26 +219,36 @@ class _MobileWeekViewState extends State<MobileWeekView> {
     required bool isToday,
   }) {
     final primaryColor = Theme.of(context).primaryColor;
+    final todayColors = AppTheme.infoStatus;
     final shouldHighlight = isSelected || isToday;
+    final backgroundColor = isToday
+        ? todayColors.background.withOpacity(0.55)
+        : isSelected
+        ? AppTheme.surfaceRaised
+        : Colors.grey.shade50;
+    final borderColor = isToday
+        ? todayColors.border.withOpacity(0.75)
+        : isSelected
+        ? primaryColor.withOpacity(0.25)
+        : Colors.grey.shade200;
+    final foregroundColor = isToday
+        ? todayColors.foreground
+        : shouldHighlight
+        ? primaryColor
+        : Colors.grey.shade700;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: shouldHighlight
-            ? primaryColor.withOpacity(isSelected ? 0.04 : 0.03)
-            : Colors.grey.shade50,
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: shouldHighlight
-              ? primaryColor.withOpacity(isSelected ? 0.2 : 0.14)
-              : Colors.grey.shade200,
-        ),
+        border: Border.all(color: borderColor),
       ),
       child: Text(
         'Немає занять на цей день',
         style: TextStyle(
-          color: shouldHighlight ? primaryColor : Colors.grey.shade700,
+          color: foregroundColor,
           fontWeight: shouldHighlight ? FontWeight.w600 : FontWeight.normal,
         ),
       ),
@@ -275,7 +305,7 @@ class _MobileWeekViewState extends State<MobileWeekView> {
         selectedContext,
         duration: const Duration(milliseconds: 280),
         curve: Curves.easeOutCubic,
-        alignment: 0.06,
+        alignment: 0.14,
       );
     });
   }
