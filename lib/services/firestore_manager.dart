@@ -466,12 +466,27 @@ class FirestoreManager {
     }
 
     final groupRef = _firestore.collection('allowed_users').doc(groupId);
-    final groupDoc = await groupRef.get();
-    final groupData = groupDoc.data() ?? {};
-    final members = Map<String, dynamic>.from(groupData['members'] ?? {});
-    members.remove(normalizedEmail);
-    _extractMalformedMemberEntry(members, normalizedEmail);
-    await groupRef.update({'members': members});
+    await _firestore.runTransaction((transaction) async {
+      final groupDoc = await transaction.get(groupRef);
+      final groupData = groupDoc.data() ?? {};
+      final members = Map<String, dynamic>.from(groupData['members'] ?? {});
+      final malformedMember = _extractMalformedMemberEntry(
+        members,
+        normalizedEmail,
+      );
+      final hadDirectMember = members.remove(normalizedEmail) != null;
+
+      if (!hadDirectMember && malformedMember == null) {
+        throw Exception('Учасника не знайдено в цій групі');
+      }
+
+      transaction.update(groupRef, {'members': members});
+    });
+
+    await _removeGroupReferenceFromUserProfile(
+      email: normalizedEmail,
+      groupId: groupId,
+    );
   }
 
   /// Отримати інформацію про користувача за UID
@@ -1108,6 +1123,31 @@ class FirestoreManager {
     }
 
     return snapshot.docs.first;
+  }
+
+  Future<void> _removeGroupReferenceFromUserProfile({
+    required String email,
+    required String groupId,
+  }) async {
+    final userDoc = await _findUserDocByEmail(email);
+    if (userDoc == null) {
+      return;
+    }
+
+    final userData = userDoc.data();
+    final groups = List<String>.from(userData['groups'] ?? const <String>[])
+      ..removeWhere((value) => value == groupId);
+
+    final rolesPerGroup = Map<String, dynamic>.from(
+      userData['rolesPerGroup'] ?? const <String, dynamic>{},
+    );
+    rolesPerGroup.remove(groupId);
+
+    await userDoc.reference.set({
+      'groups': groups,
+      'rolesPerGroup': rolesPerGroup,
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   String _pickProfileValue(dynamic candidate, dynamic existing) {
