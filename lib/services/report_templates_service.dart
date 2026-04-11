@@ -1,13 +1,19 @@
 // report_templates_service.dart
 
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'package:firebase_core/firebase_core.dart';
 
 import '../globals.dart';
 import '../models/report_template_model.dart';
 
 class ReportTemplatesService {
+  static const String _functionsRegion = 'us-central1';
   static final ReportTemplatesService _instance =
       ReportTemplatesService._internal();
 
@@ -163,17 +169,17 @@ class ReportTemplatesService {
       throw Exception('Немає активної групи');
     }
 
-    final callable = _functions.httpsCallable('previewReportTemplate');
-    final response = await callable.call({
-      'groupId': groupId,
-      'templateId': templateId,
-      'useDraft': useDraft,
-      'startDate': startDate.toIso8601String(),
-      'endDate': endDate.toIso8601String(),
-    });
+    final response =
+        await _callReportTemplateFunction('previewReportTemplate', {
+          'groupId': groupId,
+          'templateId': templateId,
+          'useDraft': useDraft,
+          'startDate': startDate.toIso8601String(),
+          'endDate': endDate.toIso8601String(),
+        });
 
     return ReportTemplatePreview.fromMap(
-      Map<String, dynamic>.from(response.data as Map),
+      Map<String, dynamic>.from(response as Map),
     );
   }
 
@@ -183,8 +189,10 @@ class ReportTemplatesService {
       throw Exception('Немає активної групи');
     }
 
-    final callable = _functions.httpsCallable('publishReportTemplate');
-    await callable.call({'groupId': groupId, 'templateId': templateId});
+    await _callReportTemplateFunction('publishReportTemplate', {
+      'groupId': groupId,
+      'templateId': templateId,
+    });
     return getTemplateById(templateId);
   }
 
@@ -199,18 +207,136 @@ class ReportTemplatesService {
       throw Exception('Немає активної групи');
     }
 
-    final callable = _functions.httpsCallable('generateReportTemplate');
-    final response = await callable.call({
-      'groupId': groupId,
-      'templateId': templateId,
-      'useDraft': useDraft,
-      'startDate': startDate.toIso8601String(),
-      'endDate': endDate.toIso8601String(),
-    });
+    final response =
+        await _callReportTemplateFunction('generateReportTemplate', {
+          'groupId': groupId,
+          'templateId': templateId,
+          'useDraft': useDraft,
+          'startDate': startDate.toIso8601String(),
+          'endDate': endDate.toIso8601String(),
+        });
 
     return GeneratedTemplateReport.fromMap(
-      Map<String, dynamic>.from(response.data as Map),
+      Map<String, dynamic>.from(response as Map),
     );
+  }
+
+  bool get _supportsNativeFunctions {
+    if (kIsWeb) {
+      return true;
+    }
+
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+      case TargetPlatform.iOS:
+      case TargetPlatform.macOS:
+        return true;
+      case TargetPlatform.windows:
+      case TargetPlatform.linux:
+      default:
+        return false;
+    }
+  }
+
+  Future<dynamic> _callReportTemplateFunction(
+    String functionName,
+    Map<String, dynamic> payload,
+  ) async {
+    if (_supportsNativeFunctions) {
+      try {
+        return await _callFunctionViaPlugin(functionName, payload);
+      } on MissingPluginException catch (_) {
+        debugPrint(
+          'ReportTemplatesService: cloud_functions plugin unavailable, falling back to HTTP for $functionName',
+        );
+      }
+    }
+
+    return _callFunctionViaHttp(functionName, payload);
+  }
+
+  Future<dynamic> _callFunctionViaPlugin(
+    String functionName,
+    Map<String, dynamic> payload,
+  ) async {
+    final callable = _functions.httpsCallable(functionName);
+    final response = await callable.call(payload);
+    return response.data;
+  }
+
+  Future<dynamic> _callFunctionViaHttp(
+    String functionName,
+    Map<String, dynamic> payload,
+  ) async {
+    final currentUser = Globals.firebaseAuth.currentUser;
+    if (currentUser == null) {
+      throw Exception('Потрібна авторизація для виклику функції $functionName');
+    }
+
+    final idToken = await currentUser.getIdToken();
+    if (idToken == null || idToken.isEmpty) {
+      throw Exception(
+        'Не вдалося отримати токен авторизації для виклику функції $functionName',
+      );
+    }
+
+    final projectId = Firebase.app().options.projectId;
+    final uri = Uri.parse(
+      'https://$_functionsRegion-$projectId.cloudfunctions.net/$functionName',
+    );
+
+    final response = await http.post(
+      uri,
+      headers: <String, String>{
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $idToken',
+      },
+      body: jsonEncode(<String, dynamic>{'data': payload}),
+    );
+
+    return _parseCallableHttpResponse(
+      functionName: functionName,
+      response: response,
+    );
+  }
+
+  dynamic _parseCallableHttpResponse({
+    required String functionName,
+    required http.Response response,
+  }) {
+    Map<String, dynamic>? body;
+    if (response.bodyBytes.isNotEmpty) {
+      final decodedBody = utf8.decode(response.bodyBytes);
+      final jsonBody = jsonDecode(decodedBody);
+      body = jsonBody is Map<String, dynamic>
+          ? jsonBody
+          : Map<String, dynamic>.from(jsonBody as Map);
+    }
+
+    final error = body?['error'];
+    if (error != null) {
+      final errorMap = Map<String, dynamic>.from(error as Map);
+      final message =
+          (errorMap['message'] ?? 'Помилка виклику функції $functionName')
+              .toString();
+      throw Exception(message);
+    }
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        'HTTP ${response.statusCode} під час виклику функції $functionName',
+      );
+    }
+
+    if (body != null && body.containsKey('result')) {
+      return body['result'];
+    }
+
+    if (body != null && body.containsKey('data')) {
+      return body['data'];
+    }
+
+    throw Exception('Некоректна відповідь від функції $functionName');
   }
 
   bool _hasRequiredRole(String currentRole, List<String> allowedRoles) {
