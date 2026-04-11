@@ -92,7 +92,8 @@ class FirestoreManager {
 
   /// Streams documents from a group sub-collection in real time.
   /// Returns a stream of document snapshots; each emission contains the full current list.
-  Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>> streamDocumentsForGroup({
+  Stream<List<QueryDocumentSnapshot<Map<String, dynamic>>>>
+  streamDocumentsForGroup({
     required String groupId,
     required String collection,
   }) {

@@ -248,7 +248,9 @@ class _MaterialDialogState extends State<MaterialDialog>
               );
               modifiedAt = metadata.modifiedDate;
             } catch (e) {
-              debugPrint('MaterialDialog: could not fetch file metadata for $fileId: $e');
+              debugPrint(
+                'MaterialDialog: could not fetch file metadata for $fileId: $e',
+              );
               // modifiedAt stays as DateTime.now() — acceptable fallback
             }
           }
@@ -270,7 +272,9 @@ class _MaterialDialogState extends State<MaterialDialog>
             final metadata = await Globals.fileManager.getFileMetadata(fileId);
             modifiedAt = metadata.modifiedDate;
           } catch (e) {
-            debugPrint('MaterialDialog: could not fetch metadata for manual url: $e');
+            debugPrint(
+              'MaterialDialog: could not fetch metadata for manual url: $e',
+            );
             // modifiedAt stays as DateTime.now() — acceptable fallback
           }
         }

@@ -264,7 +264,16 @@ class CalendarService {
       if (currentGroupId == null) return false;
 
       if (CalendarService.shouldResetAcknowledgementsForFields(updates.keys)) {
-        updates['acknowledgementResetAt'] = FieldValue.serverTimestamp();
+        final lesson = await getLessonById(lessonId, groupId: currentGroupId);
+        if (lesson == null) {
+          debugPrint(
+            'CalendarService: Не вдалося перевірити зміни для скидання ознайомлень у занятті $lessonId',
+          );
+          return false;
+        }
+        if (CalendarService.shouldResetAcknowledgements(lesson, updates)) {
+          updates['acknowledgementResetAt'] = FieldValue.serverTimestamp();
+        }
       }
       updates['updatedAt'] = FieldValue.serverTimestamp();
 
@@ -836,6 +845,64 @@ class CalendarService {
       }
     }
     return false;
+  }
+
+  @visibleForTesting
+  static bool shouldResetAcknowledgements(
+    LessonModel lesson,
+    Map<String, dynamic> updates,
+  ) {
+    if (_isUnitChanged(lesson, updates['unit'])) {
+      return true;
+    }
+
+    return _isLessonDateChanged(lesson, updates);
+  }
+
+  static bool _isUnitChanged(LessonModel lesson, dynamic updatedUnit) {
+    if (updatedUnit == null) {
+      return false;
+    }
+
+    return lesson.unit.trim() != updatedUnit.toString().trim();
+  }
+
+  static bool _isLessonDateChanged(
+    LessonModel lesson,
+    Map<String, dynamic> updates,
+  ) {
+    final updatedStartTime = _extractUpdatedDateTime(updates['startTime']);
+    if (updatedStartTime != null &&
+        !_isSameDate(lesson.startTime, updatedStartTime)) {
+      return true;
+    }
+
+    final updatedEndTime = _extractUpdatedDateTime(updates['endTime']);
+    if (updatedEndTime != null &&
+        !_isSameDate(lesson.endTime, updatedEndTime)) {
+      return true;
+    }
+
+    return false;
+  }
+
+  static DateTime? _extractUpdatedDateTime(dynamic value) {
+    if (value == null) {
+      return null;
+    }
+    if (value is Timestamp) {
+      return value.toDate();
+    }
+    if (value is DateTime) {
+      return value;
+    }
+    return null;
+  }
+
+  static bool _isSameDate(DateTime left, DateTime right) {
+    return left.year == right.year &&
+        left.month == right.month &&
+        left.day == right.day;
   }
 
   String _normalizeInstructorAssignmentId(String instructorId) {

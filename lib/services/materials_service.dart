@@ -83,9 +83,7 @@ class MaterialsService {
     final data = Map<String, dynamic>.from(doc.data());
     final fileId = (data['fileId'] as String?)?.trim().isNotEmpty == true
         ? (data['fileId'] as String).trim()
-        : Globals.fileManager.extractFileId(
-            (data['url'] ?? '').toString(),
-          );
+        : Globals.fileManager.extractFileId((data['url'] ?? '').toString());
     return {
       ...data,
       'id': doc.id,

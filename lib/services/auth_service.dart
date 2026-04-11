@@ -129,7 +129,8 @@ class AuthService {
   Future<String?> getAccessToken() async {
     return _getAccessTokenForScopes(
       _driveReadScopes,
-      allowInteractiveRecovery: true,  // was false — now allows popup recovery on user gesture
+      allowInteractiveRecovery:
+          true, // was false — now allows popup recovery on user gesture
       requireScopeConfirmation: false,
     );
   }

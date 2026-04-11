@@ -135,8 +135,7 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
     }
 
     // Overlay-only items (not in Drive folder)
-    final driveFileIds =
-        driveItems.map((d) => d['fileId']?.toString()).toSet();
+    final driveFileIds = driveItems.map((d) => d['fileId']?.toString()).toSet();
     for (final overlay in overlayItems) {
       if (!driveFileIds.contains(overlay['fileId']?.toString())) {
         merged.add(overlay);
@@ -175,8 +174,7 @@ class _MaterialsPageState extends State<MaterialsPage> with LoadingStateMixin {
         final groupId = Globals.profileManager.currentGroupId;
         if (groupId == null) return;
 
-        final currentUserRole =
-            Globals.profileManager.currentRole ?? 'viewer';
+        final currentUserRole = Globals.profileManager.currentRole ?? 'viewer';
         if (mounted) {
           setState(() {
             userRole = currentUserRole;
