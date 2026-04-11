@@ -142,7 +142,7 @@ class FirestoreManager {
     final deleted = <String>[];
     final skipped = <String>[];
 
-    if (userRole == 'admin') {
+    if (userRole == 'admin' || userRole == 'editor') {
       final ref = _firestore
           .collection(collection)
           .doc(groupId)

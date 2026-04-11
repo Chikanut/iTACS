@@ -92,8 +92,12 @@ class ReportTemplatesService {
     try {
       final groupId = _currentGroupId;
       final currentUser = Globals.firebaseAuth.currentUser;
+      final currentRole = Globals.profileManager.currentRole;
       if (groupId == null || currentUser == null) {
         throw Exception('Немає активної групи або авторизації');
+      }
+      if (currentRole != 'admin') {
+        throw Exception('Недостатньо прав для збереження шаблону звіту');
       }
 
       final now = DateTime.now();
@@ -133,8 +137,12 @@ class ReportTemplatesService {
   Future<bool> deleteTemplate(String templateId) async {
     try {
       final groupId = _currentGroupId;
+      final currentRole = Globals.profileManager.currentRole;
       if (groupId == null || templateId.trim().isEmpty) {
         return false;
+      }
+      if (currentRole != 'admin') {
+        throw Exception('Недостатньо прав для видалення шаблону звіту');
       }
       await _templatesCollection(groupId).doc(templateId).delete();
       return true;

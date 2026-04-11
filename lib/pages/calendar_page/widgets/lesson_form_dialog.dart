@@ -1238,7 +1238,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   }
 
   bool _canAssignInstructor() {
-    return Globals.profileManager.currentRole == 'admin';
+    return Globals.profileManager.isCurrentGroupEditor;
   }
 
   bool _canManageCustomFieldDefinitions() {

@@ -675,9 +675,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   }
 
   bool _canManageOwnInstructorAssignment() {
-    return !_isReadOnlyOffline &&
-        !_canAssignOthers() &&
-        Globals.firebaseAuth.currentUser != null;
+    return false;
   }
 
   bool _canEditCustomFieldValues() {
@@ -687,7 +685,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   }
 
   bool _canAssignOthers() {
-    return !_isReadOnlyOffline && Globals.profileManager.currentRole == 'admin';
+    return !_isReadOnlyOffline && Globals.profileManager.isCurrentGroupEditor;
   }
 
   Future<void> _loadAssignableInstructors() async {

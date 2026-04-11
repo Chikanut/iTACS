@@ -567,46 +567,10 @@ class CalendarService {
 
   /// Взяти заняття на себе (як інструктор)
   Future<bool> takeLesson(String lessonId) async {
-    try {
-      final currentUser = Globals.firebaseAuth.currentUser;
-      if (currentUser == null) return false;
-
-      final lesson = await getLessonById(lessonId);
-      if (lesson == null) return false;
-
-      final instructorIds = [...lesson.instructorIds];
-      final normalizedInstructorId = _normalizeInstructorAssignmentId(
-        currentUser.uid,
-      );
-      if (!instructorIds.contains(normalizedInstructorId)) {
-        instructorIds.add(normalizedInstructorId);
-      }
-
-      final resolvedInstructorName = Globals.profileManager.currentUserName
-          .trim();
-      final fallbackInstructorName =
-          currentUser.email?.trim().isNotEmpty == true
-          ? currentUser.email!.trim()
-          : 'Викладач';
-      final instructorNames = [...lesson.instructorNames];
-      final instructorName = resolvedInstructorName.isNotEmpty
-          ? resolvedInstructorName
-          : fallbackInstructorName;
-      if (!instructorNames.contains(instructorName)) {
-        instructorNames.add(instructorName);
-      }
-
-      final success = await assignLessonInstructors(
-        lessonId,
-        instructorIds: instructorIds,
-        instructorNames: instructorNames,
-      );
-
-      return success;
-    } catch (e) {
-      debugPrint('CalendarService: Помилка взяття заняття: $e');
-      return false;
-    }
+    debugPrint(
+      'CalendarService: takeLesson вимкнено. Призначення викладачів доступне лише editor/admin.',
+    );
+    return false;
   }
 
   Future<bool> assignLessonInstructor(
@@ -627,6 +591,13 @@ class CalendarService {
     required List<String> instructorNames,
   }) async {
     try {
+      if (!Globals.profileManager.isCurrentGroupEditor) {
+        debugPrint(
+          'CalendarService: Недостатньо прав для призначення викладачів',
+        );
+        return false;
+      }
+
       final normalizedInstructorIds = <String>[];
       for (final instructorId in instructorIds) {
         final normalizedInstructorId = _normalizeInstructorAssignmentId(
@@ -667,41 +638,10 @@ class CalendarService {
 
   /// Відмовитися від заняття (як інструктор)
   Future<bool> releaseLesson(String lessonId) async {
-    try {
-      final currentUser = Globals.firebaseAuth.currentUser;
-      if (currentUser == null) return false;
-
-      final lesson = await getLessonById(lessonId);
-      if (lesson == null) return false;
-
-      final normalizedInstructorId = _normalizeInstructorAssignmentId(
-        currentUser.uid,
-      );
-      final instructorIds = lesson.instructorIds
-          .where((instructorId) => instructorId != normalizedInstructorId)
-          .toList();
-
-      final currentUserName = Globals.profileManager.currentUserName.trim();
-      final currentUserEmail = currentUser.email?.trim() ?? '';
-      final instructorNames = lesson.instructorNames
-          .where(
-            (instructorName) =>
-                instructorName != currentUserName &&
-                instructorName != currentUserEmail,
-          )
-          .toList();
-
-      final success = await assignLessonInstructors(
-        lessonId,
-        instructorIds: instructorIds,
-        instructorNames: instructorNames,
-      );
-
-      return success;
-    } catch (e) {
-      debugPrint('CalendarService: Помилка відпуску заняття: $e');
-      return false;
-    }
+    debugPrint(
+      'CalendarService: releaseLesson вимкнено. Призначення викладачів доступне лише editor/admin.',
+    );
+    return false;
   }
 
   Future<bool> unassignLessonInstructor(String lessonId) async {

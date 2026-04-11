@@ -46,11 +46,9 @@ service cloud.firestore {
       allow read: if isInGroup(groupId);
       allow create: if hasEditorRights(groupId);
       allow update: if hasEditorRights(groupId) ||
-                     isLessonCreator(groupId, lessonId) ||
-                     canInstructorManageOwnLessonAssignment(groupId) ||
                      canInstructorUpdateCustomFields(groupId) ||
                      canInstructorAcknowledgeLesson(groupId);
-      allow delete: if hasEditorRights(groupId) || isLessonCreator(groupId, lessonId);
+      allow delete: if hasEditorRights(groupId);
     }
 
     // Відсутності інструкторів по групах.
@@ -153,13 +151,6 @@ service cloud.firestore {
              (memberValue is string ? memberValue : memberValue.get('role', 'viewer'));
     }
 
-    function isLessonCreator(groupId, lessonId) {
-      return request.auth != null &&
-        exists(/databases/$(database)/documents/lessons/$(groupId)/items/$(lessonId)) &&
-        get(/databases/$(database)/documents/lessons/$(groupId)/items/$(lessonId))
-          .data.createdBy == request.auth.uid;
-    }
-
     function currentInstructorIdentityCandidates() {
       return request.auth.token.email != null
         ? [request.auth.uid, request.auth.token.email]
@@ -203,35 +194,6 @@ service cloud.firestore {
         (request.auth.token.email != null &&
          acknowledgements[request.auth.token.email] != null &&
          acknowledgements[request.auth.token.email].acknowledgedByUid == request.auth.uid);
-    }
-
-    function canInstructorManageOwnLessonAssignment(groupId) {
-      return isInGroup(groupId) &&
-        request.resource.data.diff(resource.data).affectedKeys()
-          .hasOnly(['instructorId', 'instructorName', 'instructorIds', 'instructorNames', 'updatedAt']) &&
-        (isSelfTakeLessonUpdate() || isSelfReleaseLessonUpdate());
-    }
-
-    function isSelfTakeLessonUpdate() {
-      let oldIds = resource.data.instructorIds;
-      let newIds = request.resource.data.instructorIds;
-      let selfIds = currentInstructorIdentityCandidates();
-
-      return !oldIds.hasAny(selfIds) &&
-        newIds.hasAll(oldIds) &&
-        newIds.hasAny(selfIds) &&
-        newIds.size() == oldIds.size() + 1;
-    }
-
-    function isSelfReleaseLessonUpdate() {
-      let oldIds = resource.data.instructorIds;
-      let newIds = request.resource.data.instructorIds;
-      let selfIds = currentInstructorIdentityCandidates();
-
-      return oldIds.hasAny(selfIds) &&
-        !newIds.hasAny(selfIds) &&
-        oldIds.hasAll(newIds) &&
-        newIds.size() + 1 == oldIds.size();
     }
 
     function onlyChangedFields(allowedFields) {

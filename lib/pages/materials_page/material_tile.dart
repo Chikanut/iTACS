@@ -178,6 +178,12 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
 
     try {
       await withLoading('delete_global_$fileId', () async {
+        final canManageGroupContent =
+            widget.userRole == 'admin' || widget.userRole == 'editor';
+        if (!canManageGroupContent) {
+          throw Exception('Недостатньо прав для видалення матеріалу');
+        }
+
         var driveDeleted = false;
         if (fileId != null) {
           try {
@@ -242,7 +248,7 @@ class _MaterialTileState extends State<MaterialTile> with LoadingStateMixin {
           builder: (context) => AlertDialog(
             title: const Text('Підтвердження'),
             content: const Text(
-              'Видалити цей матеріал з усіх груп де у вас є права адміністратора?',
+              'Видалити цей матеріал для поточної групи та повʼязаний файл у Google Drive?',
             ),
             actions: [
               TextButton(

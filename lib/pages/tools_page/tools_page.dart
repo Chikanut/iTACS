@@ -367,6 +367,11 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
         if (groupId == null || userRole == null) {
           return;
         }
+        final canManageGroupContent =
+            userRole == 'admin' || userRole == 'editor';
+        if (!canManageGroupContent) {
+          throw Exception('Недостатньо прав для видалення інструментів');
+        }
 
         final overlayId = item['overlayId']?.toString().trim();
         final type = (item['type'] ?? 'tool').toString();
