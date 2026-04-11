@@ -26,6 +26,11 @@
 
 **Depends on:** Phase 1
 
-**Plans:** 0 plans (run `/gsd:plan-phase 2` to break down)
+**Plans:** 3 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Create Firestore rules test infrastructure (Wave 0: helpers, full 35+ case test suite, npm install)
+- [ ] 02-02-PLAN.md — Verify files schema and patch cloudstore_rules, deploy to Firebase (Wave 1: checkpoint + rule patch)
+- [ ] 02-03-PLAN.md — Run full test suite, confirm all 35+ role/operation combinations pass, mark validation complete (Wave 2)
 
 ---
