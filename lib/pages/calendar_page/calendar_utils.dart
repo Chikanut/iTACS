@@ -658,6 +658,49 @@ class CalendarUtils {
   static const double hourHeight = 80.0;
   static const double minuteHeight = hourHeight / 60.0;
 
+  /// Повертає локальний початок дня без зміщень через DST.
+  static DateTime startOfDay(DateTime date) {
+    return DateTime(date.year, date.month, date.day);
+  }
+
+  /// Повертає локальний кінець дня для інклюзивних запитів по даті.
+  static DateTime endOfDay(DateTime date) {
+    return DateTime(date.year, date.month, date.day, 23, 59, 59, 999, 999);
+  }
+
+  /// Перевіряє, чи дата не містить часової компоненти.
+  static bool isStartOfDay(DateTime date) {
+    return date.hour == 0 &&
+        date.minute == 0 &&
+        date.second == 0 &&
+        date.millisecond == 0 &&
+        date.microsecond == 0;
+  }
+
+  /// Додає календарні дні без накопичення похибки на переходах DST.
+  static DateTime addDays(DateTime date, int days) {
+    return DateTime(
+      date.year,
+      date.month,
+      date.day + days,
+      date.hour,
+      date.minute,
+      date.second,
+      date.millisecond,
+      date.microsecond,
+    );
+  }
+
+  static DateTime addWeeks(DateTime date, int weeks) {
+    return addDays(date, weeks * 7);
+  }
+
+  static bool isSameDay(DateTime left, DateTime right) {
+    return left.year == right.year &&
+        left.month == right.month &&
+        left.day == right.day;
+  }
+
   // Отримати мінімальний час з списку занять
   static double getMinHourFromLessons(List<LessonModel> lessons) {
     if (lessons.isEmpty) return 8.0; // fallback якщо немає занять
@@ -809,66 +852,37 @@ class CalendarUtils {
 
   /// Перевірити чи дата сьогоднішня
   static bool isToday(DateTime date) {
-    final now = DateTime.now();
-    return date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day;
+    return isSameDay(date, DateTime.now());
   }
 
   /// Отримати дні тижня для заданої дати
   static List<DateTime> getWeekDays(DateTime selectedDate) {
     final startOfWeek = getStartOfWeek(selectedDate);
-    final weekDays = List.generate(
-      7,
-      (index) => startOfWeek.add(Duration(days: index)),
-    );
-
-    // 👈 ДОДАТИ DEBUG
-    debugPrint('📅 getWeekDays:');
-    debugPrint(
-      '  Selected date: ${selectedDate.day}.${selectedDate.month}.${selectedDate.year}',
-    );
-    debugPrint('  Week days:');
-    for (int i = 0; i < weekDays.length; i++) {
-      final day = weekDays[i];
-      final dayName = getDayName(day.weekday);
-      debugPrint('    $i ($dayName): ${day.day}.${day.month}.${day.year}');
-    }
-
-    return weekDays;
+    return List.generate(7, (index) => addDays(startOfWeek, index));
   }
 
   /// Отримати початок тижня
   static DateTime getStartOfWeek(DateTime date) {
     final daysFromMonday = date.weekday - 1;
-    final startOfWeek = date.subtract(Duration(days: daysFromMonday));
-
-    // 👈 ВИПРАВЛЕННЯ: повертаємо початок дня
-    return DateTime(
-      startOfWeek.year,
-      startOfWeek.month,
-      startOfWeek.day,
-      0,
-      0,
-      0,
+    return startOfDay(
+      DateTime(date.year, date.month, date.day - daysFromMonday),
     );
   }
 
   /// Отримати кінець тижня (неділя о 23:59:59)
   static DateTime getEndOfWeek(DateTime date) {
     final startOfWeek = getStartOfWeek(date);
-    final endOfWeek = startOfWeek.add(const Duration(days: 6));
-    return DateTime(endOfWeek.year, endOfWeek.month, endOfWeek.day, 23, 59, 59);
+    return endOfDay(addDays(startOfWeek, 6));
   }
 
   /// Отримати початок місяця
   static DateTime getStartOfMonth(DateTime date) {
-    return DateTime(date.year, date.month, 1);
+    return startOfDay(DateTime(date.year, date.month, 1));
   }
 
   /// Отримати кінець місяця
   static DateTime getEndOfMonth(DateTime date) {
-    return DateTime(date.year, date.month + 1, 0);
+    return endOfDay(DateTime(date.year, date.month + 1, 0));
   }
 
   /// Обчислити рівень заповненості у відсотках

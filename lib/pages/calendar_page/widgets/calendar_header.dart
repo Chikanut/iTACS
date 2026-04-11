@@ -30,7 +30,7 @@ class CalendarHeader extends StatelessWidget {
         return DateFormat('dd MMMM yyyy', 'uk').format(selectedDate);
       case CalendarViewType.week:
         final startOfWeek = CalendarUtils.getStartOfWeek(selectedDate);
-        final endOfWeek = startOfWeek.add(const Duration(days: 6));
+        final endOfWeek = CalendarUtils.getEndOfWeek(selectedDate);
         return '${DateFormat('dd MMM', 'uk').format(startOfWeek)} - ${DateFormat('dd MMM yyyy', 'uk').format(endOfWeek)}';
       case CalendarViewType.month:
         return DateFormat('MMMM yyyy', 'uk').format(selectedDate);

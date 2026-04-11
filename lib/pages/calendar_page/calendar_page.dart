@@ -23,7 +23,7 @@ class CalendarPage extends StatefulWidget {
 
 class _CalendarPageState extends State<CalendarPage> {
   CalendarViewType _viewType = CalendarViewType.week;
-  DateTime _selectedDate = DateTime.now();
+  DateTime _selectedDate = CalendarUtils.startOfDay(DateTime.now());
   int _refreshKey = 0; // Для примусового оновлення календаря
   CalendarFilters _filters = CalendarFilters.empty;
   List<Map<String, dynamic>> _groupMembers = [];
@@ -36,7 +36,7 @@ class _CalendarPageState extends State<CalendarPage> {
 
   void _goToToday() {
     setState(() {
-      _selectedDate = DateTime.now();
+      _selectedDate = CalendarUtils.startOfDay(DateTime.now());
       _viewType = CalendarViewType.day;
       _refreshKey++;
     });
@@ -46,14 +46,13 @@ class _CalendarPageState extends State<CalendarPage> {
     setState(() {
       switch (_viewType) {
         case CalendarViewType.day:
-          _selectedDate = _selectedDate.subtract(const Duration(days: 1));
+          _selectedDate = CalendarUtils.addDays(_selectedDate, -1);
           break;
         case CalendarViewType.week:
-          // 👈 ВИПРАВЛЕННЯ: йдемо точно на 7 днів назад від понеділка поточного тижня
           final startOfCurrentWeek = CalendarUtils.getStartOfWeek(
             _selectedDate,
           );
-          _selectedDate = startOfCurrentWeek.subtract(const Duration(days: 7));
+          _selectedDate = CalendarUtils.addWeeks(startOfCurrentWeek, -1);
           break;
         case CalendarViewType.month:
           _selectedDate = DateTime(
@@ -74,14 +73,13 @@ class _CalendarPageState extends State<CalendarPage> {
     setState(() {
       switch (_viewType) {
         case CalendarViewType.day:
-          _selectedDate = _selectedDate.add(const Duration(days: 1));
+          _selectedDate = CalendarUtils.addDays(_selectedDate, 1);
           break;
         case CalendarViewType.week:
-          // 👈 ВИПРАВЛЕННЯ: йдемо точно на 7 днів вперед від понеділка поточного тижня
           final startOfCurrentWeek = CalendarUtils.getStartOfWeek(
             _selectedDate,
           );
-          _selectedDate = startOfCurrentWeek.add(const Duration(days: 7));
+          _selectedDate = CalendarUtils.addWeeks(startOfCurrentWeek, 1);
           break;
         case CalendarViewType.month:
           _selectedDate = DateTime(
@@ -158,7 +156,7 @@ class _CalendarPageState extends State<CalendarPage> {
     showDialog(
       context: context,
       builder: (context) => LessonFormDialog(
-        initialDate: _selectedDate.add(const Duration(days: 1)),
+        initialDate: CalendarUtils.startOfDay(_selectedDate),
         initialStartTime: const TimeOfDay(hour: 8, minute: 15),
         onSaved: () {
           setState(() {
@@ -174,10 +172,8 @@ class _CalendarPageState extends State<CalendarPage> {
       case CalendarViewType.day:
         return DateFormat('dd MMMM yyyy', 'uk').format(_selectedDate);
       case CalendarViewType.week:
-        final startOfWeek = _selectedDate.subtract(
-          Duration(days: _selectedDate.weekday - 1),
-        );
-        final endOfWeek = startOfWeek.add(const Duration(days: 6));
+        final startOfWeek = CalendarUtils.getStartOfWeek(_selectedDate);
+        final endOfWeek = CalendarUtils.getEndOfWeek(_selectedDate);
         return '${DateFormat('dd MMM', 'uk').format(startOfWeek)} - ${DateFormat('dd MMM yyyy', 'uk').format(endOfWeek)}';
       case CalendarViewType.month:
         return DateFormat('MMMM yyyy', 'uk').format(_selectedDate);
@@ -188,7 +184,7 @@ class _CalendarPageState extends State<CalendarPage> {
 
   void _selectDate(DateTime date) {
     setState(() {
-      _selectedDate = date;
+      _selectedDate = CalendarUtils.startOfDay(date);
 
       // Автоматично переключаємо тип перегляду залежно від поточного
       switch (_viewType) {

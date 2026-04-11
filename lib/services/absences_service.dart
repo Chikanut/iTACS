@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../models/instructor_absence.dart';
 import '../models/lesson_model.dart';
 import '../globals.dart';
+import '../pages/calendar_page/calendar_utils.dart';
 
 class AbsencesService {
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
@@ -163,10 +164,11 @@ class AbsencesService {
       final currentGroupId = Globals.profileManager.currentGroupId;
       if (currentGroupId == null) return [];
 
+      final effectiveEndDate = _normalizeInclusiveEndDate(endDate);
       final docs = await Globals.firestoreManager.getAbsencesForGroup(
         groupId: currentGroupId,
         startDate: startDate,
-        endDate: endDate,
+        endDate: effectiveEndDate,
         instructorId: instructorId,
       );
 
@@ -222,7 +224,7 @@ class AbsencesService {
 
     final now = DateTime.now();
     final startOfMonth = DateTime(now.year, now.month, 1);
-    final endOfMonth = DateTime(now.year, now.month + 1, 0);
+    final endOfMonth = CalendarUtils.getEndOfMonth(now);
 
     try {
       final absences = await getAbsencesForPeriod(
@@ -386,8 +388,8 @@ class AbsencesService {
     DateTime endDate,
   ) async {
     final existingAbsences = await getAbsencesForPeriod(
-      startDate: startDate.subtract(const Duration(days: 1)),
-      endDate: endDate.add(const Duration(days: 1)),
+      startDate: CalendarUtils.addDays(startDate, -1),
+      endDate: CalendarUtils.addDays(endDate, 1),
       instructorId: instructorId,
     );
 
@@ -447,5 +449,12 @@ class AbsencesService {
         Globals.profileManager.currentUserId ??
         'anonymous';
     return 'cache::absences::$groupId::$userScope';
+  }
+
+  DateTime _normalizeInclusiveEndDate(DateTime endDate) {
+    if (CalendarUtils.isStartOfDay(endDate)) {
+      return CalendarUtils.endOfDay(endDate);
+    }
+    return endDate;
   }
 }

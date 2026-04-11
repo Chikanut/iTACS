@@ -29,8 +29,9 @@ class CalendarService {
       return const [];
     }
 
+    final effectiveEndDate = _normalizeInclusiveEndDate(endDate);
     final snapshot = Globals.appSnapshotStore.getCachedSnapshot(
-      _cacheKeyForPeriod(currentGroupId, startDate, endDate),
+      _cacheKeyForPeriod(currentGroupId, startDate, effectiveEndDate),
     );
     final data = snapshot?.data;
     if (data is! List) {
@@ -54,9 +55,11 @@ class CalendarService {
       return [];
     }
 
+    final effectiveEndDate = _normalizeInclusiveEndDate(endDate);
+
     try {
       debugPrint(
-        'CalendarService: Завантаження занять для групи $currentGroupId від $startDate до $endDate',
+        'CalendarService: Завантаження занять для групи $currentGroupId від $startDate до $effectiveEndDate',
       );
 
       // Запит до Firestore
@@ -68,7 +71,10 @@ class CalendarService {
             'startTime',
             isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
           )
-          .where('startTime', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
+          .where(
+            'startTime',
+            isLessThanOrEqualTo: Timestamp.fromDate(effectiveEndDate),
+          )
           .orderBy('startTime')
           .get();
 
@@ -77,7 +83,7 @@ class CalendarService {
           .toList();
 
       await Globals.appSnapshotStore.saveCachedSnapshot(
-        _cacheKeyForPeriod(currentGroupId, startDate, endDate),
+        _cacheKeyForPeriod(currentGroupId, startDate, effectiveEndDate),
         lessons.map((lesson) => lesson.toMap()).toList(),
       );
 
@@ -125,14 +131,6 @@ class CalendarService {
     final startOfWeek = CalendarUtils.getStartOfWeek(selectedDate);
     final endOfWeek = CalendarUtils.getEndOfWeek(selectedDate);
 
-    debugPrint('📅 getLessonsForWeek:');
-    debugPrint(
-      '  Selected: ${selectedDate.day}.${selectedDate.month}.${selectedDate.year}',
-    );
-    debugPrint(
-      '  Week: ${startOfWeek.day}.${startOfWeek.month} - ${endOfWeek.day}.${endOfWeek.month}',
-    );
-
     return await getLessonsForPeriod(
       startDate: startOfWeek,
       endDate: endOfWeek,
@@ -141,12 +139,8 @@ class CalendarService {
 
   /// Отримати заняття для дня
   Future<List<LessonModel>> getLessonsForDay(DateTime selectedDate) async {
-    final startOfDay = DateTime(
-      selectedDate.year,
-      selectedDate.month,
-      selectedDate.day,
-    );
-    final endOfDay = startOfDay.add(const Duration(hours: 23, minutes: 59));
+    final startOfDay = CalendarUtils.startOfDay(selectedDate);
+    final endOfDay = CalendarUtils.endOfDay(selectedDate);
 
     return await getLessonsForPeriod(startDate: startOfDay, endDate: endOfDay);
   }
@@ -448,6 +442,7 @@ class CalendarService {
     try {
       final currentGroupId = Globals.profileManager.currentGroupId;
       if (currentGroupId == null) return [];
+      final effectiveEndDate = _normalizeInclusiveEndDate(endDate);
 
       Query query = _firestore
           .collection('lessons')
@@ -457,7 +452,10 @@ class CalendarService {
             'startTime',
             isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
           )
-          .where('startTime', isLessThanOrEqualTo: Timestamp.fromDate(endDate));
+          .where(
+            'startTime',
+            isLessThanOrEqualTo: Timestamp.fromDate(effectiveEndDate),
+          );
 
       if (status != null) {
         query = query.where('status', isEqualTo: status);
@@ -512,6 +510,8 @@ class CalendarService {
       return Stream.value([]);
     }
 
+    final effectiveEndDate = _normalizeInclusiveEndDate(endDate);
+
     return _firestore
         .collection('lessons')
         .doc(currentGroupId)
@@ -520,7 +520,10 @@ class CalendarService {
           'startTime',
           isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
         )
-        .where('startTime', isLessThanOrEqualTo: Timestamp.fromDate(endDate))
+        .where(
+          'startTime',
+          isLessThanOrEqualTo: Timestamp.fromDate(effectiveEndDate),
+        )
         .orderBy('startTime')
         .snapshots()
         .map(
@@ -876,6 +879,13 @@ class CalendarService {
   ) {
     return 'cache::calendar::$groupId::'
         '${startDate.toIso8601String()}::${endDate.toIso8601String()}';
+  }
+
+  DateTime _normalizeInclusiveEndDate(DateTime endDate) {
+    if (CalendarUtils.isStartOfDay(endDate)) {
+      return CalendarUtils.endOfDay(endDate);
+    }
+    return endDate;
   }
 
   bool get _isReadOnlyOfflineMode => Globals.appRuntimeState.isReadOnlyOffline;

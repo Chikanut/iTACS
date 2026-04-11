@@ -747,7 +747,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
 
   Future<void> _loadAbsences() async {
     final firstDay = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
-    final lastDay = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
+    final lastDay = CalendarUtils.getEndOfMonth(_selectedMonth);
 
     final absences = await Globals.absencesService.getAbsencesForPeriod(
       startDate: firstDay,
@@ -777,7 +777,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
               current.year == _selectedMonth.year) {
             _absencesGrid[absence.instructorId]![current] = absence;
           }
-          current = current.add(const Duration(days: 1));
+          current = CalendarUtils.addDays(current, 1);
         }
       }
     }
@@ -785,7 +785,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
 
   Future<void> _loadLessons() async {
     final firstDay = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
-    final lastDay = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
+    final lastDay = CalendarUtils.getEndOfMonth(_selectedMonth);
 
     final lessons = await Globals.calendarService.getLessonsForPeriod(
       startDate: firstDay,
@@ -1017,7 +1017,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
           (a) =>
               a.status == AbsenceStatus.active &&
               now.isAfter(a.startDate) &&
-              now.isBefore(a.endDate.add(const Duration(days: 1))),
+              now.isBefore(CalendarUtils.addDays(a.endDate, 1)),
         )
         .toList();
     _upcomingAbsences = allAbsences

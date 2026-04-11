@@ -46,12 +46,15 @@ class MobileDayView extends StatelessWidget {
         itemCount: weekDays.length,
         itemBuilder: (context, index) {
           final day = weekDays[index];
-          final isSelected =
-              day.year == selectedDate.year &&
-              day.month == selectedDate.month &&
-              day.day == selectedDate.day;
+          final isSelected = CalendarUtils.isSameDay(day, selectedDate);
           final isToday = CalendarUtils.isToday(day);
           final hasLessons = getLessonsForSpecificDate(day).isNotEmpty;
+          final foregroundColor = isSelected
+              ? Theme.of(context).primaryColor
+              : Theme.of(context).colorScheme.onSurface;
+          final backgroundColor = isSelected
+              ? Theme.of(context).primaryColor.withOpacity(0.12)
+              : Colors.transparent;
 
           return GestureDetector(
             onTap: () => onDateSelected?.call(day),
@@ -59,9 +62,7 @@ class MobileDayView extends StatelessWidget {
               width: 60,
               margin: const EdgeInsets.symmetric(horizontal: 4),
               decoration: BoxDecoration(
-                color: isSelected
-                    ? Theme.of(context).primaryColor.withOpacity(0.18)
-                    : Colors.transparent,
+                color: backgroundColor,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: isToday || isSelected
@@ -78,7 +79,7 @@ class MobileDayView extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w500,
-                      color: Colors.white,
+                      color: foregroundColor,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -87,7 +88,7 @@ class MobileDayView extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      color: foregroundColor,
                     ),
                   ),
                   const SizedBox(height: 4),
@@ -96,7 +97,9 @@ class MobileDayView extends StatelessWidget {
                     height: 6,
                     decoration: BoxDecoration(
                       color: hasLessons
-                          ? (isSelected ? Colors.white : Colors.orange)
+                          ? (isSelected
+                                ? Theme.of(context).primaryColor
+                                : Colors.orange)
                           : Colors.transparent,
                       shape: BoxShape.circle,
                     ),

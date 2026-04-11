@@ -152,7 +152,7 @@ class MonthView extends StatelessWidget {
     monthGridDays.addAll(List<DateTime?>.filled(leadingEmptyDays, null));
 
     for (int i = 0; i < monthEnd.day; i++) {
-      monthGridDays.add(monthStart.add(Duration(days: i)));
+      monthGridDays.add(CalendarUtils.addDays(monthStart, i));
     }
 
     monthGridDays.addAll(List<DateTime?>.filled(trailingEmptyDays, null));
@@ -199,10 +199,7 @@ class MonthView extends StatelessWidget {
     final isToday = CalendarUtils.isToday(day);
     final isWeekend =
         day.weekday == DateTime.saturday || day.weekday == DateTime.sunday;
-    final isSelected =
-        day.year == selectedDate.year &&
-        day.month == selectedDate.month &&
-        day.day == selectedDate.day;
+    final isSelected = CalendarUtils.isSameDay(day, selectedDate);
 
     // Адаптивні розміри залежно від висоти клітинки
     final isSmallCell = cellHeight < 70;

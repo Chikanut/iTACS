@@ -53,7 +53,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   late final TextEditingController _tagsController;
 
   // Дані форми
-  DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
+  DateTime _selectedDate = CalendarUtils.startOfDay(DateTime.now());
   TimeOfDay _startTime = const TimeOfDay(hour: 8, minute: 15);
   TimeOfDay _endTime = const TimeOfDay(hour: 11, minute: 45);
   String _selectedTemplateId = '';
@@ -138,7 +138,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     } else {
       // Створення нового заняття
       if (widget.initialDate != null) {
-        _selectedDate = widget.initialDate!;
+        _selectedDate = CalendarUtils.startOfDay(widget.initialDate!);
       }
       if (widget.initialStartTime != null) {
         _startTime = widget.initialStartTime!;

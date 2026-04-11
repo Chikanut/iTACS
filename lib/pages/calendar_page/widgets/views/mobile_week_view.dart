@@ -1,12 +1,10 @@
-// lib/pages/calendar_page/widgets/views/mobile_week_view.dart
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../models/lesson_model.dart';
 import '../../calendar_utils.dart';
 import '../mobile_lesson_card.dart';
 
-class MobileWeekView extends StatelessWidget {
+class MobileWeekView extends StatefulWidget {
   final DateTime selectedDate;
   final List<LessonModel> lessons;
   final Function(LessonModel)? onLessonTap;
@@ -23,85 +21,193 @@ class MobileWeekView extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    final weekDays = CalendarUtils.getWeekDays(selectedDate);
-    final daysWithLessons = <DateTime, List<LessonModel>>{};
+  State<MobileWeekView> createState() => _MobileWeekViewState();
+}
 
-    // Групуємо заняття по датах
-    for (final day in weekDays) {
-      final dayLessons = getLessonsForSpecificDate(day);
-      if (dayLessons.isNotEmpty) {
-        daysWithLessons[day] = dayLessons;
-      }
+class _MobileWeekViewState extends State<MobileWeekView> {
+  final Map<String, GlobalKey> _daySectionKeys = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _syncDaySectionKeys();
+    _scheduleScrollToSelectedDay();
+  }
+
+  @override
+  void didUpdateWidget(covariant MobileWeekView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncDaySectionKeys();
+
+    if (!CalendarUtils.isSameDay(oldWidget.selectedDate, widget.selectedDate) ||
+        oldWidget.lessons.length != widget.lessons.length) {
+      _scheduleScrollToSelectedDay();
     }
+  }
 
-    if (daysWithLessons.isEmpty) {
+  @override
+  Widget build(BuildContext context) {
+    final weekDays = CalendarUtils.getWeekDays(widget.selectedDate);
+    final hasAnyLessons = weekDays.any(
+      (day) => widget.getLessonsForSpecificDate(day).isNotEmpty,
+    );
+
+    if (!hasAnyLessons) {
       return _buildEmptyState(context);
     }
 
     return RefreshIndicator(
-      onRefresh: onRefresh,
-      child: ListView.builder(
+      onRefresh: widget.onRefresh,
+      child: ListView.separated(
         padding: const EdgeInsets.all(16),
-        itemCount: daysWithLessons.length,
+        physics: const AlwaysScrollableScrollPhysics(),
+        itemCount: weekDays.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 16),
         itemBuilder: (context, index) {
-          final date = daysWithLessons.keys.elementAt(index);
-          final lessonsForDay = daysWithLessons[date]!;
+          final date = weekDays[index];
+          final lessonsForDay = widget.getLessonsForSpecificDate(date);
 
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Заголовок дати
-              _buildDateHeader(context, date),
-
-              // Заняття для цього дня
-              ...lessonsForDay.map(
-                (lesson) => Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: MobileLessonCard(
-                    lesson: lesson,
-                    onTap: () => onLessonTap?.call(lesson),
-                  ),
-                ),
-              ),
-
-              // Розділювач між днями
-              if (index < daysWithLessons.length - 1) const Divider(height: 32),
-            ],
+          return _buildDaySection(
+            context,
+            date,
+            lessonsForDay,
+            key: _daySectionKeys[_dayId(date)],
           );
         },
       ),
     );
   }
 
-  Widget _buildDateHeader(BuildContext context, DateTime date) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Row(
+  Widget _buildDaySection(
+    BuildContext context,
+    DateTime date,
+    List<LessonModel> lessonsForDay, {
+    Key? key,
+  }) {
+    final isSelected = CalendarUtils.isSameDay(date, widget.selectedDate);
+
+    return Container(
+      key: key,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            DateFormat('EEEE, dd MMMM', 'uk').format(date),
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          if (CalendarUtils.isToday(date)) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: Theme.of(context).primaryColor,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Text(
-                'Сьогодні',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
+          _buildDateHeader(context, date, isSelected: isSelected),
+          const SizedBox(height: 8),
+          if (lessonsForDay.isEmpty)
+            _buildEmptyDayCard(context, isSelected: isSelected)
+          else
+            ...lessonsForDay.map(
+              (lesson) => Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: MobileLessonCard(
+                  lesson: lesson,
+                  onTap: () => widget.onLessonTap?.call(lesson),
                 ),
               ),
             ),
-          ],
         ],
+      ),
+    );
+  }
+
+  Widget _buildDateHeader(
+    BuildContext context,
+    DateTime date, {
+    required bool isSelected,
+  }) {
+    final isToday = CalendarUtils.isToday(date);
+    final primaryColor = Theme.of(context).primaryColor;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: isSelected ? primaryColor.withOpacity(0.08) : Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isSelected
+              ? primaryColor.withOpacity(0.3)
+              : Colors.grey.shade200,
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              DateFormat('EEEE, dd MMMM', 'uk').format(date),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: isSelected ? primaryColor : null,
+              ),
+            ),
+          ),
+          if (isToday) ...[
+            _buildHeaderBadge(
+              context,
+              label: 'Сьогодні',
+              backgroundColor: primaryColor,
+              foregroundColor: Colors.white,
+            ),
+            const SizedBox(width: 8),
+          ],
+          if (isSelected)
+            _buildHeaderBadge(
+              context,
+              label: 'Обрано',
+              backgroundColor: primaryColor.withOpacity(0.12),
+              foregroundColor: primaryColor,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeaderBadge(
+    BuildContext context, {
+    required String label,
+    required Color backgroundColor,
+    required Color foregroundColor,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: foregroundColor,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyDayCard(BuildContext context, {required bool isSelected}) {
+    final primaryColor = Theme.of(context).primaryColor;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isSelected
+            ? primaryColor.withOpacity(0.04)
+            : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isSelected
+              ? primaryColor.withOpacity(0.2)
+              : Colors.grey.shade200,
+        ),
+      ),
+      child: Text(
+        'Немає занять на цей день',
+        style: TextStyle(
+          color: isSelected ? primaryColor : Colors.grey.shade700,
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+        ),
       ),
     );
   }
@@ -119,12 +225,49 @@ class MobileWeekView extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           ElevatedButton.icon(
-            onPressed: onRefresh,
+            onPressed: widget.onRefresh,
             icon: const Icon(Icons.refresh, size: 16),
             label: const Text('Оновити'),
           ),
         ],
       ),
     );
+  }
+
+  void _syncDaySectionKeys() {
+    final activeIds = CalendarUtils.getWeekDays(
+      widget.selectedDate,
+    ).map(_dayId).toSet();
+
+    _daySectionKeys.removeWhere((dayId, _) => !activeIds.contains(dayId));
+
+    for (final dayId in activeIds) {
+      _daySectionKeys.putIfAbsent(dayId, () => GlobalKey());
+    }
+  }
+
+  void _scheduleScrollToSelectedDay() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      final selectedContext =
+          _daySectionKeys[_dayId(widget.selectedDate)]?.currentContext;
+      if (selectedContext == null) {
+        return;
+      }
+
+      Scrollable.ensureVisible(
+        selectedContext,
+        duration: const Duration(milliseconds: 280),
+        curve: Curves.easeOutCubic,
+        alignment: 0.06,
+      );
+    });
+  }
+
+  String _dayId(DateTime date) {
+    return '${date.year}-${date.month}-${date.day}';
   }
 }

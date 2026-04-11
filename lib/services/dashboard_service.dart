@@ -429,13 +429,16 @@ class DashboardService {
     try {
       final currentGroupId = Globals.profileManager.currentGroupId;
       if (currentGroupId == null) return [];
+      final effectiveEndDate = CalendarUtils.isStartOfDay(endDate)
+          ? CalendarUtils.endOfDay(endDate)
+          : endDate;
 
       Query query = FirebaseFirestore.instance
           .collection('lessons')
           .doc(currentGroupId)
           .collection('items')
           .where('startTime', isGreaterThanOrEqualTo: startDate)
-          .where('startTime', isLessThanOrEqualTo: endDate);
+          .where('startTime', isLessThanOrEqualTo: effectiveEndDate);
 
       final querySnapshot = await query.orderBy('startTime').get();
 
