@@ -1,5 +1,6 @@
 // auth_service.dart
 
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -40,6 +41,10 @@ class AuthService {
   static String? _cachedAccessToken;
   static DateTime? _tokenExpirationTime;
 
+  /// Notifies listeners when Drive session availability changes.
+  /// Use this to reactively show/hide [DriveSessionBanner] without polling.
+  static final driveSessionAvailable = ValueNotifier<bool>(false);
+
   // Додаємо необхідні scopes для Google Drive
   static final GoogleSignIn _googleSignInWithDrive = GoogleSignIn(
     scopes: _googleSignInScopes,
@@ -48,6 +53,11 @@ class AuthService {
   GoogleSignInAccount? get currentGoogleUser => _currentGoogleUser;
 
   bool get isDriveSessionAvailable => _currentGoogleUser != null;
+
+  static void _setCurrentGoogleUser(GoogleSignInAccount? account) {
+    _currentGoogleUser = account;
+    driveSessionAvailable.value = account != null;
+  }
 
   bool get requiresBrowserFallbackForDriveReconnect =>
       WebPushEnvironment.isIosBrowser &&
@@ -122,7 +132,7 @@ class AuthService {
 
       final account = await _googleSignInWithDrive.signInSilently();
       if (account != null) {
-        _currentGoogleUser = account;
+        _setCurrentGoogleUser(account);
         debugPrint('✅ Тихий вхід успішний');
 
         final auth = await account.authentication;
@@ -186,18 +196,24 @@ class AuthService {
       if (account == null &&
           Globals.firebaseAuth.currentUser != null &&
           allowInteractiveRecovery) {
-        debugPrint(
-          '🔄 Google session не відновилась тихо, пробуємо інтерактивно відновити Drive доступ...',
-        );
-        account = await _googleSignInWithDrive.signIn();
+        // On iOS PWA (standalone), Google OAuth popups are blocked by iOS.
+        // Attempting signIn() hangs silently without showing any dialog.
+        // Skip interactive recovery and let the caller surface the banner.
+        if (!requiresBrowserFallbackForDriveReconnect) {
+          debugPrint(
+            '🔄 Google session не відновилась тихо, пробуємо інтерактивно відновити Drive доступ...',
+          );
+          account = await _googleSignInWithDrive.signIn();
+        }
       }
 
       if (account == null) {
         debugPrint('🛑 Користувач не авторизований');
+        _setCurrentGoogleUser(null);
         return null;
       }
 
-      _currentGoogleUser = account;
+      _setCurrentGoogleUser(account);
 
       if (requireScopeConfirmation) {
         final hasRequiredScopes = await _ensureRequiredScopes(
@@ -229,7 +245,7 @@ class AuthService {
           return null;
         }
 
-        _currentGoogleUser = account;
+        _setCurrentGoogleUser(account);
 
         if (requireScopeConfirmation) {
           final hasScopesAfterReauth = await _ensureRequiredScopes(
@@ -254,7 +270,7 @@ class AuthService {
       // Кешуємо новий токен
       _cachedAccessToken = auth.accessToken;
       _tokenExpirationTime = DateTime.now().add(Duration(hours: 1));
-      _currentGoogleUser = account;
+      _setCurrentGoogleUser(account);
 
       debugPrint('✅ AccessToken отримано успішно');
       return _cachedAccessToken;
@@ -291,7 +307,7 @@ class AuthService {
       // Очищаємо кеш
       _cachedAccessToken = null;
       _tokenExpirationTime = null;
-      _currentGoogleUser = null;
+      _setCurrentGoogleUser(null);
     } catch (e) {
       debugPrint('🚫 Помилка виходу: $e');
     }
@@ -373,7 +389,7 @@ class AuthService {
         );
       }
 
-      _currentGoogleUser = account;
+      _setCurrentGoogleUser(account);
       final auth = await account.authentication;
       _cachedAccessToken = auth.accessToken;
       _tokenExpirationTime = DateTime.now().add(const Duration(hours: 1));

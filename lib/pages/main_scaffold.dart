@@ -10,6 +10,7 @@ import '../globals.dart';
 import '../services/app_session_controller.dart';
 import '../services/push_notifications_service.dart';
 import '../services/web_push_environment.dart';
+import '../widgets/push_permission_banner.dart';
 import '../widgets/web_push_install_banner.dart';
 import 'tools_page/tools_page.dart';
 import 'admin_page/admin_panel_page.dart';
@@ -499,6 +500,7 @@ class _MainScaffoldState extends State<MainScaffold> {
       body: Column(
         children: [
           const WebPushInstallBanner(),
+          const PushPermissionBanner(),
           AnimatedBuilder(
             animation: Globals.appRuntimeState,
             builder: (context, _) {

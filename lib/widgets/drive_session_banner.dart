@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../globals.dart';
+import '../services/auth_service.dart';
 import '../services/web_push_environment.dart';
 
 class DriveSessionBanner extends StatefulWidget {
@@ -14,41 +15,39 @@ class DriveSessionBanner extends StatefulWidget {
 }
 
 class _DriveSessionBannerState extends State<DriveSessionBanner> {
-  bool _visible = false;
   bool _reconnecting = false;
   bool _signingIn = false;
-  bool _showBrowserFallback = false;
 
   bool get _isIosStandalonePwa =>
       WebPushEnvironment.isIosBrowser &&
       WebPushEnvironment.isStandaloneDisplayMode;
 
+  // Derived from the notifier — updates whenever Drive session drops or recovers.
+  bool get _visible => !AuthService.driveSessionAvailable.value;
+
   @override
   void initState() {
     super.initState();
-    _visible = !Globals.authService.isDriveSessionAvailable;
-    _showBrowserFallback =
-        _visible &&
-        Globals.authService.requiresBrowserFallbackForDriveReconnect;
+    AuthService.driveSessionAvailable.addListener(_onSessionChanged);
   }
+
+  @override
+  void dispose() {
+    AuthService.driveSessionAvailable.removeListener(_onSessionChanged);
+    super.dispose();
+  }
+
+  void _onSessionChanged() => setState(() {});
 
   Future<void> _reconnect() async {
     setState(() => _reconnecting = true);
     final result = await Globals.authService.reconnectDriveWithDetails();
     if (!mounted) return;
 
+    setState(() => _reconnecting = false);
     if (result.success) {
-      setState(() {
-        _visible = false;
-        _reconnecting = false;
-        _showBrowserFallback = false;
-      });
       widget.onReconnected();
     } else {
-      setState(() {
-        _reconnecting = false;
-        _showBrowserFallback = result.requiresBrowserFallback;
-      });
       Globals.errorNotificationManager.showError(
         result.message ??
             'Не вдалося підключитися до Google Drive. Перевірте підключення та спробуйте знову.',
@@ -63,18 +62,10 @@ class _DriveSessionBannerState extends State<DriveSessionBanner> {
     );
     if (!mounted) return;
 
+    setState(() => _signingIn = false);
     if (result.success) {
-      setState(() {
-        _visible = false;
-        _signingIn = false;
-        _showBrowserFallback = false;
-      });
       widget.onReconnected();
     } else {
-      setState(() {
-        _signingIn = false;
-        _showBrowserFallback = result.requiresBrowserFallback;
-      });
       Globals.errorNotificationManager.showError(
         result.message ?? 'Не вдалося увійти в Google Drive. Спробуйте ще раз.',
       );
@@ -118,7 +109,7 @@ class _DriveSessionBannerState extends State<DriveSessionBanner> {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  _showBrowserFallback && _isIosStandalonePwa
+                  _isIosStandalonePwa
                       ? 'Google Drive сесія не відновлена. У режимі додатка з домашнього екрана iPhone повторний вхід може не спрацювати.'
                       : 'Google Drive сесія не відновлена — файли можуть бути недоступні',
                   style: const TextStyle(fontSize: 13),

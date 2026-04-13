@@ -167,11 +167,18 @@ class PushNotificationsService extends ChangeNotifier {
   bool _initialized = false;
   bool _initializing = false;
   bool _localNotificationsInitialized = false;
+  bool _needsIosPermissionPrompt = false;
   String? _registeredToken;
   PushNavigationRequest? _pendingNavigationRequest;
 
   PushNavigationRequest? get pendingNavigationRequest =>
       _pendingNavigationRequest;
+
+  /// True when running as an iOS PWA and the user has not yet granted
+  /// notification permission. The UI should show a prompt with a button that
+  /// calls [requestPermissionInteractively] — iOS requires the permission
+  /// request to originate directly from a user gesture.
+  bool get needsIosPermissionPrompt => _needsIosPermissionPrompt;
 
   bool get isSupportedPlatform =>
       kIsWeb || defaultTargetPlatform == TargetPlatform.android;
@@ -201,13 +208,37 @@ class PushNotificationsService extends ChangeNotifier {
         return;
       }
 
-      final settings = await _messaging.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
-
-      await _syncTokenWithFirestore(settings);
+      // On iOS PWA (standalone), iOS requires Notification.requestPermission()
+      // to be called directly from a user gesture. Calling it automatically
+      // from initState() is silently ignored — the dialog never appears and the
+      // app never shows up in iOS Settings → Notifications.
+      //
+      // So for iOS standalone: check the existing permission status without
+      // showing a dialog. If not yet granted, set a flag so the UI can show a
+      // "Enable notifications" button that calls requestPermissionInteractively().
+      if (kIsWeb &&
+          WebPushEnvironment.isIosBrowser &&
+          WebPushEnvironment.isStandaloneDisplayMode) {
+        final currentSettings = await _messaging.getNotificationSettings();
+        final status = currentSettings.authorizationStatus;
+        if (status == AuthorizationStatus.authorized ||
+            status == AuthorizationStatus.provisional) {
+          await _syncTokenWithFirestore(currentSettings);
+        } else {
+          debugPrint(
+            "PushNotificationsService: iOS PWA permission not granted ($status) — deferring to user gesture",
+          );
+          _needsIosPermissionPrompt = true;
+          notifyListeners();
+        }
+      } else {
+        final settings = await _messaging.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+        await _syncTokenWithFirestore(settings);
+      }
 
       final initialMessage = await _messaging.getInitialMessage();
       if (initialMessage != null) {
@@ -220,6 +251,28 @@ class PushNotificationsService extends ChangeNotifier {
     } finally {
       _initializing = false;
     }
+  }
+
+  /// Must be called directly from a user-gesture handler (e.g. button onPressed).
+  /// On iOS Safari PWA, the OS only shows the notification permission dialog
+  /// when the request originates from a user gesture — calling it from initState
+  /// is silently ignored.
+  Future<void> requestPermissionInteractively() async {
+    if (!kIsWeb ||
+        !WebPushEnvironment.isIosBrowser ||
+        !WebPushEnvironment.isStandaloneDisplayMode) {
+      return;
+    }
+
+    final settings = await _messaging.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    _needsIosPermissionPrompt = false;
+    await _syncTokenWithFirestore(settings);
+    notifyListeners();
   }
 
   Future<void> handleSignOut() async {
@@ -451,6 +504,7 @@ class PushNotificationsService extends ChangeNotifier {
     _initialized = false;
     _initializing = false;
     _registeredToken = null;
+    _needsIosPermissionPrompt = false;
     _pendingNavigationRequest = null;
     notifyListeners();
   }
