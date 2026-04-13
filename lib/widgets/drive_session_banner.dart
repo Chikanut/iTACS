@@ -16,6 +16,7 @@ class DriveSessionBanner extends StatefulWidget {
 class _DriveSessionBannerState extends State<DriveSessionBanner> {
   bool _visible = false;
   bool _reconnecting = false;
+  bool _signingIn = false;
   bool _showBrowserFallback = false;
 
   bool get _isIosStandalonePwa =>
@@ -51,6 +52,31 @@ class _DriveSessionBannerState extends State<DriveSessionBanner> {
       Globals.errorNotificationManager.showError(
         result.message ??
             'Не вдалося підключитися до Google Drive. Перевірте підключення та спробуйте знову.',
+      );
+    }
+  }
+
+  Future<void> _signInToDrive() async {
+    setState(() => _signingIn = true);
+    final result = await Globals.authService.reconnectDriveWithDetails(
+      interactiveOnly: true,
+    );
+    if (!mounted) return;
+
+    if (result.success) {
+      setState(() {
+        _visible = false;
+        _signingIn = false;
+        _showBrowserFallback = false;
+      });
+      widget.onReconnected();
+    } else {
+      setState(() {
+        _signingIn = false;
+        _showBrowserFallback = result.requiresBrowserFallback;
+      });
+      Globals.errorNotificationManager.showError(
+        result.message ?? 'Не вдалося увійти в Google Drive. Спробуйте ще раз.',
       );
     }
   }
@@ -105,32 +131,35 @@ class _DriveSessionBannerState extends State<DriveSessionBanner> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              if (_reconnecting)
+              if (_reconnecting || _signingIn)
                 const SizedBox(
                   width: 20,
                   height: 20,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              else
+              else if (_isIosStandalonePwa) ...[
+                // On iOS PWA, OAuth popups are blocked — only show Safari option.
+                ElevatedButton.icon(
+                  onPressed: _openInSafari,
+                  icon: const Icon(Icons.open_in_browser, size: 16),
+                  label: const Text('Відкрити в Safari'),
+                ),
+              ] else ...[
                 TextButton(
                   onPressed: _reconnect,
-                  child: Text(
-                    _showBrowserFallback && _isIosStandalonePwa
-                        ? 'Спробувати ще раз'
-                        : 'Поновити зв\'язок',
-                  ),
+                  child: const Text('Поновити зв\'язок'),
                 ),
-              if (_showBrowserFallback && _isIosStandalonePwa)
                 OutlinedButton(
-                  onPressed: _openInSafari,
-                  child: const Text('Відкрити в Safari'),
+                  onPressed: _signInToDrive,
+                  child: const Text('Увійти в Google Drive'),
                 ),
+              ],
             ],
           ),
-          if (_showBrowserFallback && _isIosStandalonePwa) ...[
+          if (_isIosStandalonePwa) ...[
             const SizedBox(height: 4),
             const Text(
-              'Після відкриття в Safari повторно увійдіть у Google Drive, а потім поверніться до додатка.',
+              'Відкрийте у Safari, підключіть Google Drive, а потім поверніться до додатка.',
               style: TextStyle(fontSize: 12),
             ),
           ],

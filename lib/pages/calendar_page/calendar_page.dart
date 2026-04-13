@@ -217,42 +217,46 @@ class _CalendarPageState extends State<CalendarPage> {
     switch (_viewType) {
       case CalendarViewType.day:
         content = CalendarGrid(
-          key: ValueKey('day_$_refreshKey'),
+          key: const ValueKey(CalendarViewType.day),
           viewType: _viewType,
           selectedDate: _selectedDate,
           filters: _filters,
           onLessonTap: _showLessonDetails,
-          onDateSelected: _selectDate, // 👈 ДОДАТИ callback для вибору дати
+          onDateSelected: _selectDate,
+          refreshKey: _refreshKey,
         );
         break;
       case CalendarViewType.week:
         content = CalendarGrid(
-          key: ValueKey('week_$_refreshKey'),
+          key: const ValueKey(CalendarViewType.week),
           viewType: _viewType,
           selectedDate: _selectedDate,
           filters: _filters,
           onLessonTap: _showLessonDetails,
-          onDateSelected: _selectDate, // 👈 ДОДАТИ callback для вибору дати
+          onDateSelected: _selectDate,
+          refreshKey: _refreshKey,
         );
         break;
       case CalendarViewType.month:
         content = CalendarGrid(
-          key: ValueKey('month_$_refreshKey'),
+          key: const ValueKey(CalendarViewType.month),
           viewType: _viewType,
           selectedDate: _selectedDate,
           filters: _filters,
           onLessonTap: _showLessonDetails,
           onDateSelected: _selectDate,
+          refreshKey: _refreshKey,
         );
         break;
       case CalendarViewType.year:
         content = CalendarGrid(
-          key: ValueKey('year_$_refreshKey'),
+          key: const ValueKey(CalendarViewType.year),
           viewType: _viewType,
           selectedDate: _selectedDate,
           filters: _filters,
           onLessonTap: _showLessonDetails,
           onDateSelected: _selectDate,
+          refreshKey: _refreshKey,
         );
         break;
     }

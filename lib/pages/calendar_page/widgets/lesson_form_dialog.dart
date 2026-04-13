@@ -85,6 +85,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   }
 
   Future<void> _loadTemplates() async {
+    await _templatesService.ensureInitializedForCurrentGroup();
     _availableTemplates = _templatesService.getTemplates(TemplateType.lesson);
     setState(() {});
   }

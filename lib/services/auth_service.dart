@@ -220,8 +220,9 @@ class AuthService {
           '🛑 AccessToken не отримано. Спробуємо повторну авторизацію...',
         );
 
-        // Спробуємо очистити кеш і увійти знову
-        await _googleSignInWithDrive.signOut();
+        // Не розриваємо Google-сесію перед reauth, інакше після першого
+        // логіну silent restore стає ненадійним і popup може більше не
+        // з'являтися у наступних спробах.
         account = await _googleSignInWithDrive.signIn();
 
         if (account == null) {
@@ -302,7 +303,7 @@ class AuthService {
     _tokenExpirationTime = null;
     return _getAccessTokenForScopes(
       _driveReadScopes,
-      allowInteractiveRecovery: false,
+      allowInteractiveRecovery: true,
       requireScopeConfirmation: false,
     );
   }
@@ -324,9 +325,30 @@ class AuthService {
     return result.success;
   }
 
-  Future<DriveReconnectResult> reconnectDriveWithDetails() async {
+  Future<DriveReconnectResult> reconnectDriveWithDetails({
+    bool interactiveOnly = false,
+  }) async {
     try {
-      final account = await _googleSignInWithDrive.signIn();
+      GoogleSignInAccount? account =
+          _currentGoogleUser ?? _googleSignInWithDrive.currentUser;
+      if (!interactiveOnly) {
+        account ??= await _googleSignInWithDrive.signInSilently();
+      }
+
+      // On iOS PWA (standalone), Google OAuth popups are blocked by iOS —
+      // window.open() silently fails without showing any dialog.
+      // Skip the interactive sign-in attempt and surface the Safari fallback
+      // immediately so the user isn't left staring at a frozen spinner.
+      if (account == null && requiresBrowserFallbackForDriveReconnect) {
+        return DriveReconnectResult(
+          success: false,
+          requiresBrowserFallback: true,
+          message:
+              'У режимі додатка на домашньому екрані iPhone Google повторний вхід може блокуватись. Відкрийте iTACS у Safari та підключіть Google Drive там.',
+        );
+      }
+
+      account ??= await _googleSignInWithDrive.signIn();
       if (account == null) {
         return DriveReconnectResult(
           success: false,
@@ -336,6 +358,21 @@ class AuthService {
               : 'Не вдалося повторно відкрити Google-вхід для підключення Drive.',
         );
       }
+
+      final hasScopes = await _ensureRequiredScopes(
+        _driveWriteScopes,
+        interactive: true,
+      );
+      if (!hasScopes) {
+        return DriveReconnectResult(
+          success: false,
+          requiresBrowserFallback: requiresBrowserFallbackForDriveReconnect,
+          message: requiresBrowserFallbackForDriveReconnect
+              ? 'Не вдалося підтвердити доступ до Google Drive в режимі додатка на iPhone. Відкрийте iTACS у Safari та повторіть підключення.'
+              : 'Google Drive не надав потрібні дозволи. Спробуйте повторити вхід ще раз.',
+        );
+      }
+
       _currentGoogleUser = account;
       final auth = await account.authentication;
       _cachedAccessToken = auth.accessToken;

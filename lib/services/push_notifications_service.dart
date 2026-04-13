@@ -483,17 +483,23 @@ class PushNotificationsService extends ChangeNotifier {
       return;
     }
 
+    // If a stored token already exists, this is a normal app launch — not a
+    // reinstall. Skip token rotation: deleting the token on every startup risks
+    // leaving the device unregistered if getToken() later returns null (a known
+    // flaky behaviour on iOS Safari PWA). Natural rotation is handled by the
+    // onTokenRefresh listener.
     final previousToken = _registeredToken ?? await _readStoredWebToken();
+    if (previousToken != null && previousToken.isNotEmpty) {
+      return;
+    }
 
+    // No stored token → fresh install or reinstall. Clean up any stale FCM
+    // subscription before requesting a new one.
     try {
       await _messaging.deleteToken();
     } catch (_) {
-      // На iOS PWA deleteToken може падати, якщо токен ще не встиг
-      // відновитись після перевстановлення. Це не блокує повторну реєстрацію.
-    }
-
-    if (previousToken != null && previousToken.isNotEmpty) {
-      await _deleteDeviceTokenDocument(uid, previousToken);
+      // deleteToken may throw on iOS PWA if the token hasn't been provisioned
+      // yet. This is non-fatal — we still proceed to request a new token.
     }
   }
 

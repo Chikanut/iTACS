@@ -40,8 +40,7 @@ class _MobileWeekViewState extends State<MobileWeekView> {
     super.didUpdateWidget(oldWidget);
     _syncDaySectionKeys();
 
-    if (!CalendarUtils.isSameDay(oldWidget.selectedDate, widget.selectedDate) ||
-        oldWidget.lessons.length != widget.lessons.length) {
+    if (!CalendarUtils.isSameDay(oldWidget.selectedDate, widget.selectedDate)) {
       _scheduleScrollToSelectedDay();
     }
   }

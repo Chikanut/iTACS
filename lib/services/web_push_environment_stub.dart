@@ -5,5 +5,9 @@ class WebPushEnvironment {
 
   static bool get shouldShowIosInstallBanner => false;
 
+  static bool get hasDriveReconnectParam => false;
+
+  static void clearDriveReconnectParam() {}
+
   static void clearPushQueryParameters() {}
 }

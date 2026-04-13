@@ -22,6 +22,7 @@ class CalendarGrid extends StatefulWidget {
   final CalendarFilters filters;
   final Function(LessonModel)? onLessonTap;
   final Function(DateTime)? onDateSelected;
+  final int refreshKey;
 
   const CalendarGrid({
     super.key,
@@ -31,6 +32,7 @@ class CalendarGrid extends StatefulWidget {
     this.filteredGroups,
     this.onLessonTap,
     this.onDateSelected,
+    this.refreshKey = 0,
   });
 
   @override
@@ -56,7 +58,8 @@ class _CalendarGridState extends State<CalendarGrid> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.selectedDate != widget.selectedDate ||
         oldWidget.viewType != widget.viewType ||
-        oldWidget.filters != widget.filters) {
+        oldWidget.filters != widget.filters ||
+        oldWidget.refreshKey != widget.refreshKey) {
       _hydrateCachedLessons();
       unawaited(_loadLessons());
     }
