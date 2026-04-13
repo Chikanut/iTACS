@@ -77,7 +77,7 @@ class AuthService {
         return false;
       }
 
-      _currentGoogleUser = googleUser;
+      _setCurrentGoogleUser(googleUser);
 
       // Зберігаємо інформацію про успішний вхід
       await _saveSignInState(true);
@@ -132,13 +132,22 @@ class AuthService {
 
       final account = await _googleSignInWithDrive.signInSilently();
       if (account != null) {
-        _setCurrentGoogleUser(account);
-        debugPrint('✅ Тихий вхід успішний');
-
         final auth = await account.authentication;
-        _cachedAccessToken = auth.accessToken;
-        _tokenExpirationTime = DateTime.now().add(const Duration(hours: 1));
-        await _saveSignInState(true);
+        if (auth.accessToken != null) {
+          _setCurrentGoogleUser(account);
+          _cachedAccessToken = auth.accessToken;
+          _tokenExpirationTime = DateTime.now().add(const Duration(hours: 1));
+          await _saveSignInState(true);
+          debugPrint('✅ Тихий вхід успішний, токен отримано');
+        } else {
+          // signInSilently returned an account but no access token — the
+          // underlying OAuth session can't be refreshed (common in iOS PWA
+          // after the Google JS library loses its refresh context).
+          // Do NOT mark Drive as available; banner will guide the user.
+          debugPrint(
+            '⚠️ Тихий вхід повернув акаунт, але accessToken = null — Drive недоступний',
+          );
+        }
       } else if (firebaseUser == null) {
         debugPrint(
           '⚠️ Тихий вхід не вдався, але локальний marker входу збережено',
@@ -156,8 +165,10 @@ class AuthService {
   Future<String?> getAccessToken() async {
     return _getAccessTokenForScopes(
       _driveReadScopes,
-      allowInteractiveRecovery:
-          true, // was false — now allows popup recovery on user gesture
+      // false: this method is called automatically (page load, file fetch).
+      // A popup here would surprise the user. Let the DriveSessionBanner
+      // handle recovery — it calls reconnectDriveWithDetails() on explicit tap.
+      allowInteractiveRecovery: false,
       requireScopeConfirmation: false,
     );
   }
@@ -236,12 +247,20 @@ class AuthService {
           '🛑 AccessToken не отримано. Спробуємо повторну авторизацію...',
         );
 
+        // On iOS PWA (standalone), signIn() is blocked — clear the stale
+        // session so the banner appears and let the user open Safari.
+        if (requiresBrowserFallbackForDriveReconnect) {
+          _setCurrentGoogleUser(null);
+          return null;
+        }
+
         // Не розриваємо Google-сесію перед reauth, інакше після першого
         // логіну silent restore стає ненадійним і popup може більше не
         // з'являтися у наступних спробах.
         account = await _googleSignInWithDrive.signIn();
 
         if (account == null) {
+          _setCurrentGoogleUser(null);
           return null;
         }
 
