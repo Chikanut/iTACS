@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../globals.dart';
 import '../../../../models/checklist_tool/checklist_tool_models.dart';
 import '../../../../services/checklist_tool_service.dart';
 import '../../../../utils/template_renderer.dart';
@@ -32,6 +33,7 @@ class _ChecklistConfigEditorPageState extends State<ChecklistConfigEditorPage> {
 
   bool get _isEditing => widget.initialConfig != null;
   String get _configId => widget.initialConfig?.id ?? _uuid.v4();
+  String? get _groupId => Globals.profileManager.currentGroupId;
 
   @override
   void initState() {
@@ -53,6 +55,11 @@ class _ChecklistConfigEditorPageState extends State<ChecklistConfigEditorPage> {
   }
 
   Future<void> _save() async {
+    final groupId = _groupId;
+    if (groupId == null) {
+      return;
+    }
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -73,7 +80,7 @@ class _ChecklistConfigEditorPageState extends State<ChecklistConfigEditorPage> {
       templates: _templates,
     );
 
-    await _service.saveConfig(config);
+    await _service.saveConfig(groupId, config);
     if (!mounted) {
       return;
     }

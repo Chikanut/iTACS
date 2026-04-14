@@ -28,6 +28,7 @@ class _ChecklistLessonPageState extends State<ChecklistLessonPage> {
   bool get _canManage =>
       !Globals.appRuntimeState.isReadOnlyOffline &&
       Globals.profileManager.isCurrentGroupEditor;
+  String? get _groupId => Globals.profileManager.currentGroupId;
 
   @override
   void initState() {
@@ -115,6 +116,11 @@ class _ChecklistLessonPageState extends State<ChecklistLessonPage> {
   }
 
   Future<void> _editConfig() async {
+    final groupId = _groupId;
+    if (groupId == null) {
+      return;
+    }
+
     final didSave = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
         builder: (_) => ChecklistConfigEditorPage(initialConfig: _config),
@@ -124,14 +130,13 @@ class _ChecklistLessonPageState extends State<ChecklistLessonPage> {
       return;
     }
 
-    final updatedConfigs = await _service.loadAllConfigs();
-    final maybeConfig = updatedConfigs.where((item) => item.id == _config.id);
-    if (maybeConfig.isEmpty) {
+    final updatedConfig = await _service.loadConfigById(groupId, _config.id);
+    if (updatedConfig == null) {
       return;
     }
 
     setState(() {
-      _config = maybeConfig.first;
+      _config = updatedConfig;
       _isLoading = true;
     });
     await _loadState();
