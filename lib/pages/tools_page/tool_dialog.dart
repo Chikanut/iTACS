@@ -338,8 +338,8 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
           final label = isFolder
               ? 'Папку'
               : isEmbedded
-                  ? 'Вбудований інструмент'
-                  : 'Інструмент';
+              ? 'Вбудований інструмент'
+              : 'Інструмент';
           Globals.errorNotificationManager.showSuccess(
             isEditing ? '$label оновлено' : '$label створено',
           );
@@ -518,6 +518,7 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
 
   Widget _buildEmbeddedControls() {
     const availableTools = [
+      ('checklist_builder', 'Конструктор чеклістів занять', Icons.check_circle),
       ('contacts', 'Корисні контакти', Icons.contacts),
       ('schedule_calculator', 'Калькулятор розкладу', Icons.calculate),
     ];
@@ -761,10 +762,10 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
           Text(
             isEditing
                 ? isFolder
-                    ? 'Редагувати папку'
-                    : isEmbedded
-                        ? 'Редагувати вбудований інструмент'
-                        : 'Редагувати інструмент'
+                      ? 'Редагувати папку'
+                      : isEmbedded
+                      ? 'Редагувати вбудований інструмент'
+                      : 'Редагувати інструмент'
                 : 'Новий елемент',
           ),
         ],

@@ -5,8 +5,7 @@ class ScheduleCalculatorPage extends StatefulWidget {
   const ScheduleCalculatorPage({super.key});
 
   @override
-  State<ScheduleCalculatorPage> createState() =>
-      _ScheduleCalculatorPageState();
+  State<ScheduleCalculatorPage> createState() => _ScheduleCalculatorPageState();
 }
 
 class _ScheduleCalculatorPageState extends State<ScheduleCalculatorPage>
@@ -29,9 +28,7 @@ class _ScheduleCalculatorPageState extends State<ScheduleCalculatorPage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
-          children: [Text('📚 '), Text('Калькулятор розкладу')],
-        ),
+        title: const Row(children: [Text('📚 '), Text('Калькулятор розкладу')]),
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -42,10 +39,7 @@ class _ScheduleCalculatorPageState extends State<ScheduleCalculatorPage>
       ),
       body: TabBarView(
         controller: _tabController,
-        children: const [
-          _DurationCalculator(),
-          _EndTimeCalculator(),
-        ],
+        children: const [_DurationCalculator(), _EndTimeCalculator()],
       ),
     );
   }
@@ -87,8 +81,10 @@ class _TimePicker extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+        ),
         const SizedBox(height: 6),
         InkWell(
           onTap: () async {
@@ -96,8 +92,7 @@ class _TimePicker extends StatelessWidget {
               context: context,
               initialTime: value,
               builder: (ctx, child) => MediaQuery(
-                data: MediaQuery.of(ctx)
-                    .copyWith(alwaysUse24HourFormat: true),
+                data: MediaQuery.of(ctx).copyWith(alwaysUse24HourFormat: true),
                 child: child!,
               ),
             );
@@ -116,7 +111,10 @@ class _TimePicker extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   '${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
               ],
             ),
@@ -147,8 +145,10 @@ class _NumberField extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+        Text(
+          label,
+          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+        ),
         const SizedBox(height: 6),
         TextField(
           controller: controller,
@@ -157,8 +157,10 @@ class _NumberField extends StatelessWidget {
           decoration: InputDecoration(
             suffixText: suffix,
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 12,
+            ),
           ),
         ),
       ],
@@ -170,11 +172,14 @@ Widget _scheduleList(List<_LessonSlot> slots) {
   return Column(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Text('Розклад занять:',
-          style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: Colors.indigo)),
+      const Text(
+        'Розклад занять:',
+        style: TextStyle(
+          fontWeight: FontWeight.bold,
+          fontSize: 14,
+          color: Colors.indigo,
+        ),
+      ),
       const SizedBox(height: 8),
       ...slots.map(
         (s) => Container(
@@ -200,8 +205,9 @@ Widget _scheduleList(List<_LessonSlot> slots) {
               Text(
                 'Заняття ${s.number}',
                 style: TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.purple.shade700),
+                  fontWeight: FontWeight.w600,
+                  color: Colors.purple.shade700,
+                ),
               ),
               Text(
                 '${s.start} — ${s.end}',
@@ -236,7 +242,10 @@ Widget _highlightBox(String text) {
     child: Text(
       text,
       style: const TextStyle(
-          color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+        color: Colors.white,
+        fontWeight: FontWeight.bold,
+        fontSize: 16,
+      ),
       textAlign: TextAlign.center,
     ),
   );
@@ -383,7 +392,8 @@ class _DurationCalculatorState extends State<_DurationCalculator> {
                 backgroundColor: const Color(0xFF667EEA),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
             ),
           ),
@@ -401,8 +411,11 @@ class _DurationCalculatorState extends State<_DurationCalculator> {
                   const Icon(Icons.error_outline, color: Colors.red, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
-                      child: Text(_error!,
-                          style: const TextStyle(color: Colors.red))),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -410,7 +423,8 @@ class _DurationCalculatorState extends State<_DurationCalculator> {
           if (_result != null) ...[
             const SizedBox(height: 20),
             _highlightBox(
-                'Тривалість одного заняття: ${_duration(_result!.lessonDuration)}'),
+              'Тривалість одного заняття: ${_duration(_result!.lessonDuration)}',
+            ),
             const SizedBox(height: 16),
             _scheduleList(_result!.slots),
           ],
@@ -558,7 +572,8 @@ class _EndTimeCalculatorState extends State<_EndTimeCalculator> {
                 backgroundColor: const Color(0xFF764BA2),
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8)),
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
             ),
           ),
@@ -576,8 +591,11 @@ class _EndTimeCalculatorState extends State<_EndTimeCalculator> {
                   const Icon(Icons.error_outline, color: Colors.red, size: 18),
                   const SizedBox(width: 8),
                   Expanded(
-                      child: Text(_error!,
-                          style: const TextStyle(color: Colors.red))),
+                    child: Text(
+                      _error!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -597,14 +615,18 @@ class _EndTimeCalculatorState extends State<_EndTimeCalculator> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.info_outline,
-                      size: 16, color: Colors.indigo.shade600),
+                  Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: Colors.indigo.shade600,
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Загальна тривалість: ${_duration(_result!.totalMinutes)}',
                     style: TextStyle(
-                        color: Colors.indigo.shade700,
-                        fontWeight: FontWeight.w600),
+                      color: Colors.indigo.shade700,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),

@@ -94,9 +94,13 @@ class _PushPermissionBannerState extends State<PushPermissionBanner> {
                             color: Colors.white,
                           ),
                         )
-                      : const Icon(Icons.notifications_active_outlined,
-                          size: 16),
-                  label: Text(_requesting ? "Очікування…" : "Увімкнути сповіщення"),
+                      : const Icon(
+                          Icons.notifications_active_outlined,
+                          size: 16,
+                        ),
+                  label: Text(
+                    _requesting ? "Очікування…" : "Увімкнути сповіщення",
+                  ),
                 ),
               ],
             ),

@@ -14,31 +14,30 @@ class ContactEntry {
   });
 
   Map<String, dynamic> toMap() => {
-        'unit': unit,
-        'rank': rank,
-        'name': name,
-        'phone': phone,
-      };
+    'unit': unit,
+    'rank': rank,
+    'name': name,
+    'phone': phone,
+  };
 
   factory ContactEntry.fromMap(Map<String, dynamic> map) => ContactEntry(
-        unit: map['unit']?.toString() ?? '',
-        rank: map['rank']?.toString() ?? '',
-        name: map['name']?.toString() ?? '',
-        phone: map['phone']?.toString() ?? '',
-      );
+    unit: map['unit']?.toString() ?? '',
+    rank: map['rank']?.toString() ?? '',
+    name: map['name']?.toString() ?? '',
+    phone: map['phone']?.toString() ?? '',
+  );
 
   ContactEntry copyWith({
     String? unit,
     String? rank,
     String? name,
     String? phone,
-  }) =>
-      ContactEntry(
-        unit: unit ?? this.unit,
-        rank: rank ?? this.rank,
-        name: name ?? this.name,
-        phone: phone ?? this.phone,
-      );
+  }) => ContactEntry(
+    unit: unit ?? this.unit,
+    rank: rank ?? this.rank,
+    name: name ?? this.name,
+    phone: phone ?? this.phone,
+  );
 }
 
 class DepartmentEntry {
@@ -55,10 +54,10 @@ class DepartmentEntry {
   });
 
   Map<String, dynamic> toMap() => {
-        'name': name,
-        'order': order,
-        'contacts': contacts.map((c) => c.toMap()).toList(),
-      };
+    'name': name,
+    'order': order,
+    'contacts': contacts.map((c) => c.toMap()).toList(),
+  };
 
   factory DepartmentEntry.fromDoc(DocumentSnapshot doc) {
     final data = Map<String, dynamic>.from(doc.data() as Map<String, dynamic>);
@@ -82,13 +81,12 @@ class DepartmentEntry {
     String? name,
     int? order,
     List<ContactEntry>? contacts,
-  }) =>
-      DepartmentEntry(
-        id: id ?? this.id,
-        name: name ?? this.name,
-        order: order ?? this.order,
-        contacts: contacts ?? this.contacts,
-      );
+  }) => DepartmentEntry(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    order: order ?? this.order,
+    contacts: contacts ?? this.contacts,
+  );
 }
 
 class ContactsToolService {
@@ -100,7 +98,10 @@ class ContactsToolService {
       .collection('departments');
 
   Stream<List<DepartmentEntry>> watchDepartments(String groupId) {
-    return _deptsRef(groupId).orderBy('order').snapshots().map(
+    return _deptsRef(groupId)
+        .orderBy('order')
+        .snapshots()
+        .map(
           (snap) =>
               snap.docs.map((doc) => DepartmentEntry.fromDoc(doc)).toList(),
         );
@@ -116,11 +117,9 @@ class ContactsToolService {
     final maxOrder = existing.isEmpty
         ? 0
         : existing.map((d) => d.order).reduce((a, b) => a > b ? a : b);
-    await _deptsRef(groupId).add({
-      'name': name,
-      'order': maxOrder + 1,
-      'contacts': [],
-    });
+    await _deptsRef(
+      groupId,
+    ).add({'name': name, 'order': maxOrder + 1, 'contacts': []});
   }
 
   Future<void> updateDepartmentName(
@@ -140,8 +139,8 @@ class ContactsToolService {
     String deptId,
     List<ContactEntry> contacts,
   ) async {
-    await _deptsRef(groupId).doc(deptId).update({
-      'contacts': contacts.map((c) => c.toMap()).toList(),
-    });
+    await _deptsRef(
+      groupId,
+    ).doc(deptId).update({'contacts': contacts.map((c) => c.toMap()).toList()});
   }
 }

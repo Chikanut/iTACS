@@ -44,8 +44,7 @@ class ToolsService {
         items = currentDriveFolderId == null
             ? overlayItems
             : _mergeDriveFolderWithOverlay(
-                driveFiles:
-                    await Globals.googleDriveService.listFolderChildren(
+                driveFiles: await Globals.googleDriveService.listFolderChildren(
                   currentDriveFolderId,
                 ),
                 overlayItems: overlayItems,
@@ -54,7 +53,9 @@ class ToolsService {
       } catch (driveError) {
         // Drive недоступний, але Firestore відпрацював —
         // показуємо overlay-only items (embedded, external_link тощо).
-        debugPrint('ToolsService: Drive unavailable, overlay-only: $driveError');
+        debugPrint(
+          'ToolsService: Drive unavailable, overlay-only: $driveError',
+        );
         items = overlayItems;
       }
 

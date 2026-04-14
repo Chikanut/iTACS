@@ -8,6 +8,7 @@ import '../../mixins/loading_state_mixin.dart';
 import '../../services/tools_service.dart';
 import '../../widgets/drive_session_banner.dart';
 import '../../widgets/loading_indicator.dart';
+import 'embedded/checklist_builder/checklist_builder_home_page.dart';
 import 'embedded/contacts_tool_page.dart';
 import 'embedded/schedule_calculator_page.dart';
 import 'tool_dialog.dart';
@@ -308,12 +309,13 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
 
   void _openEmbeddedTool(String toolKey) {
     final Widget page = switch (toolKey) {
+      'checklist_builder' => const ChecklistBuilderHomePage(),
       'contacts' => const ContactsToolPage(),
       'schedule_calculator' => const ScheduleCalculatorPage(),
       _ => Scaffold(
-          appBar: AppBar(title: const Text('Інструмент')),
-          body: Center(child: Text('Невідомий інструмент: $toolKey')),
-        ),
+        appBar: AppBar(title: const Text('Інструмент')),
+        body: Center(child: Text('Невідомий інструмент: $toolKey')),
+      ),
     };
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
   }

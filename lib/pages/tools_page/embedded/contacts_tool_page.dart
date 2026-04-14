@@ -151,7 +151,10 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
     );
     if (confirmed == true && nameCtrl.text.trim().isNotEmpty) {
       await _service.updateDepartmentName(
-          _groupId!, dept.id, nameCtrl.text.trim());
+        _groupId!,
+        dept.id,
+        nameCtrl.text.trim(),
+      );
     }
   }
 
@@ -214,8 +217,9 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                 TextFormField(
                   controller: unitCtrl,
                   decoration: const InputDecoration(labelText: 'Підрозділ *'),
-                  validator: (v) =>
-                      (v == null || v.trim().isEmpty) ? 'Обовʼязкове поле' : null,
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Обовʼязкове поле'
+                      : null,
                 ),
                 const SizedBox(height: 8),
                 TextFormField(
@@ -325,11 +329,11 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                   },
                 )
               : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(25),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 16,
+            vertical: 10,
           ),
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         ),
         onChanged: (v) => setState(() => _searchQuery = v.trim()),
       ),
@@ -338,8 +342,10 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
 
   Widget _buildStats(List<DepartmentEntry> filtered, int totalContacts) {
     final deptCount = filtered.length;
-    final contactCount =
-        filtered.fold<int>(0, (sum, d) => sum + d.contacts.length);
+    final contactCount = filtered.fold<int>(
+      0,
+      (sum, d) => sum + d.contacts.length,
+    );
 
     String text;
     if (_searchQuery.isNotEmpty) {
@@ -388,7 +394,9 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
+                          horizontal: 6,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: const Color(0xFFE3F2FD),
                           borderRadius: BorderRadius.circular(5),
@@ -405,7 +413,9 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                       if (contact.rank.isNotEmpty)
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 2),
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFF3E5F5),
                             borderRadius: BorderRadius.circular(5),
@@ -455,8 +465,11 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                         const PopupMenuItem(
                           value: 'delete',
                           child: ListTile(
-                            leading:
-                                Icon(Icons.delete, size: 16, color: Colors.red),
+                            leading: Icon(
+                              Icons.delete,
+                              size: 16,
+                              color: Colors.red,
+                            ),
                             title: Text('Видалити'),
                             dense: true,
                             contentPadding: EdgeInsets.zero,
@@ -484,8 +497,7 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
               const SizedBox(height: 6),
               Container(
                 width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.grey[100],
                   borderRadius: BorderRadius.circular(6),
@@ -592,8 +604,7 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
       children: [
         // Department header (collapsible)
         GestureDetector(
-          onTap: () =>
-              setState(() => _expandedState[dept.id] = !isExpanded),
+          onTap: () => setState(() => _expandedState[dept.id] = !isExpanded),
           child: Container(
             margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -625,8 +636,11 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                 ),
                 if (_canEdit)
                   PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert,
-                        color: Colors.white, size: 18),
+                    icon: const Icon(
+                      Icons.more_vert,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                     onSelected: (val) async {
                       switch (val) {
                         case 'edit':
@@ -663,8 +677,11 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                       const PopupMenuItem(
                         value: 'delete',
                         child: ListTile(
-                          leading: Icon(Icons.delete,
-                              size: 16, color: Colors.red),
+                          leading: Icon(
+                            Icons.delete,
+                            size: 16,
+                            color: Colors.red,
+                          ),
                           title: Text('Видалити підрозділ'),
                           dense: true,
                           contentPadding: EdgeInsets.zero,
@@ -675,8 +692,11 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                 AnimatedRotation(
                   turns: isExpanded ? 0 : -0.25,
                   duration: const Duration(milliseconds: 200),
-                  child: const Icon(Icons.expand_more,
-                      color: Colors.white, size: 22),
+                  child: const Icon(
+                    Icons.expand_more,
+                    color: Colors.white,
+                    size: 22,
+                  ),
                 ),
               ],
             ),
@@ -729,7 +749,8 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
               children: dept.contacts.asMap().entries.map((e) {
                 return Padding(
                   padding: EdgeInsets.only(
-                      bottom: e.key < dept.contacts.length - 1 ? 8 : 0),
+                    bottom: e.key < dept.contacts.length - 1 ? 8 : 0,
+                  ),
                   child: _buildContactCard(ctx, e.value, dept, e.key),
                 );
               }).toList(),
@@ -756,19 +777,12 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
   Widget build(BuildContext context) {
     final groupId = _groupId;
     if (groupId == null) {
-      return const Scaffold(
-        body: Center(child: Text('Групу не знайдено')),
-      );
+      return const Scaffold(body: Center(child: Text('Групу не знайдено')));
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Row(
-          children: [
-            Text('📞 '),
-            Text('Корисні контакти'),
-          ],
-        ),
+        title: const Row(children: [Text('📞 '), Text('Корисні контакти')]),
         actions: [
           if (_canEdit)
             IconButton(
@@ -791,8 +805,7 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline,
-                      size: 48, color: Colors.red),
+                  const Icon(Icons.error_outline, size: 48, color: Colors.red),
                   const SizedBox(height: 16),
                   Text('Помилка: ${snapshot.error}'),
                 ],
@@ -801,8 +814,10 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
           }
 
           final all = snapshot.data ?? [];
-          final totalContacts =
-              all.fold<int>(0, (s, d) => s + d.contacts.length);
+          final totalContacts = all.fold<int>(
+            0,
+            (s, d) => s + d.contacts.length,
+          );
           final filtered = _filter(all);
 
           return Column(
@@ -838,22 +853,20 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
           const SizedBox(height: 16),
           Text(
             noData ? 'Контакти відсутні' : 'Нічого не знайдено',
-            style: Theme.of(context)
-                .textTheme
-                .titleMedium
-                ?.copyWith(color: Colors.grey[600]),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
           ),
           const SizedBox(height: 8),
           Text(
             noData
                 ? (_canEdit
-                    ? 'Натисніть + щоб додати підрозділ'
-                    : 'Контакти ще не додані')
+                      ? 'Натисніть + щоб додати підрозділ'
+                      : 'Контакти ще не додані')
                 : 'Спробуйте змінити пошуковий запит',
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: Colors.grey[500]),
+            style: Theme.of(
+              context,
+            ).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
           ),
         ],
       ),
