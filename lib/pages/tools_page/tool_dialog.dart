@@ -38,6 +38,7 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
   final descriptionController = TextEditingController();
 
   String selectedType = 'tool';
+  String _selectedToolKey = 'contacts';
   IconData? selectedIcon;
   bool _fileIdValidated = false;
   String? _fileIdError;
@@ -48,6 +49,7 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
   bool get isFolder => selectedType == 'folder';
   bool get isExternalLink => selectedType == 'external_link';
   bool get isToolFile => selectedType == 'tool';
+  bool get isEmbedded => selectedType == 'embedded';
 
   String? get _existingFileId {
     final item = widget.item;
@@ -81,6 +83,9 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
       descriptionController.text = item['description']?.toString() ?? '';
       selectedType = item['type']?.toString() ?? 'tool';
       selectedIcon = iconFromData(item, selectedType == 'folder');
+      if (selectedType == 'embedded') {
+        _selectedToolKey = item['toolKey']?.toString() ?? 'contacts';
+      }
       _useManualFileId =
           selectedType == 'tool' &&
           (!_canUploadToCurrentDriveFolder || (_existingFileId == null));
@@ -302,6 +307,10 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
 
           data['url'] = url;
           data.remove('fileId');
+        } else if (isEmbedded) {
+          data['toolKey'] = _selectedToolKey;
+          data.remove('fileId');
+          data.remove('url');
         }
 
         final overlayId = widget.item?['overlayId']?.toString().trim();
@@ -326,10 +335,13 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
           Navigator.of(context).pop();
           widget.onSave();
 
+          final label = isFolder
+              ? 'Папку'
+              : isEmbedded
+                  ? 'Вбудований інструмент'
+                  : 'Інструмент';
           Globals.errorNotificationManager.showSuccess(
-            isEditing
-                ? '${isFolder ? 'Папку' : 'Інструмент'} оновлено'
-                : '${isFolder ? 'Папку' : 'Інструмент'} створено',
+            isEditing ? '$label оновлено' : '$label створено',
           );
         }
       });
@@ -345,12 +357,14 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
       final label = switch (selectedType) {
         'folder' => 'Папка',
         'external_link' => 'Зовнішнє посилання',
+        'embedded' => 'Вбудований інструмент',
         _ => 'Інструмент',
       };
 
       final icon = switch (selectedType) {
         'folder' => Icons.folder,
         'external_link' => Icons.open_in_new,
+        'embedded' => Icons.widgets,
         _ => Icons.build,
       };
 
@@ -476,7 +490,83 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
               ),
               contentPadding: EdgeInsets.zero,
             ),
+            RadioListTile<String>(
+              value: 'embedded',
+              groupValue: selectedType,
+              onChanged: isLoading('save')
+                  ? null
+                  : (value) {
+                      setState(() {
+                        selectedType = value ?? 'embedded';
+                        selectedIcon = Icons.widgets;
+                      });
+                    },
+              title: const Row(
+                children: [
+                  Icon(Icons.widgets, color: Colors.purple),
+                  SizedBox(width: 8),
+                  Text('Вбудований інструмент'),
+                ],
+              ),
+              contentPadding: EdgeInsets.zero,
+            ),
           ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEmbeddedControls() {
+    const availableTools = [
+      ('contacts', 'Корисні контакти', Icons.contacts),
+      ('schedule_calculator', 'Калькулятор розкладу', Icons.calculate),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Тип вбудованого інструмента:',
+          style: TextStyle(fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 8),
+        ...availableTools.map(
+          (tool) => RadioListTile<String>(
+            value: tool.$1,
+            groupValue: _selectedToolKey,
+            onChanged: isLoading('save')
+                ? null
+                : (v) => setState(() => _selectedToolKey = v ?? 'contacts'),
+            title: Row(
+              children: [
+                Icon(tool.$3, color: Colors.purple),
+                const SizedBox(width: 8),
+                Text(tool.$2),
+              ],
+            ),
+            contentPadding: EdgeInsets.zero,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: Colors.purple.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: Colors.purple.withOpacity(0.2)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, size: 16, color: Colors.purple[700]),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Вбудований інструмент відкривається у вигляді вбудованого екрана всередині додатку.',
+                  style: TextStyle(fontSize: 12, color: Colors.purple[800]),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -671,8 +761,10 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
           Text(
             isEditing
                 ? isFolder
-                      ? 'Редагувати папку'
-                      : 'Редагувати інструмент'
+                    ? 'Редагувати папку'
+                    : isEmbedded
+                        ? 'Редагувати вбудований інструмент'
+                        : 'Редагувати інструмент'
                 : 'Новий елемент',
           ),
         ],
@@ -749,6 +841,10 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
                     },
                     enabled: !isSaving,
                   ),
+                ],
+                if (isEmbedded) ...[
+                  const SizedBox(height: 16),
+                  _buildEmbeddedControls(),
                 ],
                 if (isFolder &&
                     !_canUploadToCurrentDriveFolder &&

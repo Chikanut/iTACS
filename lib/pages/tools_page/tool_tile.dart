@@ -284,6 +284,8 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
       return Colors.grey.withOpacity(0.5);
     } else if (widget.isFolder) {
       return Colors.amber[700] ?? Colors.amber;
+    } else if (widget.itemType == 'embedded') {
+      return Colors.purple[700] ?? Colors.purple;
     } else {
       return _isHovered
           ? theme.colorScheme.primary
@@ -532,21 +534,25 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
     final typeLabel = switch (widget.itemType) {
       'folder' => 'папка',
       'external_link' => 'посилання',
+      'embedded' => 'вбудований',
       _ => 'файл',
     };
     final typeColor = switch (widget.itemType) {
       'folder' => Colors.amber[700]!,
       'external_link' => Colors.teal[700]!,
+      'embedded' => Colors.purple[700]!,
       _ => Colors.blue[700]!,
     };
     final typeBackground = switch (widget.itemType) {
       'folder' => Colors.amber.withOpacity(0.15),
       'external_link' => Colors.teal.withOpacity(0.15),
+      'embedded' => Colors.purple.withOpacity(0.15),
       _ => Colors.blue.withOpacity(0.15),
     };
     final typeIcon = switch (widget.itemType) {
       'folder' => Icons.folder,
       'external_link' => Icons.open_in_new,
+      'embedded' => Icons.widgets,
       _ => Icons.build,
     };
 

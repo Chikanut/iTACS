@@ -8,6 +8,8 @@ import '../../mixins/loading_state_mixin.dart';
 import '../../services/tools_service.dart';
 import '../../widgets/drive_session_banner.dart';
 import '../../widgets/loading_indicator.dart';
+import 'embedded/contacts_tool_page.dart';
+import 'embedded/schedule_calculator_page.dart';
 import 'tool_dialog.dart';
 import 'tool_tile.dart';
 
@@ -304,8 +306,27 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
     unawaited(fetchItems());
   }
 
+  void _openEmbeddedTool(String toolKey) {
+    final Widget page = switch (toolKey) {
+      'contacts' => const ContactsToolPage(),
+      'schedule_calculator' => const ScheduleCalculatorPage(),
+      _ => Scaffold(
+          appBar: AppBar(title: const Text('Інструмент')),
+          body: Center(child: Text('Невідомий інструмент: $toolKey')),
+        ),
+    };
+    Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
+  }
+
   Future<void> openTool(Map<String, dynamic> item) async {
     final type = (item['type'] ?? 'tool').toString();
+
+    if (type == 'embedded') {
+      final toolKey = item['toolKey']?.toString() ?? '';
+      _openEmbeddedTool(toolKey);
+      return;
+    }
+
     if (type == 'external_link') {
       final rawUrl = (item['url'] ?? '').toString().trim();
       final uri = Uri.tryParse(rawUrl);
@@ -433,7 +454,7 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
           } else if (driveFolderId != null && driveFolderId.isNotEmpty) {
             await deleteOverlayChildrenForParent('__drive__:$driveFolderId');
           }
-        } else if (type == 'external_link') {
+        } else if (type == 'external_link' || type == 'embedded') {
           if (overlayId != null && overlayId.isNotEmpty) {
             await Globals.firestoreManager.deleteDocumentWhereAllowed(
               docId: overlayId,
@@ -827,9 +848,11 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
                                         true);
                               final canEditItem =
                                   itemType == 'external_link' ||
+                                  itemType == 'embedded' ||
                                   hasDriveBacking;
                               final canDeleteItem =
                                   itemType == 'external_link' ||
+                                  itemType == 'embedded' ||
                                   hasDriveBacking;
 
                               return ToolTile(

@@ -41,6 +41,12 @@ service cloud.firestore {
       allow create, update, delete: if hasEditorRights(groupId);
     }
 
+    // Корисні контакти (вбудований інструмент).
+    match /contacts_by_group/{groupId}/departments/{deptId} {
+      allow read: if isInGroup(groupId);
+      allow create, update, delete: if hasEditorRights(groupId);
+    }
+
     // Заняття по групах.
     match /lessons/{groupId}/items/{lessonId} {
       allow read: if isInGroup(groupId);

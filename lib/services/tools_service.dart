@@ -33,20 +33,30 @@ class ToolsService {
         groupId: groupId,
         parentId: parentId,
       );
-      final currentDriveFolderId = await _resolveCurrentDriveFolderId(
-        groupId: groupId,
-        parentId: parentId,
-        explicitDriveFolderId: driveFolderId,
-      );
-      final items = currentDriveFolderId == null
-          ? overlayItems
-          : _mergeDriveFolderWithOverlay(
-              driveFiles: await Globals.googleDriveService.listFolderChildren(
-                currentDriveFolderId,
-              ),
-              overlayItems: overlayItems,
-              parentId: parentId,
-            );
+
+      List<Map<String, dynamic>> items;
+      try {
+        final currentDriveFolderId = await _resolveCurrentDriveFolderId(
+          groupId: groupId,
+          parentId: parentId,
+          explicitDriveFolderId: driveFolderId,
+        );
+        items = currentDriveFolderId == null
+            ? overlayItems
+            : _mergeDriveFolderWithOverlay(
+                driveFiles:
+                    await Globals.googleDriveService.listFolderChildren(
+                  currentDriveFolderId,
+                ),
+                overlayItems: overlayItems,
+                parentId: parentId,
+              );
+      } catch (driveError) {
+        // Drive недоступний, але Firestore відпрацював —
+        // показуємо overlay-only items (embedded, external_link тощо).
+        debugPrint('ToolsService: Drive unavailable, overlay-only: $driveError');
+        items = overlayItems;
+      }
 
       await Globals.appSnapshotStore.saveCachedSnapshot(
         _toolsCacheKey(groupId, parentId),
@@ -159,11 +169,17 @@ class ToolsService {
     final folderOverlayByDriveId = <String, Map<String, dynamic>>{};
     final fileOverlayByDriveId = <String, Map<String, dynamic>>{};
     final externalLinks = <Map<String, dynamic>>[];
+    final embeddedItems = <Map<String, dynamic>>[];
 
     for (final item in overlayItems) {
       final type = (item['type'] ?? 'tool').toString();
       if (type == 'external_link') {
         externalLinks.add(item);
+        continue;
+      }
+
+      if (type == 'embedded') {
+        embeddedItems.add(item);
         continue;
       }
 
@@ -244,6 +260,17 @@ class ToolsService {
       ),
     );
 
+    mergedItems.addAll(
+      embeddedItems.map(
+        (item) => {
+          ...item,
+          'type': 'embedded',
+          'isSynthetic': false,
+          'isOverlayBacked': true,
+        },
+      ),
+    );
+
     mergedItems.sort((left, right) {
       final leftTypeRank = _typeSortRank((left['type'] ?? 'tool').toString());
       final rightTypeRank = _typeSortRank((right['type'] ?? 'tool').toString());
@@ -267,8 +294,10 @@ class ToolsService {
         return 1;
       case 'external_link':
         return 2;
-      default:
+      case 'embedded':
         return 3;
+      default:
+        return 4;
     }
   }
 }
