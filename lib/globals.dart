@@ -7,10 +7,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'services/app_runtime_state.dart';
 import 'services/app_snapshot_store.dart';
 import 'services/auth_service.dart';
-import 'services/drive_catalog_service.dart';
 import 'services/file_manager/file_manager.dart';
 import 'services/firestore_manager.dart';
-import 'services/google_drive_service.dart';
 import 'services/profile_manager.dart';
 import 'services/reports_service.dart';
 import 'services/report_templates_service.dart';
@@ -30,8 +28,8 @@ class Globals {
   static final AppRuntimeState appRuntimeState = AppRuntimeState();
   static final StartupTelemetry startupTelemetry = StartupTelemetry();
   static final FirestoreManager firestoreManager = FirestoreManager();
-  static final DriveCatalogService driveCatalogService = DriveCatalogService();
   static final ProfileManager profileManager = ProfileManager();
+  static final FileManager fileManager = FileManager();
   static final ReportsService reportsService = ReportsService(); // 👈 ДОДАЄМО
   static final ReportTemplatesService reportTemplatesService =
       ReportTemplatesService();
@@ -45,10 +43,6 @@ class Globals {
       GroupNotificationsService();
   static final PushNotificationsService pushNotificationsService =
       PushNotificationsService();
-  static final GoogleDriveService googleDriveService = GoogleDriveService(
-    authService: authService,
-  );
-  static final FileManager fileManager = FileManager(authService: authService);
 
   static bool _backgroundWarmupStarted = false;
 
@@ -71,7 +65,6 @@ class Globals {
 
     _backgroundWarmupStarted = true;
     try {
-      unawaited(fileManager.ensureReady());
       await reportsService.initialize();
     } catch (e) {
       debugPrint('⚠️ Background warmup failed: $e');
@@ -82,7 +75,6 @@ class Globals {
     await groupTemplatesService.clearAllData();
     await appSnapshotStore.clearAllSnapshots();
     await profileManager.clearProfile();
-    await fileManager.clearCacheIfInitialized();
     appRuntimeState.clearSessionState();
   }
 

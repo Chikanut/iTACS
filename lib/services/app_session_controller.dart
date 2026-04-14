@@ -8,7 +8,6 @@ import 'app_snapshot_store.dart';
 import 'auth_service.dart';
 import 'firestore_manager.dart';
 import 'profile_manager.dart';
-import 'web_push_environment.dart';
 
 enum SessionScreen {
   loading,
@@ -90,16 +89,6 @@ class AppSessionController extends SessionController {
     }
 
     await _restoreAndValidate();
-
-    // When opened in Safari via the "Open in Safari" banner button (non-standalone),
-    // auto-trigger Drive reconnect so the user doesn't have to click manually.
-    if (WebPushEnvironment.hasDriveReconnectParam &&
-        !WebPushEnvironment.isStandaloneDisplayMode) {
-      WebPushEnvironment.clearDriveReconnectParam();
-      if (_firebaseAuth.currentUser != null) {
-        unawaited(_authService.reconnectDrive());
-      }
-    }
   }
 
   @override

@@ -1,25 +1,9 @@
 import 'package:flutter/material.dart';
+
 import '../../mixins/loading_state_mixin.dart';
 import '../../widgets/loading_indicator.dart';
-import '../../globals.dart';
 
 class ToolTile extends StatefulWidget {
-  final String title;
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool isAdmin;
-  final bool canEdit;
-  final bool canDelete;
-  final VoidCallback? onEdit;
-  final VoidCallback? onDelete;
-  final bool isFolder;
-  final String itemType;
-  final String? description;
-  final String? fileId;
-  final String? linkUrl;
-  final VoidCallback? onStatusChanged;
-  final bool isFileLoading;
-
   const ToolTile({
     super.key,
     required this.title,
@@ -30,14 +14,22 @@ class ToolTile extends StatefulWidget {
     this.canDelete = false,
     this.onEdit,
     this.onDelete,
-    this.isFolder = false,
-    this.itemType = 'tool',
+    this.itemType = 'embedded',
     this.description,
-    this.fileId,
-    this.linkUrl,
-    this.onStatusChanged,
     this.isFileLoading = false,
   });
+
+  final String title;
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool isAdmin;
+  final bool canEdit;
+  final bool canDelete;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
+  final String itemType;
+  final String? description;
+  final bool isFileLoading;
 
   @override
   State<ToolTile> createState() => _ToolTileState();
@@ -46,49 +38,13 @@ class ToolTile extends StatefulWidget {
 class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
   bool _isHovered = false;
 
-  // Статуси файлу
-  bool _isCached = false;
-  bool _needsUpdate = false;
-  String? _fileSize;
-  bool _statusChecked = false;
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.itemType == 'tool' && widget.fileId != null) {
-      _checkFileStatus();
-    }
-  }
-
-  Future<void> _checkFileStatus() async {
-    if (widget.fileId == null) return;
-
-    try {
-      final status = await Globals.fileManager.getFileStatus(widget.fileId!);
-      if (mounted) {
-        setState(() {
-          _isCached = status['isCached'] ?? false;
-          _needsUpdate = status['shouldRefresh'] ?? false;
-          _fileSize = status['humanReadableSize'];
-          _statusChecked = true;
-        });
-      }
-    } catch (e) {
-      debugPrint('ToolTile: Помилка перевірки статусу файлу: $e');
-      if (mounted) {
-        setState(() {
-          _statusChecked = true;
-        });
-      }
-    }
-  }
-
   Future<void> _handleTap() async {
-    if (isLoading('tap')) return;
+    if (isLoading('tap')) {
+      return;
+    }
 
     try {
       await withLoading('tap', () async {
-        // Додаємо невелику затримку для показу індикатора
         await Future.delayed(const Duration(milliseconds: 200));
         widget.onTap();
       });
@@ -105,7 +61,9 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
   }
 
   Future<void> _handleEdit() async {
-    if (isLoading('edit')) return;
+    if (isLoading('edit')) {
+      return;
+    }
 
     try {
       await withLoading('edit', () async {
@@ -124,11 +82,14 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
   }
 
   Future<void> _handleDelete() async {
-    if (isLoading('delete')) return;
+    if (isLoading('delete')) {
+      return;
+    }
 
-    // Показуємо підтвердження
     final confirmed = await _showDeleteConfirmation();
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     try {
       await withLoading('delete', () async {
@@ -142,50 +103,6 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
             backgroundColor: Colors.red,
           ),
         );
-      }
-    }
-  }
-
-  Future<void> _handleRefreshFile() async {
-    if (widget.fileId == null || isLoading('refresh')) return;
-
-    try {
-      await withLoading('refresh', () async {
-        final wasUpdated = await Globals.fileManager.refreshFileIfNeeded(
-          widget.fileId!,
-        );
-        await _checkFileStatus();
-        widget.onStatusChanged?.call();
-
-        if (mounted) {
-          Globals.errorNotificationManager.showSuccess(
-            wasUpdated ? 'Файл оновлено' : 'Файл вже актуальний',
-          );
-        }
-      });
-    } catch (e) {
-      if (mounted) {
-        Globals.errorNotificationManager.showError('Помилка оновлення: $e');
-      }
-    }
-  }
-
-  Future<void> _handleClearCache() async {
-    if (widget.fileId == null || isLoading('clear_cache')) return;
-
-    try {
-      await withLoading('clear_cache', () async {
-        await Globals.fileManager.removeFromCache(widget.fileId!);
-        await _checkFileStatus();
-        widget.onStatusChanged?.call();
-
-        if (mounted) {
-          Globals.errorNotificationManager.showSuccess('Кеш очищено');
-        }
-      });
-    } catch (e) {
-      if (mounted) {
-        Globals.errorNotificationManager.showError('Помилка очищення кешу: $e');
       }
     }
   }
@@ -205,7 +122,7 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Видалити ${widget.isFolder ? 'папку' : 'інструмент'}:'),
+                const Text('Видалити інструмент:'),
                 const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.all(12),
@@ -226,36 +143,6 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
                     ],
                   ),
                 ),
-                if (widget.isFolder) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: Colors.orange.withOpacity(0.3)),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          size: 16,
-                          color: Colors.orange[700],
-                        ),
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            'Всі інструменти в цій папці також будуть видалені',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.orange[700],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
               ],
             ),
             actions: [
@@ -277,112 +164,21 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
         false;
   }
 
-  Color _getIconColor(BuildContext context) {
-    final theme = Theme.of(context);
-
-    if (isLoading('tap')) {
-      return Colors.grey.withOpacity(0.5);
-    } else if (widget.isFolder) {
-      return Colors.amber[700] ?? Colors.amber;
-    } else if (widget.itemType == 'embedded') {
-      return Colors.purple[700] ?? Colors.purple;
-    } else {
-      return _isHovered
-          ? theme.colorScheme.primary
-          : theme.colorScheme.primary.withOpacity(0.7);
-    }
-  }
-
-  Widget _buildStatusIndicator() {
-    if (widget.itemType != 'tool' || !_statusChecked || widget.fileId == null) {
-      return const SizedBox.shrink();
-    }
-
-    Widget indicator;
-    Color color;
-    String tooltip;
-
-    if (!_isCached) {
-      indicator = const Icon(Icons.cloud_download, size: 12);
-      color = Colors.blue;
-      tooltip = 'Потребує завантаження';
-    } else if (_needsUpdate) {
-      indicator = const Icon(Icons.sync, size: 12);
-      color = Colors.orange;
-      tooltip = 'Доступне оновлення';
-    } else {
-      indicator = const Icon(Icons.check_circle, size: 12);
-      color = Colors.green;
-      tooltip = 'Актуальний';
-    }
-
-    return Positioned(
-      top: 8,
-      left: 8,
-      child: Tooltip(
-        message: tooltip,
-        child: Container(
-          padding: const EdgeInsets.all(4),
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withOpacity(0.3)),
-          ),
-          child: indicator,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFileSize() {
-    if (widget.itemType != 'tool' || _fileSize == null) {
-      return const SizedBox.shrink();
-    }
-
-    return Positioned(
-      bottom: 8,
-      right: 8,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.6),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Text(
-          _fileSize!,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 10,
-            fontWeight: FontWeight.w500,
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildLoadingOverlay() {
-    final isFileOpening = widget.isFileLoading;
-    final hasLocalLoading =
-        isLoading('refresh') ||
-        isLoading('clear_cache') ||
-        isLoading('edit') ||
-        isLoading('delete');
-
-    if (!isFileOpening && !hasLocalLoading) {
+    final isAnyLoading =
+        isLoading('tap') || isLoading('edit') || isLoading('delete');
+    if (!widget.isFileLoading && !isAnyLoading) {
       return const SizedBox.shrink();
     }
 
-    String message = isFileOpening ? 'Завантаження файлу...' : 'Обробка...';
-    if (isLoading('tap'))
-      message = 'Завантаження...';
-    else if (isLoading('refresh'))
-      message = 'Оновлення...';
-    else if (isLoading('clear_cache'))
-      message = 'Очищення кешу...';
-    else if (isLoading('edit'))
+    String message = widget.isFileLoading ? 'Завантаження...' : 'Обробка...';
+    if (isLoading('tap')) {
+      message = 'Відкриття...';
+    } else if (isLoading('edit')) {
       message = 'Редагування...';
-    else if (isLoading('delete'))
+    } else if (isLoading('delete')) {
       message = 'Видалення...';
+    }
 
     return Positioned.fill(
       child: Container(
@@ -400,17 +196,11 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
         widget.isAdmin &&
         ((widget.canEdit && widget.onEdit != null) ||
             (widget.canDelete && widget.onDelete != null));
-    final hasFileActions = widget.itemType == 'tool' && widget.fileId != null;
-
-    if (!hasAdminActions && !hasFileActions) {
+    if (!hasAdminActions) {
       return const SizedBox.shrink();
     }
 
-    final isAnyLoading =
-        isLoading('edit') ||
-        isLoading('delete') ||
-        isLoading('refresh') ||
-        isLoading('clear_cache');
+    final isAnyLoading = isLoading('edit') || isLoading('delete');
 
     return Positioned(
       top: 4,
@@ -422,13 +212,6 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 2,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
               ),
               child: const LoadingIndicator(size: 12),
             )
@@ -448,17 +231,10 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
                     case 'delete':
                       await _handleDelete();
                       break;
-                    case 'refresh':
-                      await _handleRefreshFile();
-                      break;
-                    case 'clear_cache':
-                      await _handleClearCache();
-                      break;
                   }
                 },
                 itemBuilder: (context) => [
-                  // Адміністративні дії
-                  if (widget.isAdmin && widget.canEdit && widget.onEdit != null)
+                  if (widget.canEdit && widget.onEdit != null)
                     const PopupMenuItem(
                       value: 'edit',
                       child: ListTile(
@@ -468,40 +244,7 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
                         dense: true,
                       ),
                     ),
-
-                  // Файлові операції (для всіх)
-                  if (hasFileActions) ...[
-                    const PopupMenuItem(
-                      value: 'refresh',
-                      child: ListTile(
-                        leading: Icon(Icons.refresh, size: 16),
-                        title: Text('Оновити файл'),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'clear_cache',
-                      child: ListTile(
-                        leading: Icon(Icons.clear_all, size: 16),
-                        title: Text('Очистити кеш'),
-                        contentPadding: EdgeInsets.zero,
-                        dense: true,
-                      ),
-                    ),
-                  ],
-
-                  // Розділювач перед видаленням
-                  if (widget.isAdmin &&
-                      widget.canDelete &&
-                      widget.onDelete != null &&
-                      hasFileActions)
-                    const PopupMenuDivider(),
-
-                  // Видалення (тільки для адмінів)
-                  if (widget.isAdmin &&
-                      widget.canDelete &&
-                      widget.onDelete != null)
+                  if (widget.canDelete && widget.onDelete != null)
                     const PopupMenuItem(
                       value: 'delete',
                       child: ListTile(
@@ -525,36 +268,7 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isAnyLoading =
-        isLoading('tap') ||
-        isLoading('edit') ||
-        isLoading('delete') ||
-        isLoading('refresh') ||
-        isLoading('clear_cache');
-
-    final typeLabel = switch (widget.itemType) {
-      'folder' => 'папка',
-      'external_link' => 'посилання',
-      'embedded' => 'вбудований',
-      _ => 'файл',
-    };
-    final typeColor = switch (widget.itemType) {
-      'folder' => Colors.amber[700]!,
-      'external_link' => Colors.teal[700]!,
-      'embedded' => Colors.purple[700]!,
-      _ => Colors.blue[700]!,
-    };
-    final typeBackground = switch (widget.itemType) {
-      'folder' => Colors.amber.withOpacity(0.15),
-      'external_link' => Colors.teal.withOpacity(0.15),
-      'embedded' => Colors.purple.withOpacity(0.15),
-      _ => Colors.blue.withOpacity(0.15),
-    };
-    final typeIcon = switch (widget.itemType) {
-      'folder' => Icons.folder,
-      'external_link' => Icons.open_in_new,
-      'embedded' => Icons.widgets,
-      _ => Icons.build,
-    };
+        isLoading('tap') || isLoading('edit') || isLoading('delete');
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
@@ -578,7 +292,6 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
           ),
           child: Stack(
             children: [
-              // Основний контент
               Positioned.fill(
                 child: Material(
                   color: Colors.transparent,
@@ -590,24 +303,20 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          // Іконка
                           Container(
                             width: 48,
                             height: 48,
                             decoration: BoxDecoration(
-                              color: _getIconColor(context).withOpacity(0.1),
+                              color: Colors.purple.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Icon(
                               widget.icon,
                               size: 24,
-                              color: _getIconColor(context),
+                              color: Colors.purple[700],
                             ),
                           ),
-
                           const SizedBox(height: 8),
-
-                          // Назва
                           Expanded(
                             child: Text(
                               widget.title,
@@ -620,8 +329,6 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ),
-
-                          // Опис (якщо є і є місце)
                           if (widget.description != null) ...[
                             const SizedBox(height: 2),
                             Text(
@@ -635,8 +342,6 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
                               overflow: TextOverflow.ellipsis,
                             ),
                           ],
-
-                          // Індикатор типу (компактний)
                           const SizedBox(height: 4),
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -644,19 +349,23 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
                               vertical: 1,
                             ),
                             decoration: BoxDecoration(
-                              color: typeBackground,
+                              color: Colors.purple.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(typeIcon, size: 10, color: typeColor),
+                                Icon(
+                                  Icons.widgets,
+                                  size: 10,
+                                  color: Colors.purple[700],
+                                ),
                                 const SizedBox(width: 2),
                                 Text(
-                                  typeLabel,
+                                  'вбудований',
                                   style: TextStyle(
                                     fontSize: 8,
-                                    color: typeColor,
+                                    color: Colors.purple[700],
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),
@@ -669,17 +378,7 @@ class _ToolTileState extends State<ToolTile> with LoadingStateMixin {
                   ),
                 ),
               ),
-
-              // Статус файлу
-              _buildStatusIndicator(),
-
-              // Розмір файлу
-              _buildFileSize(),
-
-              // Оверлей завантаження
               _buildLoadingOverlay(),
-
-              // Меню
               _buildPopupMenu(),
             ],
           ),

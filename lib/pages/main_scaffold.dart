@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'home_page.dart';
 import 'calendar_page/calendar_page.dart';
-import 'materials_page/materials_page.dart';
 import 'profile_page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../globals.dart';
@@ -43,12 +42,7 @@ class _MainScaffoldState extends State<MainScaffold> {
       pages.add(const AdminPanelPage());
     }
 
-    pages.addAll([
-      const HomePage(),
-      const CalendarPage(),
-      const ToolsPage(),
-      const MaterialsPage(),
-    ]);
+    pages.addAll([const HomePage(), const CalendarPage(), const ToolsPage()]);
 
     return pages;
   }
@@ -76,10 +70,6 @@ class _MainScaffoldState extends State<MainScaffold> {
         icon: Icon(Icons.build),
         label: 'Інструменти',
       ),
-      const BottomNavigationBarItem(
-        icon: Icon(Icons.article),
-        label: 'Матеріали',
-      ),
     ]);
 
     return items;
@@ -99,7 +89,6 @@ class _MainScaffoldState extends State<MainScaffold> {
       const PopupMenuItem(value: 'home', child: Text('Головна')),
       const PopupMenuItem(value: 'calendar', child: Text('Календар')),
       const PopupMenuItem(value: 'tools', child: Text('Інструменти')),
-      const PopupMenuItem(value: 'materials', child: Text('Матеріали')),
       const PopupMenuItem(value: 'logout', child: Text('Вийти')),
     ]);
 
@@ -345,9 +334,6 @@ class _MainScaffoldState extends State<MainScaffold> {
         break;
       case 'tools':
         newIndex = isAdmin ? 3 : 2;
-        break;
-      case 'materials':
-        newIndex = isAdmin ? 4 : 3;
         break;
       case 'logout':
         await widget.sessionController.signOut();

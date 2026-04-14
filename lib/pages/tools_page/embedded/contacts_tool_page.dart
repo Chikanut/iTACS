@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../globals.dart';
 import '../../../services/contacts_tool_service.dart';
+import '../../../theme/app_theme.dart';
 
 bool get _isMobile {
   if (kIsWeb) return false;
@@ -317,7 +318,10 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
         controller: _searchController,
         decoration: InputDecoration(
           hintText: 'Пошук за іменем, підрозділом або номером...',
+          hintStyle: TextStyle(color: AppTheme.textMuted),
           prefixIcon: const Icon(Icons.search),
+          filled: true,
+          fillColor: AppTheme.surfaceRaised,
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
                   icon: const Icon(Icons.clear),
@@ -329,7 +333,21 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                   },
                 )
               : null,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(25)),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(25),
+            borderSide: BorderSide(color: AppTheme.borderSubtle),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(25),
+            borderSide: BorderSide(color: AppTheme.borderSubtle),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(25),
+            borderSide: BorderSide(
+              color: AppTheme.infoStatus.border,
+              width: 1.5,
+            ),
+          ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 16,
             vertical: 10,
@@ -360,7 +378,7 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Text(
         text,
-        style: TextStyle(color: Colors.grey[600], fontSize: 13),
+        style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
       ),
     );
   }
@@ -374,9 +392,13 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
     final hasPhone = contact.phone.isNotEmpty;
 
     return Card(
+      color: AppTheme.surfaceRaised,
       elevation: 1,
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: AppTheme.borderSubtle.withOpacity(0.45)),
+      ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(10, 8, 6, 10),
         child: Column(
@@ -398,13 +420,16 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE3F2FD),
+                          color: AppTheme.infoStatus.background,
                           borderRadius: BorderRadius.circular(5),
+                          border: Border.all(
+                            color: AppTheme.infoStatus.border.withOpacity(0.7),
+                          ),
                         ),
                         child: Text(
                           contact.unit,
-                          style: const TextStyle(
-                            color: Color(0xFF1976D2),
+                          style: TextStyle(
+                            color: AppTheme.infoStatus.badge,
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                           ),
@@ -417,13 +442,18 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFF3E5F5),
+                            color: AppTheme.accentStatus.background,
                             borderRadius: BorderRadius.circular(5),
+                            border: Border.all(
+                              color: AppTheme.accentStatus.border.withOpacity(
+                                0.7,
+                              ),
+                            ),
                           ),
                           child: Text(
                             contact.rank,
-                            style: const TextStyle(
-                              color: Color(0xFF7B1FA2),
+                            style: TextStyle(
+                              color: AppTheme.accentStatus.badge,
                               fontSize: 10,
                               fontWeight: FontWeight.w500,
                             ),
@@ -439,7 +469,11 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                     child: PopupMenuButton<String>(
                       iconSize: 14,
                       padding: EdgeInsets.zero,
-                      icon: const Icon(Icons.more_vert, size: 14),
+                      icon: Icon(
+                        Icons.more_vert,
+                        size: 14,
+                        color: AppTheme.textSecondary,
+                      ),
                       onSelected: (val) async {
                         if (val == 'edit') {
                           await _showContactDialog(
@@ -485,10 +519,10 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
               const SizedBox(height: 4),
               Text(
                 contact.name,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF2C3E50),
+                  color: AppTheme.textPrimary,
                 ),
               ),
             ],
@@ -499,16 +533,19 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: Colors.grey[100],
+                  color: AppTheme.surfaceOverlay,
                   borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: AppTheme.borderSubtle.withOpacity(0.65),
+                  ),
                 ),
                 child: Text(
                   contact.phone,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 12,
-                    color: Color(0xFF2C3E50),
+                    color: AppTheme.textPrimary,
                   ),
                 ),
               ),
@@ -519,7 +556,7 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                     child: _actionButton(
                       label: 'Копіювати',
                       icon: '📋',
-                      color: const Color(0xFF27AE60),
+                      color: AppTheme.successStatus.border,
                       onTap: () => _copyPhone(contact.phone),
                     ),
                   ),
@@ -528,7 +565,7 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                     child: _actionButton(
                       label: 'Signal',
                       icon: '💬',
-                      color: const Color(0xFF3B82F6),
+                      color: AppTheme.infoStatus.border,
                       onTap: () => _openSignal(contact.phone),
                     ),
                   ),
@@ -538,7 +575,7 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                       child: _actionButton(
                         label: 'Дзвінок',
                         icon: '📞',
-                        color: const Color(0xFFF59E0B),
+                        color: AppTheme.warningStatus.border,
                         onTap: () => _makeCall(contact.phone),
                       ),
                     ),
@@ -550,7 +587,7 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
               Text(
                 'Телефон не вказано',
                 style: TextStyle(
-                  color: Colors.grey[400],
+                  color: AppTheme.textMuted,
                   fontStyle: FontStyle.italic,
                   fontSize: 11,
                 ),
@@ -609,13 +646,16 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
             margin: const EdgeInsets.fromLTRB(16, 8, 16, 4),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF3498DB), Color(0xFF2980B9)],
+              gradient: LinearGradient(
+                colors: [
+                  AppTheme.primaryBlue.shade600,
+                  AppTheme.primaryBlue.shade700,
+                ],
               ),
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF3498DB).withOpacity(0.3),
+                  color: AppTheme.infoStatus.border.withOpacity(0.22),
                   blurRadius: 6,
                   offset: const Offset(0, 3),
                 ),
@@ -723,7 +763,7 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
           children: [
             Text(
               'Контакти відсутні',
-              style: TextStyle(color: Colors.grey[500], fontSize: 13),
+              style: TextStyle(color: AppTheme.textMuted, fontSize: 13),
             ),
             if (_canEdit) ...[
               const SizedBox(width: 12),
@@ -848,14 +888,14 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
           Icon(
             noData ? Icons.contacts : Icons.search_off,
             size: 64,
-            color: Colors.grey.withOpacity(0.4),
+            color: AppTheme.textMuted.withOpacity(0.7),
           ),
           const SizedBox(height: 16),
           Text(
             noData ? 'Контакти відсутні' : 'Нічого не знайдено',
             style: Theme.of(
               context,
-            ).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
+            ).textTheme.titleMedium?.copyWith(color: AppTheme.textSecondary),
           ),
           const SizedBox(height: 8),
           Text(
@@ -866,7 +906,7 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                 : 'Спробуйте змінити пошуковий запит',
             style: Theme.of(
               context,
-            ).textTheme.bodyMedium?.copyWith(color: Colors.grey[500]),
+            ).textTheme.bodyMedium?.copyWith(color: AppTheme.textMuted),
           ),
         ],
       ),

@@ -898,6 +898,12 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
     var hasPending = false;
 
     for (final lesson in lessons) {
+      final evaluation = LessonStatusUtils.evaluateLessonStatus(lesson);
+      if (evaluation.readinessStatus ==
+          LessonReadinessStatus.completedNotReady) {
+        return _LessonCellStatus.urgent;
+      }
+
       final status = LessonStatusUtils.getAcknowledgementStatusForInstructor(
         lesson,
         instructorAssignmentId: instructorId,
@@ -983,12 +989,25 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                 itemCount: lessons.length,
                 itemBuilder: (context, index) {
                   final lesson = lessons[index];
+                  final evaluation = LessonStatusUtils.evaluateLessonStatus(
+                    lesson,
+                  );
+                  final hasCompletionIssues =
+                      evaluation.readinessStatus ==
+                      LessonReadinessStatus.completedNotReady;
+
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
                       leading: Icon(
-                        lesson.isPast ? Icons.check_circle : Icons.schedule,
-                        color: lesson.isPast
+                        hasCompletionIssues
+                            ? Icons.error_outline
+                            : lesson.isPast
+                            ? Icons.check_circle
+                            : Icons.schedule,
+                        color: hasCompletionIssues
+                            ? AppTheme.dangerStatus.border
+                            : lesson.isPast
                             ? AppTheme.successStatus.border
                             : AppTheme.warningStatus.border,
                       ),
@@ -1003,6 +1022,14 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                             Text('Група: ${lesson.groupName}'),
                           if (lesson.location.isNotEmpty)
                             Text('Локація: ${lesson.location}'),
+                          if (hasCompletionIssues)
+                            Text(
+                              evaluation.description,
+                              style: TextStyle(
+                                color: AppTheme.dangerStatus.border,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           Text(
                             _getAcknowledgementSubtitle(lesson, instructorId),
                             style: TextStyle(
@@ -1017,8 +1044,12 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                       ),
                       trailing: lesson.isPast
                           ? Icon(
-                              Icons.done,
-                              color: AppTheme.successStatus.border,
+                              hasCompletionIssues
+                                  ? Icons.priority_high
+                                  : Icons.done,
+                              color: hasCompletionIssues
+                                  ? AppTheme.dangerStatus.border
+                                  : AppTheme.successStatus.border,
                             )
                           : null,
                       onTap: () {

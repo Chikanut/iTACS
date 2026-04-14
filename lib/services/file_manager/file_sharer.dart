@@ -1,6 +1,5 @@
-// file_sharer.dart
-
-import 'dart:io' show Platform, File;
+import 'dart:typed_data';
+import 'dart:io' show File;
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/foundation.dart';
