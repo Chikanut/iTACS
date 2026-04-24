@@ -8,6 +8,7 @@ class AbsenceAssignmentDialog extends StatefulWidget {
   final String instructorName;
   final DateTime initialDate;
   final VoidCallback onAssigned;
+  final InstructorAbsence? existingAbsence;
 
   const AbsenceAssignmentDialog({
     super.key,
@@ -15,6 +16,7 @@ class AbsenceAssignmentDialog extends StatefulWidget {
     required this.instructorName,
     required this.initialDate,
     required this.onAssigned,
+    this.existingAbsence,
   });
 
   @override
@@ -35,11 +37,24 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
   DateTime? _endDate;
   bool _isLoading = false;
 
+  bool get _isEditMode => widget.existingAbsence != null;
+
   @override
   void initState() {
     super.initState();
-    _startDate = widget.initialDate;
-    _endDate = widget.initialDate;
+    final existingAbsence = widget.existingAbsence;
+    _selectedType = existingAbsence?.type ?? AbsenceType.businessTrip;
+    _startDate = existingAbsence?.startDate ?? widget.initialDate;
+    _endDate = existingAbsence?.endDate ?? widget.initialDate;
+    _reasonController.text = existingAbsence?.reason ?? '';
+    _orderNumberController.text = existingAbsence?.type == AbsenceType.sickLeave
+        ? existingAbsence?.documentNumber ?? ''
+        : existingAbsence?.assignmentDetails?.orderNumber ?? '';
+    _destinationController.text =
+        existingAbsence?.assignmentDetails?.destination ?? '';
+    _dutyController.text = existingAbsence?.assignmentDetails?.duty ?? '';
+    _instructionsController.text =
+        existingAbsence?.assignmentDetails?.instructions ?? '';
   }
 
   @override
@@ -60,7 +75,9 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
           Icon(Icons.assignment, color: Theme.of(context).primaryColor),
           const SizedBox(width: 8),
           Expanded(
-            child: Text('Призначити відсутність - ${widget.instructorName}'),
+            child: Text(
+              '${_isEditMode ? 'Редагувати' : 'Призначити'} відсутність - ${widget.instructorName}',
+            ),
           ),
         ],
       ),
@@ -73,7 +90,6 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Тип відсутності
                 Text(
                   'Тип відсутності',
                   style: Theme.of(context).textTheme.titleSmall,
@@ -88,11 +104,7 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                       vertical: 8,
                     ),
                   ),
-                  items: [
-                    AbsenceType.businessTrip,
-                    AbsenceType.duty,
-                    AbsenceType.vacation,
-                  ]
+                  items: _availableAbsenceTypes
                       .map(
                         (type) => DropdownMenuItem(
                           value: type,
@@ -116,7 +128,6 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                 ),
                 const SizedBox(height: 16),
 
-                // Період
                 Text('Період', style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: 8),
                 Row(
@@ -152,7 +163,6 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                 ),
                 const SizedBox(height: 16),
 
-                // Основна причина
                 Text('Причина', style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: 8),
                 TextFormField(
@@ -175,94 +185,116 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                 ),
                 const SizedBox(height: 16),
 
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(8),
+                if (_selectedType == AbsenceType.sickLeave) ...[
+                  Text(
+                    'Номер документа',
+                    style: Theme.of(context).textTheme.titleSmall,
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Деталі призначення',
-                        style: Theme.of(context).textTheme.titleSmall,
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _orderNumberController,
+                    decoration: const InputDecoration(
+                      border: OutlineInputBorder(),
+                      hintText: 'Номер лікарняного листа',
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
                       ),
-                      const SizedBox(height: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
-                      if (_selectedType == AbsenceType.businessTrip) ...[
+                if (_selectedType != AbsenceType.sickLeave) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Деталі призначення',
+                          style: Theme.of(context).textTheme.titleSmall,
+                        ),
+                        const SizedBox(height: 12),
+
+                        if (_selectedType == AbsenceType.businessTrip) ...[
+                          TextFormField(
+                            controller: _orderNumberController,
+                            decoration: const InputDecoration(
+                              labelText: 'Номер наказу',
+                              border: OutlineInputBorder(),
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            controller: _destinationController,
+                            decoration: const InputDecoration(
+                              labelText: 'Місце призначення',
+                              border: OutlineInputBorder(),
+                              hintText: 'Місто, адреса...',
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                            ),
+                            validator: (value) {
+                              if (_selectedType == AbsenceType.businessTrip &&
+                                  (value == null || value.trim().isEmpty)) {
+                                return 'Місце призначення обов\'язкове для відрядження';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                        ] else if (_selectedType == AbsenceType.duty) ...[
+                          TextFormField(
+                            controller: _dutyController,
+                            decoration: const InputDecoration(
+                              labelText: 'Тип чергування',
+                              border: OutlineInputBorder(),
+                              hintText: 'Добовий наряд, чергування...',
+                              contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 8,
+                              ),
+                            ),
+                            validator: (value) {
+                              if (_selectedType == AbsenceType.duty &&
+                                  (value == null || value.trim().isEmpty)) {
+                                return 'Тип чергування обов\'язковий';
+                              }
+                              return null;
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+
                         TextFormField(
-                          controller: _orderNumberController,
+                          controller: _instructionsController,
                           decoration: const InputDecoration(
-                            labelText: 'Номер наказу',
+                            labelText: 'Додаткові інструкції',
                             border: OutlineInputBorder(),
+                            hintText: 'Особливі вказівки, контакти...',
                             contentPadding: EdgeInsets.symmetric(
                               horizontal: 12,
                               vertical: 8,
                             ),
                           ),
+                          maxLines: 3,
                         ),
-                        const SizedBox(height: 12),
-                        TextFormField(
-                          controller: _destinationController,
-                          decoration: const InputDecoration(
-                            labelText: 'Місце призначення',
-                            border: OutlineInputBorder(),
-                            hintText: 'Місто, адреса...',
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                          ),
-                          validator: (value) {
-                            if (_selectedType == AbsenceType.businessTrip &&
-                                (value == null || value.trim().isEmpty)) {
-                              return 'Місце призначення обов\'язкове для відрядження';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                      ] else if (_selectedType == AbsenceType.duty) ...[
-                        TextFormField(
-                          controller: _dutyController,
-                          decoration: const InputDecoration(
-                            labelText: 'Тип чергування',
-                            border: OutlineInputBorder(),
-                            hintText: 'Добовий наряд, чергування...',
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
-                          ),
-                          validator: (value) {
-                            if (_selectedType == AbsenceType.duty &&
-                                (value == null || value.trim().isEmpty)) {
-                              return 'Тип чергування обов\'язковий';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 12),
                       ],
-
-                      TextFormField(
-                        controller: _instructionsController,
-                        decoration: const InputDecoration(
-                          labelText: 'Додаткові інструкції',
-                          border: OutlineInputBorder(),
-                          hintText: 'Особливі вказівки, контакти...',
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                        ),
-                        maxLines: 3,
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
+                  const SizedBox(height: 16),
+                ],
 
                 // Попередження
                 Container(
@@ -282,9 +314,12 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Майбутні та поточні призначення активуються одразу, '
-                          'а призначення на минулі дати автоматично потрапляють в історію. '
-                          'Перевірте конфлікти з розкладом занять.',
+                          _isEditMode
+                              ? 'Після редагування статус відсутності буде оновлено автоматично. '
+                                    'Минулі періоди залишаються в історії.'
+                              : 'Майбутні та поточні призначення активуються одразу, '
+                                    'а призначення на минулі дати автоматично потрапляють в історію. '
+                                    'Перевірте конфлікти з розкладом занять.',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.orange.shade700,
@@ -305,20 +340,28 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
           child: const Text('Скасувати'),
         ),
         ElevatedButton(
-          onPressed: _isLoading ? null : _assignAbsence,
+          onPressed: _isLoading ? null : _submit,
           child: _isLoading
               ? const SizedBox(
                   width: 16,
                   height: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Text('Призначити'),
+              : Text(_isEditMode ? 'Зберегти зміни' : 'Призначити'),
         ),
       ],
     );
   }
 
-  Future<void> _assignAbsence() async {
+  List<AbsenceType> get _availableAbsenceTypes => _isEditMode
+      ? AbsenceType.values
+      : const [
+          AbsenceType.businessTrip,
+          AbsenceType.duty,
+          AbsenceType.vacation,
+        ];
+
+  Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_startDate == null || _endDate == null) {
       _showError('Оберіть початок та кінець періоду');
@@ -328,62 +371,103 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
     setState(() => _isLoading = true);
 
     try {
-      // Отримуємо email інструктора
-      final currentGroupId = Globals.profileManager.currentGroupId;
-      if (currentGroupId == null) throw Exception('Група не обрана');
+      final assignmentDetails = _buildAssignmentDetails();
 
-      final normalizedInstructorId = widget.instructorId.trim();
-      final instructorEmail = normalizedInstructorId.contains('@')
-          ? normalizedInstructorId.toLowerCase()
-          : await Globals.firestoreManager.getUserEmailByUid(
-              currentGroupId,
-              normalizedInstructorId,
-            );
-
-      if (instructorEmail == null) {
-        throw Exception('Не вдалося знайти email інструктора');
-      }
-
-      final assignmentDetails = AssignmentDetails(
-        orderNumber: _orderNumberController.text.trim().isNotEmpty
-            ? _orderNumberController.text.trim()
-            : null,
-        destination: _destinationController.text.trim().isNotEmpty
-            ? _destinationController.text.trim()
-            : null,
-        duty: _dutyController.text.trim().isNotEmpty
-            ? _dutyController.text.trim()
-            : null,
-        instructions: _instructionsController.text.trim().isNotEmpty
-            ? _instructionsController.text.trim()
-            : null,
-      );
-
-      final success = await Globals.absencesService.assignAbsence(
-        instructorId: normalizedInstructorId,
-        instructorName: widget.instructorName,
-        instructorEmail: instructorEmail,
-        type: _selectedType,
-        startDate: _startDate!,
-        endDate: _endDate!,
-        reason: _reasonController.text.trim(),
-        assignmentDetails: assignmentDetails,
-      );
+      final success = _isEditMode
+          ? await _updateAbsence(assignmentDetails)
+          : await _assignAbsence(assignmentDetails);
 
       if (success && mounted) {
         Navigator.of(context).pop();
         widget.onAssigned();
-        _showSuccess('Відсутність призначено успішно!');
+        _showSuccess(
+          _isEditMode
+              ? 'Відсутність оновлено успішно!'
+              : 'Відсутність призначено успішно!',
+        );
       }
     } catch (e) {
       if (mounted) {
-        _showError('Помилка призначення: ${e.toString()}');
+        _showError(
+          '${_isEditMode ? 'Помилка оновлення' : 'Помилка призначення'}: ${e.toString()}',
+        );
       }
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  Future<bool> _assignAbsence(AssignmentDetails assignmentDetails) async {
+    final currentGroupId = Globals.profileManager.currentGroupId;
+    if (currentGroupId == null) throw Exception('Група не обрана');
+
+    final normalizedInstructorId = widget.instructorId.trim();
+    final instructorEmail = normalizedInstructorId.contains('@')
+        ? normalizedInstructorId.toLowerCase()
+        : await Globals.firestoreManager.getUserEmailByUid(
+            currentGroupId,
+            normalizedInstructorId,
+          );
+
+    if (instructorEmail == null) {
+      throw Exception('Не вдалося знайти email інструктора');
+    }
+
+    return Globals.absencesService.assignAbsence(
+      instructorId: normalizedInstructorId,
+      instructorName: widget.instructorName,
+      instructorEmail: instructorEmail,
+      type: _selectedType,
+      startDate: _startDate!,
+      endDate: _endDate!,
+      reason: _reasonController.text.trim(),
+      assignmentDetails: assignmentDetails,
+    );
+  }
+
+  Future<bool> _updateAbsence(AssignmentDetails assignmentDetails) {
+    final existingAbsence = widget.existingAbsence;
+    if (existingAbsence == null) {
+      throw Exception('Немає відсутності для редагування');
+    }
+
+    return Globals.absencesService.updateAbsence(
+      absence: existingAbsence,
+      type: _selectedType,
+      startDate: _startDate!,
+      endDate: _endDate!,
+      reason: _reasonController.text.trim(),
+      documentNumber: _selectedType == AbsenceType.sickLeave
+          ? _orderNumberController.text.trim().isNotEmpty
+              ? _orderNumberController.text.trim()
+              : null
+          : null,
+      assignmentDetails: _selectedType == AbsenceType.sickLeave
+          ? null
+          : assignmentDetails,
+    );
+  }
+
+  AssignmentDetails _buildAssignmentDetails() {
+    return AssignmentDetails(
+      orderNumber: _selectedType == AbsenceType.businessTrip &&
+              _orderNumberController.text.trim().isNotEmpty
+          ? _orderNumberController.text.trim()
+          : null,
+      destination: _selectedType == AbsenceType.businessTrip &&
+              _destinationController.text.trim().isNotEmpty
+          ? _destinationController.text.trim()
+          : null,
+      duty: _selectedType == AbsenceType.duty && _dutyController.text.trim().isNotEmpty
+          ? _dutyController.text.trim()
+          : null,
+      instructions: _selectedType != AbsenceType.sickLeave &&
+              _instructionsController.text.trim().isNotEmpty
+          ? _instructionsController.text.trim()
+          : null,
+    );
   }
 
   void _showError(String message) {

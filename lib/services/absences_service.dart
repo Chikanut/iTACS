@@ -180,6 +180,93 @@ class AbsencesService {
     }
   }
 
+  Future<bool> updateAbsence({
+    required InstructorAbsence absence,
+    required AbsenceType type,
+    required DateTime startDate,
+    required DateTime endDate,
+    required String reason,
+    String? documentNumber,
+    AssignmentDetails? assignmentDetails,
+  }) async {
+    try {
+      final currentUser = Globals.firebaseAuth.currentUser;
+      final currentGroupId = Globals.profileManager.currentGroupId;
+      final currentRole = Globals.profileManager.currentRole;
+
+      if (currentUser == null ||
+          currentGroupId == null ||
+          currentRole != 'admin') {
+        throw Exception('Недостатньо прав для виконання операції');
+      }
+
+      final hasConflict = await _checkAbsenceConflict(
+        absence.instructorId,
+        startDate,
+        endDate,
+        excludeAbsenceId: absence.id,
+      );
+
+      if (hasConflict) {
+        throw Exception(
+          'У вказаний період інструктор вже має зареєстровану відсутність',
+        );
+      }
+
+      final updatedStatus = _resolveUpdatedAbsenceStatus(
+        currentStatus: absence.status,
+        endDate: endDate,
+      );
+
+      final updatedAbsence = absence.copyWith(
+        type: type,
+        startDate: startDate,
+        endDate: endDate,
+        reason: reason,
+        documentNumber: documentNumber,
+        status: updatedStatus,
+        assignmentDetails: assignmentDetails,
+        modifiedAt: DateTime.now(),
+        affectedLessons: await _findAffectedLessons(
+          absence.instructorId,
+          startDate,
+          endDate,
+        ),
+      );
+
+      final success = await Globals.firestoreManager.updateAbsence(
+        groupId: currentGroupId,
+        absenceId: absence.id,
+        updates: {
+          'type': type.value,
+          'startDate': Timestamp.fromDate(startDate),
+          'endDate': Timestamp.fromDate(endDate),
+          'reason': reason,
+          'documentNumber': documentNumber,
+          'status': updatedStatus.value,
+          'assignmentDetails': assignmentDetails?.toMap(),
+          'modifiedAt': FieldValue.serverTimestamp(),
+          'affectedLessons': updatedAbsence.affectedLessons,
+        },
+      );
+
+      if (!success) {
+        throw Exception('Не вдалося оновити відсутність');
+      }
+
+      await Globals.groupNotificationsService.notifyAbsenceUpdated(
+        absence: updatedAbsence,
+        title: '${updatedAbsence.type.displayName} оновлено',
+        message:
+            'Адміністратор оновив вашу ${updatedAbsence.type.displayName.toLowerCase()}.',
+      );
+      return true;
+    } catch (e) {
+      debugPrint('AbsencesService: Помилка оновлення відсутності: $e');
+      rethrow;
+    }
+  }
+
   /// Отримати відсутності за період
   Future<List<InstructorAbsence>> getAbsencesForPeriod({
     required DateTime startDate,
@@ -440,6 +527,7 @@ class AbsencesService {
     String instructorId,
     DateTime startDate,
     DateTime endDate,
+    {String? excludeAbsenceId}
   ) async {
     final existingAbsences = await getAbsencesForPeriod(
       startDate: CalendarUtils.addDays(startDate, -1),
@@ -449,6 +537,7 @@ class AbsencesService {
 
     return existingAbsences.any(
       (absence) =>
+          absence.id != excludeAbsenceId &&
           absence.status != AbsenceStatus.cancelled &&
           !(endDate.isBefore(absence.startDate) ||
               startDate.isAfter(absence.endDate)),
@@ -494,6 +583,21 @@ class AbsencesService {
     if (!success) {
       throw Exception('Не вдалося оновити статус відсутності');
     }
+  }
+
+  AbsenceStatus _resolveUpdatedAbsenceStatus({
+    required AbsenceStatus currentStatus,
+    required DateTime endDate,
+  }) {
+    if (currentStatus == AbsenceStatus.cancelled) {
+      return AbsenceStatus.cancelled;
+    }
+
+    if (currentStatus == AbsenceStatus.pending) {
+      return AbsenceStatus.pending;
+    }
+
+    return _resolveActualStatus(AbsenceStatus.active, endDate);
   }
 
   Future<void> _synchronizePastAbsences(

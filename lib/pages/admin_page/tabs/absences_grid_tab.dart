@@ -684,7 +684,6 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                 subtitle: Text(lessons.map((l) => l.title).join(', ')),
                 trailing: const Icon(Icons.arrow_forward_ios),
                 onTap: () {
-                  Navigator.pop(context);
                   _showLessonDetails(
                     context,
                     lessons,
@@ -706,6 +705,18 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                 ),
                 title: Text(absence.type.displayName),
                 subtitle: Text('Статус: ${absence.status.displayName}'),
+              ),
+              const Divider(),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _showEditAbsenceDialog(absence);
+                  },
+                  icon: const Icon(Icons.edit_calendar_outlined),
+                  label: const Text('Редагувати відсутність'),
+                ),
               ),
               if (absence.status == AbsenceStatus.pending) ...[
                 const Divider(),
@@ -1052,7 +1063,6 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
                             )
                           : null,
                       onTap: () {
-                        Navigator.pop(context);
                         _openLessonDetailsDialog(lesson);
                       },
                     ),
@@ -1362,6 +1372,19 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
         instructorId: instructorId,
         instructorName: instructorName,
         initialDate: date,
+        onAssigned: _loadData,
+      ),
+    );
+  }
+
+  void _showEditAbsenceDialog(InstructorAbsence absence) {
+    showDialog(
+      context: context,
+      builder: (context) => AbsenceAssignmentDialog(
+        instructorId: absence.instructorId,
+        instructorName: absence.instructorName,
+        initialDate: absence.startDate,
+        existingAbsence: absence,
         onAssigned: _loadData,
       ),
     );
