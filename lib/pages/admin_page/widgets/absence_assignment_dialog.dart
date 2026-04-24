@@ -88,7 +88,11 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                       vertical: 8,
                     ),
                   ),
-                  items: [AbsenceType.businessTrip, AbsenceType.duty]
+                  items: [
+                    AbsenceType.businessTrip,
+                    AbsenceType.duty,
+                    AbsenceType.vacation,
+                  ]
                       .map(
                         (type) => DropdownMenuItem(
                           value: type,
@@ -171,7 +175,6 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                 ),
                 const SizedBox(height: 16),
 
-                // Деталі призначення
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
@@ -188,7 +191,6 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                       const SizedBox(height: 12),
 
                       if (_selectedType == AbsenceType.businessTrip) ...[
-                        // Номер наказу
                         TextFormField(
                           controller: _orderNumberController,
                           decoration: const InputDecoration(
@@ -201,8 +203,6 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                           ),
                         ),
                         const SizedBox(height: 12),
-
-                        // Місце призначення
                         TextFormField(
                           controller: _destinationController,
                           decoration: const InputDecoration(
@@ -222,8 +222,8 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                             return null;
                           },
                         ),
+                        const SizedBox(height: 12),
                       ] else if (_selectedType == AbsenceType.duty) ...[
-                        // Тип чергування
                         TextFormField(
                           controller: _dutyController,
                           decoration: const InputDecoration(
@@ -243,11 +243,9 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                             return null;
                           },
                         ),
+                        const SizedBox(height: 12),
                       ],
 
-                      const SizedBox(height: 12),
-
-                      // Додаткові інструкції
                       TextFormField(
                         controller: _instructionsController,
                         decoration: const InputDecoration(
@@ -284,7 +282,8 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Призначення адміном буде активне одразу. '
+                          'Майбутні та поточні призначення активуються одразу, '
+                          'а призначення на минулі дати автоматично потрапляють в історію. '
                           'Перевірте конфлікти з розкладом занять.',
                           style: TextStyle(
                             fontSize: 12,

@@ -8,6 +8,29 @@ import '../pages/calendar_page/calendar_utils.dart';
 class AbsencesService {
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
+  AbsenceStatus _resolveActualStatus(
+    AbsenceStatus status,
+    DateTime endDate,
+  ) {
+    if (status == AbsenceStatus.active && _isPastAbsence(endDate)) {
+      return AbsenceStatus.completed;
+    }
+    return status;
+  }
+
+  bool _isPastAbsence(DateTime endDate) {
+    final today = DateTime.now();
+    final todayStart = DateTime(today.year, today.month, today.day);
+    final absenceEndExclusive = DateTime(
+      endDate.year,
+      endDate.month,
+      endDate.day + 1,
+    );
+
+    return absenceEndExclusive.isBefore(todayStart) ||
+        absenceEndExclusive.isAtSameMomentAs(todayStart);
+  }
+
   List<InstructorAbsence> getCachedCurrentUserAbsences() {
     final snapshot = Globals.appSnapshotStore.getCachedSnapshot(
       _currentUserAbsencesCacheKey(),
@@ -131,7 +154,10 @@ class AbsencesService {
         startDate: startDate,
         endDate: endDate,
         reason: reason,
-        status: AbsenceStatus.active, // Призначення адміном одразу активні
+        status: _resolveActualStatus(
+          AbsenceStatus.active,
+          endDate,
+        ), // Минулі призначення одразу потрапляють в історію
         creationType: CreationType.adminAssignment,
         assignmentDetails: assignmentDetails,
         createdAt: DateTime.now(),
@@ -172,12 +198,21 @@ class AbsencesService {
         instructorId: instructorId,
       );
 
-      return docs.map((doc) {
+      final absences = docs.map((doc) {
         return InstructorAbsence.fromFirestore(
           doc.data() as Map<String, dynamic>,
           doc.id,
         );
       }).toList();
+
+      await _synchronizePastAbsences(absences);
+      return absences
+          .map(
+            (absence) => absence.copyWith(
+              status: _resolveActualStatus(absence.status, absence.endDate),
+            ),
+          )
+          .toList();
     } catch (e) {
       debugPrint('AbsencesService: Помилка отримання відсутностей: $e');
       return [];
@@ -201,14 +236,23 @@ class AbsencesService {
         );
       }).toList();
 
+      await _synchronizePastAbsences(allAbsences);
+      final normalizedAbsences = allAbsences
+          .map(
+            (absence) => absence.copyWith(
+              status: _resolveActualStatus(absence.status, absence.endDate),
+            ),
+          )
+          .toList();
+
       // Сортуємо за датою створення (найновіші спочатку)
-      allAbsences.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      normalizedAbsences.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
       debugPrint(
-        'AbsencesService: Завантажено ${allAbsences.length} відсутностей для групи $currentGroupId',
+        'AbsencesService: Завантажено ${normalizedAbsences.length} відсутностей для групи $currentGroupId',
       );
 
-      return allAbsences;
+      return normalizedAbsences;
     } catch (e) {
       debugPrint(
         'AbsencesService: Помилка отримання всіх відсутностей групи: $e',
@@ -264,8 +308,18 @@ class AbsencesService {
         throw Exception('Недостатньо прав для підтвердження запиту');
       }
 
-      await _updateAbsenceStatus(absence.id, AbsenceStatus.active);
-      await Globals.groupNotificationsService.notifyAbsenceApproved(absence);
+      final approvedStatus = _resolveActualStatus(
+        AbsenceStatus.active,
+        absence.endDate,
+      );
+
+      await _updateAbsenceStatus(
+        absence.id,
+        approvedStatus,
+      );
+      await Globals.groupNotificationsService.notifyAbsenceApproved(
+        absence.copyWith(status: approvedStatus),
+      );
       return true;
     } catch (e) {
       debugPrint('AbsencesService: Помилка підтвердження запиту: $e');
@@ -439,6 +493,32 @@ class AbsencesService {
 
     if (!success) {
       throw Exception('Не вдалося оновити статус відсутності');
+    }
+  }
+
+  Future<void> _synchronizePastAbsences(
+    List<InstructorAbsence> absences,
+  ) async {
+    final staleAbsences = absences
+        .where(
+          (absence) =>
+              absence.status == AbsenceStatus.active &&
+              _isPastAbsence(absence.endDate),
+        )
+        .toList(growable: false);
+
+    if (staleAbsences.isEmpty) {
+      return;
+    }
+
+    for (final absence in staleAbsences) {
+      try {
+        await _updateAbsenceStatus(absence.id, AbsenceStatus.completed);
+      } catch (e) {
+        debugPrint(
+          'AbsencesService: Не вдалося автозавершити відсутність ${absence.id}: $e',
+        );
+      }
     }
   }
 
