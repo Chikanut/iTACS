@@ -240,9 +240,14 @@ class _HomePageState extends State<HomePage> {
   /// Контент ленти
   Widget _buildFeedContent() {
     final nextLesson = _feed.nextLesson;
+    final tomorrowLessons = _feed.tomorrowLessons;
+    final shownLessonIds = {
+      if (tomorrowLessons.isNotEmpty) ...tomorrowLessons.map((lesson) => lesson.id),
+      if (tomorrowLessons.isEmpty && nextLesson != null) nextLesson.id,
+    };
     final acknowledgementLessons =
         _feed.lessonsRequiringAcknowledgement
-            .where((lesson) => lesson.id != nextLesson?.id)
+            .where((lesson) => !shownLessonIds.contains(lesson.id))
             .toList()
           ..sort((a, b) => a.startTime.compareTo(b.startTime));
 
@@ -251,7 +256,15 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(height: 16),
         if (_notifications.isNotEmpty) _buildNotificationsCard(),
         _buildAbsencesCard(),
-        if (nextLesson != null)
+        if (tomorrowLessons.isNotEmpty)
+          _UpcomingLessonsCard(
+            title: 'Заняття на завтра',
+            icon: Icons.event_note,
+            lessons: tomorrowLessons,
+            showAcknowledgementBadge: true,
+            onLessonUpdated: _refreshFeed,
+          )
+        else if (nextLesson != null)
           _UpcomingLessonsCard(
             title: 'Наступне заняття',
             icon: Icons.schedule,

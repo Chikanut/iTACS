@@ -56,6 +56,7 @@ class UserStats {
 
 class DashboardFeed {
   final LessonModel? nextLesson;
+  final List<LessonModel> tomorrowLessons;
   final List<LessonModel> lessonsRequiringAcknowledgement;
   final List<LessonModel> todayWithoutInstructor;
   final List<LessonModel> tomorrowWithoutInstructor;
@@ -64,6 +65,7 @@ class DashboardFeed {
 
   const DashboardFeed({
     required this.nextLesson,
+    required this.tomorrowLessons,
     required this.lessonsRequiringAcknowledgement,
     required this.todayWithoutInstructor,
     required this.tomorrowWithoutInstructor,
@@ -73,6 +75,7 @@ class DashboardFeed {
 
   static final empty = DashboardFeed(
     nextLesson: null,
+    tomorrowLessons: const [],
     lessonsRequiringAcknowledgement: const [],
     todayWithoutInstructor: const [],
     tomorrowWithoutInstructor: const [],
@@ -83,6 +86,9 @@ class DashboardFeed {
   Map<String, dynamic> toMap() {
     return {
       'nextLesson': nextLesson?.toMap(),
+      'tomorrowLessons': tomorrowLessons
+          .map((lesson) => lesson.toMap())
+          .toList(),
       'lessonsRequiringAcknowledgement': lessonsRequiringAcknowledgement
           .map((lesson) => lesson.toMap())
           .toList(),
@@ -102,6 +108,12 @@ class DashboardFeed {
       nextLesson: map['nextLesson'] is Map
           ? LessonModel.fromMap(Map<String, dynamic>.from(map['nextLesson']))
           : null,
+      tomorrowLessons:
+          (map['tomorrowLessons'] as List<dynamic>? ?? const <dynamic>[])
+              .map(
+                (item) => LessonModel.fromMap(Map<String, dynamic>.from(item)),
+              )
+              .toList(),
       lessonsRequiringAcknowledgement:
           (map['lessonsRequiringAcknowledgement'] as List<dynamic>? ??
                   const <dynamic>[])
@@ -368,11 +380,13 @@ class DashboardService {
       final nextLesson = upcomingLessons.isNotEmpty
           ? upcomingLessons.first
           : null;
+      final tomorrowLessons = _filterLessonsForDate(upcomingLessons, tomorrow);
       final lessonsRequiringAcknowledgement =
           await getLessonsRequiringAcknowledgement(upcomingLessons);
 
       final feed = DashboardFeed(
         nextLesson: nextLesson,
+        tomorrowLessons: tomorrowLessons,
         lessonsRequiringAcknowledgement: lessonsRequiringAcknowledgement,
         todayWithoutInstructor: results[1] as List<LessonModel>,
         tomorrowWithoutInstructor: results[2] as List<LessonModel>,
@@ -403,6 +417,23 @@ class DashboardService {
 
       return DashboardFeed.empty;
     }
+  }
+
+  List<LessonModel> _filterLessonsForDate(
+    List<LessonModel> lessons,
+    DateTime date,
+  ) {
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = DateTime(date.year, date.month, date.day, 23, 59, 59);
+
+    return lessons
+        .where(
+          (lesson) =>
+              !lesson.startTime.isBefore(startOfDay) &&
+              !lesson.startTime.isAfter(endOfDay),
+        )
+        .toList()
+      ..sort((a, b) => a.startTime.compareTo(b.startTime));
   }
 
   /// Очистити кеш дашборду
