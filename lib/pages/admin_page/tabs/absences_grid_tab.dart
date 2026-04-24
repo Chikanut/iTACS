@@ -798,8 +798,7 @@ class _AbsencesGridTabState extends State<AbsencesGridTab> {
     for (final absence in absences) {
       _absencesGrid.putIfAbsent(absence.instructorId, () => {});
 
-      if (absence.status == AbsenceStatus.active ||
-          absence.status == AbsenceStatus.pending) {
+      if (absence.status != AbsenceStatus.cancelled) {
         DateTime current = DateTime(
           absence.startDate.year,
           absence.startDate.month,
