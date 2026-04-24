@@ -138,3 +138,11 @@ test("requeues reminder jobs when schedule or payload changed", () => {
       true,
   );
 });
+
+test("treats all web platform variants as web push targets", () => {
+  assert.equal(__test.isWebPushPlatform("web"), true);
+  assert.equal(__test.isWebPushPlatform("web_ios_standalone"), true);
+  assert.equal(__test.isWebPushPlatform("web_ios_browser"), true);
+  assert.equal(__test.isWebPushPlatform("android"), false);
+  assert.equal(__test.isWebPushPlatform(""), false);
+});

@@ -1031,8 +1031,10 @@ async function sendPushToUsers({userIds, title, body, data, preferenceKey}) {
   let successCount = 0;
   let failureCount = 0;
 
-  const androidEntries = tokenEntries.filter((entry) => entry.platform !== "web");
-  const webEntries = tokenEntries.filter((entry) => entry.platform === "web");
+  const androidEntries = tokenEntries.filter((entry) =>
+    !isWebPushPlatform(entry.platform));
+  const webEntries = tokenEntries.filter((entry) =>
+    isWebPushPlatform(entry.platform));
 
   const androidSummary = await sendPlatformBatches({
     tokenEntries: androidEntries,
@@ -1208,6 +1210,10 @@ function stringifyMessageData(data) {
   });
 
   return serialized;
+}
+
+function isWebPushPlatform(platform) {
+  return asString(platform).toLowerCase().startsWith("web");
 }
 
 function buildLessonPushRequest({
@@ -1463,6 +1469,7 @@ exports.__test = {
   buildReminderJobPayload,
   buildLessonProgressReminderPushRequest,
   calculateReminderDueAt,
+  isWebPushPlatform,
   normalizeLessonProgressReminders,
   normalizeProgressPercent,
   shouldRequeueReminderJob,
