@@ -246,17 +246,16 @@ class _MaterialJournalPageState extends State<MaterialJournalPage>
 
   Future<void> _applyTemplate(MaterialTemplate template) async {
     final itemsById = {for (final i in _items) i.id: i};
-    final comment = await showDialog<String?>(
+    final result = await showDialog<({bool confirmed, String? comment})>(
       context: context,
       builder: (_) => ApplyTemplateDialog(
         template: template,
         itemsById: itemsById,
       ),
     );
-    if (comment == null && !context.mounted) return;
-    // null comment means confirmed without text (dialog returns null = confirmed)
-    // We use Navigator.pop(null) for confirmed-without-comment case
-    // but ApplyTemplateDialog pops with null on confirm too — check mounted
+    // null  → dialog dismissed (back button / tap outside) or Скасувати
+    // record → user pressed Підтвердити
+    if (result == null || !result.confirmed) return;
     if (!mounted) return;
 
     try {
@@ -265,7 +264,7 @@ class _MaterialJournalPageState extends State<MaterialJournalPage>
         _journalId,
         template,
         itemsById,
-        comment,
+        result.comment,
         _userName,
       );
       await _fetchItems();

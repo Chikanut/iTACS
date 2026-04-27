@@ -22,6 +22,7 @@ class _MaterialJournalsHomePageState extends State<MaterialJournalsHomePage>
     with LoadingStateMixin {
   final _service = MaterialJournalService();
   List<MaterialJournal> _journals = [];
+  Map<String, JournalStats> _stats = {};
 
   bool get _canManage =>
       !Globals.appRuntimeState.isReadOnlyOffline &&
@@ -42,7 +43,21 @@ class _MaterialJournalsHomePageState extends State<MaterialJournalsHomePage>
       final groupId = Globals.profileManager.currentGroupId;
       if (groupId == null) return;
       final journals = await _service.getJournals(groupId);
-      if (mounted) setState(() => _journals = journals);
+
+      // Load stats for all journals in parallel
+      final statsResults = await Future.wait(
+        journals.map((j) => _service.getJournalStats(groupId, j.id)),
+      );
+      final stats = {
+        for (var i = 0; i < journals.length; i++) journals[i].id: statsResults[i],
+      };
+
+      if (mounted) {
+        setState(() {
+          _journals = journals;
+          _stats = stats;
+        });
+      }
     });
   }
 
@@ -137,6 +152,7 @@ class _MaterialJournalsHomePageState extends State<MaterialJournalsHomePage>
                       itemBuilder: (context, i) =>
                           _JournalCard(
                             journal: _journals[i],
+                            stats: _stats[_journals[i].id],
                             canManage: _canManage,
                             isAdmin: _isAdmin,
                             onTap: () => _openJournal(_journals[i]),
@@ -188,6 +204,7 @@ class _MaterialJournalsHomePageState extends State<MaterialJournalsHomePage>
 
 class _JournalCard extends StatelessWidget {
   final MaterialJournal journal;
+  final JournalStats? stats;
   final bool canManage;
   final bool isAdmin;
   final VoidCallback onTap;
@@ -196,6 +213,7 @@ class _JournalCard extends StatelessWidget {
 
   const _JournalCard({
     required this.journal,
+    required this.stats,
     required this.canManage,
     required this.isAdmin,
     required this.onTap,
@@ -213,8 +231,25 @@ class _JournalCard extends StatelessWidget {
     return '${dt.day.toString().padLeft(2, '0')}.${dt.month.toString().padLeft(2, '0')}.${dt.year}';
   }
 
+  Color _iconColor(BuildContext context) {
+    final s = stats;
+    if (s == null) return Theme.of(context).colorScheme.primaryContainer;
+    if (s.critical > 0) return Colors.red.shade100;
+    if (s.low > 0) return Colors.orange.shade100;
+    return Colors.green.shade100;
+  }
+
+  Color _iconFgColor(BuildContext context) {
+    final s = stats;
+    if (s == null) return Theme.of(context).colorScheme.onPrimaryContainer;
+    if (s.critical > 0) return Colors.red.shade700;
+    if (s.low > 0) return Colors.orange.shade700;
+    return Colors.green.shade700;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final s = stats;
     return Card(
       elevation: 2,
       child: InkWell(
@@ -228,12 +263,12 @@ class _JournalCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.primaryContainer,
+                  color: _iconColor(context),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.inventory_2,
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  color: _iconFgColor(context),
                 ),
               ),
               const SizedBox(width: 16),
@@ -259,7 +294,18 @@ class _JournalCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 6),
+                    // ── Stats row ──
+                    if (s != null)
+                      _StatsRow(stats: s)
+                    else
+                      Text(
+                        'Завантаження...',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.grey[400],
+                        ),
+                      ),
+                    const SizedBox(height: 2),
                     Text(
                       'Змінено: ${_formatDate(journal.modifiedAt)}',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
@@ -307,6 +353,105 @@ class _JournalCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ── Stats row widget ───────────────────────────────────────────────────────
+
+class _StatsRow extends StatelessWidget {
+  final JournalStats stats;
+  const _StatsRow({required this.stats});
+
+  @override
+  Widget build(BuildContext context) {
+    if (stats.total == 0) {
+      return Text(
+        'Матбази немає',
+        style: Theme.of(
+          context,
+        ).textTheme.bodySmall?.copyWith(color: Colors.grey[500]),
+      );
+    }
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      children: [
+        // Total
+        _Chip(
+          label: '${stats.total} поз.',
+          color: Colors.grey.shade600,
+          bg: Colors.grey.shade100,
+        ),
+        // Critical
+        if (stats.critical > 0)
+          _Chip(
+            label: '${stats.critical} критично',
+            color: Colors.red.shade700,
+            bg: Colors.red.shade50,
+            icon: Icons.warning_amber_rounded,
+          ),
+        // Low
+        if (stats.low > 0)
+          _Chip(
+            label: '${stats.low} мало',
+            color: Colors.orange.shade700,
+            bg: Colors.orange.shade50,
+            icon: Icons.trending_down,
+          ),
+        // All OK
+        if (stats.critical == 0 && stats.low == 0)
+          _Chip(
+            label: 'Все в нормі',
+            color: Colors.green.shade700,
+            bg: Colors.green.shade50,
+            icon: Icons.check_circle_outline,
+          ),
+      ],
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  final String label;
+  final Color color;
+  final Color bg;
+  final IconData? icon;
+
+  const _Chip({
+    required this.label,
+    required this.color,
+    required this.bg,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 11, color: color),
+            const SizedBox(width: 3),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

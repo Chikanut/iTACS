@@ -119,15 +119,18 @@ class _ApplyTemplateDialogState extends State<ApplyTemplateDialog> {
       ),
       actions: [
         TextButton(
+          // pop with null → caller treats as "cancelled"
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Скасувати'),
         ),
         FilledButton(
-          onPressed: () => Navigator.of(context).pop(
-            _commentCtrl.text.trim().isEmpty
+          // pop with a record → caller knows it was confirmed
+          onPressed: () => Navigator.of(context).pop((
+            confirmed: true,
+            comment: _commentCtrl.text.trim().isEmpty
                 ? null
                 : _commentCtrl.text.trim(),
-          ),
+          )),
           child: const Text('Підтвердити списання'),
         ),
       ],

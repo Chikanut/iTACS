@@ -7,6 +7,20 @@ import '../models/material_journal/material_item.dart';
 import '../models/material_journal/material_journal.dart';
 import '../models/material_journal/material_template.dart';
 
+class JournalStats {
+  final int total;
+  final int critical;
+  final int low;
+
+  const JournalStats({
+    required this.total,
+    required this.critical,
+    required this.low,
+  });
+
+  bool get hasIssues => critical > 0 || low > 0;
+}
+
 class MaterialJournalService {
   static const _root = 'material_journals_by_group';
   FirebaseFirestore get _db => FirebaseFirestore.instance;
@@ -112,6 +126,22 @@ class MaterialJournalService {
       debugPrint('[material_journal] getItems error: $e');
       return [];
     }
+  }
+
+  Future<JournalStats> getJournalStats(
+    String groupId,
+    String journalId,
+  ) async {
+    final items = await getItems(groupId, journalId);
+    final critical = items.where((i) => i.isCritical).length;
+    final low = items
+        .where(
+          (i) =>
+              i.type != MaterialItemType.nonConsumable &&
+              i.status == ItemStatus.low,
+        )
+        .length;
+    return JournalStats(total: items.length, critical: critical, low: low);
   }
 
   Future<String?> createItem(
