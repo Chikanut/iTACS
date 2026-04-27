@@ -5,12 +5,16 @@ class ContactEntry {
   final String rank;
   final String name;
   final String phone;
+  final DateTime? updatedAt;
+  final String? updatedBy;
 
   const ContactEntry({
     required this.unit,
     required this.rank,
     required this.name,
     required this.phone,
+    this.updatedAt,
+    this.updatedBy,
   });
 
   Map<String, dynamic> toMap() => {
@@ -18,6 +22,9 @@ class ContactEntry {
     'rank': rank,
     'name': name,
     'phone': phone,
+    if (updatedAt != null)
+      'updatedAt': Timestamp.fromDate(updatedAt!),
+    if (updatedBy != null) 'updatedBy': updatedBy,
   };
 
   factory ContactEntry.fromMap(Map<String, dynamic> map) => ContactEntry(
@@ -25,6 +32,10 @@ class ContactEntry {
     rank: map['rank']?.toString() ?? '',
     name: map['name']?.toString() ?? '',
     phone: map['phone']?.toString() ?? '',
+    updatedAt: map['updatedAt'] is Timestamp
+        ? (map['updatedAt'] as Timestamp).toDate()
+        : null,
+    updatedBy: map['updatedBy']?.toString(),
   );
 
   ContactEntry copyWith({
@@ -32,11 +43,15 @@ class ContactEntry {
     String? rank,
     String? name,
     String? phone,
+    DateTime? updatedAt,
+    String? updatedBy,
   }) => ContactEntry(
     unit: unit ?? this.unit,
     rank: rank ?? this.rank,
     name: name ?? this.name,
     phone: phone ?? this.phone,
+    updatedAt: updatedAt ?? this.updatedAt,
+    updatedBy: updatedBy ?? this.updatedBy,
   );
 }
 

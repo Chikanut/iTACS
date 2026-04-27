@@ -142,6 +142,7 @@ class _ToolDialogState extends State<ToolDialog> with LoadingStateMixin {
       ('checklist_builder', 'Конструктор чеклістів занять', Icons.check_circle),
       ('contacts', 'Корисні контакти', Icons.contacts),
       ('schedule_calculator', 'Калькулятор розкладу', Icons.calculate),
+      ('material_journals', 'Журнали матбази', Icons.inventory_2),
     ];
 
     return Column(

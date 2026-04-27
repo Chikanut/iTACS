@@ -260,11 +260,15 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
     );
 
     if (confirmed == true) {
+      final now = DateTime.now();
+      final userName = Globals.profileManager.currentUserName;
       final newContact = ContactEntry(
         unit: unitCtrl.text.trim(),
         rank: rankCtrl.text.trim(),
         name: nameCtrl.text.trim(),
         phone: phoneCtrl.text.trim(),
+        updatedAt: now,
+        updatedBy: userName,
       );
       final updated = List<ContactEntry>.from(dept.contacts);
       if (existingIndex != null) {
@@ -593,6 +597,13 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                 ),
               ),
             ],
+            if (contact.updatedAt != null) ...[
+              const SizedBox(height: 6),
+              _UpdatedBadge(
+                updatedAt: contact.updatedAt!,
+                updatedBy: contact.updatedBy,
+              ),
+            ],
           ],
         ),
       ),
@@ -916,6 +927,7 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
   // ─── Pluralization helpers ────────────────────────────────────────────────
 
   String _deptWord(int n) {
+
     if (n == 1) return 'підрозділ';
     if (n >= 2 && n <= 4) return 'підрозділи';
     return 'підрозділів';
@@ -925,5 +937,57 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
     if (n == 1) return 'контакт';
     if (n >= 2 && n <= 4) return 'контакти';
     return 'контактів';
+  }
+}
+
+class _UpdatedBadge extends StatelessWidget {
+  final DateTime updatedAt;
+  final String? updatedBy;
+
+  const _UpdatedBadge({required this.updatedAt, this.updatedBy});
+
+  String _formatAge(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inDays < 1) return 'сьогодні';
+    if (diff.inDays == 1) return 'вчора';
+    if (diff.inDays < 30) return '${diff.inDays} дн тому';
+    final months = (diff.inDays / 30).floor();
+    if (months < 12) return '$months міс тому';
+    final years = (diff.inDays / 365).floor();
+    return '$years р тому';
+  }
+
+  Color _ageColor(DateTime dt) {
+    final days = DateTime.now().difference(dt).inDays;
+    if (days < 90) return Colors.green.shade600;
+    if (days < 365) return Colors.orange.shade700;
+    return Colors.red.shade600;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _ageColor(updatedAt);
+    final label = updatedBy != null && updatedBy!.isNotEmpty
+        ? '${_formatAge(updatedAt)} · $updatedBy'
+        : _formatAge(updatedAt);
+
+    return Row(
+      children: [
+        Icon(Icons.update, size: 10, color: color),
+        const SizedBox(width: 3),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: color,
+              fontStyle: FontStyle.italic,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
   }
 }

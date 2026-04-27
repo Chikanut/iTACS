@@ -130,6 +130,36 @@ service cloud.firestore {
       allow read: if request.auth != null;
     }
 
+    // Журнали матбази (вбудований інструмент).
+    match /material_journals_by_group/{groupId} {
+      // Журнали (локації)
+      match /journals/{journalId} {
+        allow read: if isInGroup(groupId);
+        allow create, update: if hasEditorRights(groupId);
+        allow delete: if hasAdminRights(groupId);
+
+        // Елементи матбази
+        match /items/{itemId} {
+          allow read: if isInGroup(groupId);
+          allow create, update: if hasEditorRights(groupId);
+          allow delete: if hasAdminRights(groupId);
+        }
+
+        // Шаблони списання
+        match /templates/{templateId} {
+          allow read: if isInGroup(groupId);
+          allow create, update, delete: if hasEditorRights(groupId);
+        }
+      }
+
+      // Журнал змін — тільки читання і додавання, редагування/видалення заборонено
+      match /history/{recordId} {
+        allow read: if isInGroup(groupId);
+        allow create: if hasEditorRights(groupId);
+        allow update, delete: if false;
+      }
+    }
+
     function isInGroup(groupId) {
       return request.auth != null &&
         exists(/databases/$(database)/documents/allowed_users/$(groupId)) &&
