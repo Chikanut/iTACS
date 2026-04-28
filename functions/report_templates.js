@@ -3,6 +3,24 @@
 
 const ExcelJS = require("exceljs");
 
+// Monkey-patch ExcelJS so cell note boxes resize to fit their content.
+// VmlShapeXform hardcodes width/height in the VML style string; we replace
+// the static factory with one that reads _width/_height from the note model.
+try {
+  const VmlShapeXform = require("exceljs/lib/xlsx/xform/comment/vml-shape-xform");
+  const _origAttrs = VmlShapeXform.V_SHAPE_ATTRIBUTES;
+  VmlShapeXform.V_SHAPE_ATTRIBUTES = (model, index) => {
+    const attrs = _origAttrs(model, index);
+    const note = model && model.note;
+    if (note && (note._width || note._height)) {
+      attrs.style = attrs.style
+          .replace(/width:[^;]+/, `width:${note._width || "97.8pt"}`)
+          .replace(/height:[^;]+/, `height:${note._height || "59.1pt"}`);
+    }
+    return attrs;
+  };
+} catch (_) { /* ignore if ExcelJS internals change */ }
+
 const TEMPLATE_STATUS = {
   draft: "draft",
   active: "active",
@@ -132,6 +150,16 @@ const FIELD_CATALOG = {
     label: "ID шаблону заняття",
     valueType: "string",
     getRawValue: (row) => asString(row.lesson.templateId),
+  },
+  "lesson.duration": {
+    label: "Тривалість (хв.)",
+    valueType: "number",
+    getRawValue: (row) => {
+      const start = toDate(row.lesson.startTime);
+      const end = toDate(row.lesson.endTime);
+      if (!start || !end) return null;
+      return Math.round((end.getTime() - start.getTime()) / 60000);
+    },
   },
   "instructor.assignmentId": {
     label: "ID інструктора",
@@ -1433,8 +1461,8 @@ async function buildCalendarGridWorkbookBuffer({
         cell.fill = {type: "pattern", pattern: "solid", fgColor: {argb: rowBg}};
 
         if (noteFields.length > 0) {
-          const noteText = buildCalendarCellNote({lessonsOnDay, noteFields});
-          if (noteText) cell.note = noteText;
+          const noteObj = buildCalendarCellNote({lessonsOnDay, noteFields});
+          if (noteObj) cell.note = noteObj;
         }
       }
     }
@@ -1458,6 +1486,7 @@ async function buildCalendarGridWorkbookBuffer({
   return workbook.xlsx.writeBuffer();
 }
 
+// Returns {text, _width, _height} for use as cell.note object, or null.
 function buildCalendarCellNote({lessonsOnDay, noteFields}) {
   const parts = [];
   for (let li = 0; li < lessonsOnDay.length; li++) {
@@ -1478,7 +1507,19 @@ function buildCalendarCellNote({lessonsOnDay, noteFields}) {
       }
     }
   }
-  return parts.join("\n");
+  if (parts.length === 0) return null;
+  const text = parts.join("\n");
+  const lines = text.split("\n");
+  const maxLen = Math.max(...lines.map((l) => l.length));
+  // 9pt Tahoma: ~5.5pt per char, ~12pt per line, 16pt padding
+  const w = Math.max(80, Math.min(300, maxLen * 5.5 + 16));
+  const h = Math.max(40, lines.length * 12 + 16);
+  return {
+    texts: [{text}],
+    margins: {insetmode: "auto"},
+    _width: `${w.toFixed(1)}pt`,
+    _height: `${h.toFixed(1)}pt`,
+  };
 }
 
 async function buildWorkbookBuffer({
