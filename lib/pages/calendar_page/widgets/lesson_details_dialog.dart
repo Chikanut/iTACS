@@ -848,9 +848,8 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
 
     setState(() => _isLoading = true);
     try {
-      final selectedNames = availableOptions.entries
-          .where((entry) => selectedInstructorIds.contains(entry.key))
-          .map((entry) => entry.value)
+      final selectedNames = selectedInstructorIds
+          .map((id) => _storageNameForId(id))
           .toList();
 
       final success = await _calendarService.assignLessonInstructors(
@@ -1172,12 +1171,32 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
       final assignmentId = _memberAssignmentId(member);
       final displayName = _memberDisplayName(member);
       final email = ((member['email'] as String?) ?? '').trim();
+      // Use "Name (email)" only as a display label for disambiguation in the picker.
+      // The clean name (without email) is what gets stored via _storageNameForId().
       options[assignmentId] = email.isNotEmpty && displayName != email
           ? '$displayName ($email)'
           : displayName;
     }
 
     return options;
+  }
+
+  String _storageNameForId(String assignmentId) {
+    for (final member in _availableInstructors) {
+      if (_memberAssignmentId(member) == assignmentId) {
+        return _memberDisplayName(member);
+      }
+    }
+    // Fall back to the stored lesson name for this id (strip any appended email).
+    for (var i = 0; i < _lesson.instructorIds.length; i++) {
+      if (_lesson.instructorIds[i] == assignmentId) {
+        final stored = i < _lesson.instructorNames.length
+            ? _lesson.instructorNames[i]
+            : _lesson.instructorName;
+        return stored;
+      }
+    }
+    return assignmentId;
   }
 
   Future<void> _editCustomFieldValues() async {

@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
 import '../../../globals.dart';
@@ -501,17 +504,8 @@ class _ReportTemplateEditorDialogState
     super.dispose();
   }
 
-  void _save() {
-    if (_nameController.text.trim().isEmpty) {
-      Globals.errorNotificationManager.showError('Вкажіть назву шаблону');
-      return;
-    }
-    if (_columns.isEmpty) {
-      Globals.errorNotificationManager.showError('Додайте хоча б одну колонку');
-      return;
-    }
-
-    final draftConfig = ReportTemplateConfig(
+  ReportTemplateConfig _buildCurrentConfig() {
+    return ReportTemplateConfig(
       source: ReportTemplateSource.lessons,
       periodField: _periodField,
       rowMode: _rowMode,
@@ -528,6 +522,71 @@ class _ReportTemplateEditorDialogState
         autoWidth: _autoWidth,
       ),
     );
+  }
+
+  void _applyConfig(ReportTemplateConfig config) {
+    setState(() {
+      _periodField = config.periodField;
+      _rowMode = config.rowMode;
+      _freezeHeader = config.sheet.freezeHeader;
+      _autoWidth = config.sheet.autoWidth;
+      _sheetNameController.text = config.sheet.name;
+      _columns = List<ReportTemplateColumn>.from(config.columns);
+      _filters = List<ReportTemplateFilter>.from(config.filters);
+      _groupBy = List<String>.from(config.groupBy);
+      _sort = List<ReportTemplateSort>.from(config.sort);
+      _totals = List<ReportTemplateTotal>.from(config.totals);
+    });
+  }
+
+  Future<void> _showExportDialog() async {
+    final config = _buildCurrentConfig();
+    final json = const JsonEncoder.withIndent('  ').convert(config.toJson());
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => _TextExportDialog(json: json),
+    );
+  }
+
+  Future<void> _showImportDialog() async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => const _TextImportDialog(),
+    );
+    if (result == null) return;
+    try {
+      final decoded = jsonDecode(result);
+      if (decoded is! Map) throw const FormatException('Очікується JSON об\'єкт');
+      final config = ReportTemplateConfig.fromMap(Map<String, dynamic>.from(decoded));
+      _applyConfig(config);
+      if (mounted) {
+        Globals.errorNotificationManager.showSuccess('Шаблон імпортовано успішно');
+      }
+    } catch (e) {
+      if (mounted) {
+        Globals.errorNotificationManager.showError('Помилка парсингу: $e');
+      }
+    }
+  }
+
+  Future<void> _showAiInfoDialog() async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => const _AiInfoDialog(),
+    );
+  }
+
+  void _save() {
+    if (_nameController.text.trim().isEmpty) {
+      Globals.errorNotificationManager.showError('Вкажіть назву шаблону');
+      return;
+    }
+    if (_columns.isEmpty) {
+      Globals.errorNotificationManager.showError('Додайте хоча б одну колонку');
+      return;
+    }
+
+    final draftConfig = _buildCurrentConfig();
 
     final currentUserId = Globals.firebaseAuth.currentUser?.uid ?? 'system';
     final now = DateTime.now();
@@ -862,6 +921,22 @@ class _ReportTemplateEditorDialogState
         ),
       ),
       actions: [
+        TextButton.icon(
+          onPressed: _showAiInfoDialog,
+          icon: const Icon(Icons.smart_toy_outlined, size: 18),
+          label: const Text('AI Info'),
+        ),
+        TextButton.icon(
+          onPressed: _showExportDialog,
+          icon: const Icon(Icons.upload_outlined, size: 18),
+          label: const Text('Експорт'),
+        ),
+        TextButton.icon(
+          onPressed: _showImportDialog,
+          icon: const Icon(Icons.download_outlined, size: 18),
+          label: const Text('Імпорт'),
+        ),
+        const SizedBox(width: 8),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Скасувати'),
@@ -1320,6 +1395,278 @@ class _SimpleTextFieldState extends State<_SimpleTextField> {
             : 'Наприклад: ${widget.suggestions.take(4).join(', ')}',
       ),
       onChanged: widget.onChanged,
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Export dialog — shows JSON config text with a copy button
+// ---------------------------------------------------------------------------
+
+class _TextExportDialog extends StatelessWidget {
+  final String json;
+  const _TextExportDialog({required this.json});
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Експорт шаблону (JSON)'),
+      content: SizedBox(
+        width: 720,
+        height: 480,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Скопіюйте цей текст та передайте AI для редагування. '
+              'Отриманий від AI текст вставте через кнопку "Імпорт".',
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: TextField(
+                controller: TextEditingController(text: json),
+                maxLines: null,
+                expands: true,
+                readOnly: true,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.all(8),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton.icon(
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: json));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Скопійовано в буфер обміну')),
+            );
+          },
+          icon: const Icon(Icons.copy, size: 16),
+          label: const Text('Копіювати'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Закрити'),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Import dialog — user pastes JSON config text
+// ---------------------------------------------------------------------------
+
+class _TextImportDialog extends StatefulWidget {
+  const _TextImportDialog();
+
+  @override
+  State<_TextImportDialog> createState() => _TextImportDialogState();
+}
+
+class _TextImportDialogState extends State<_TextImportDialog> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Імпорт шаблону (JSON)'),
+      content: SizedBox(
+        width: 720,
+        height: 480,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Вставте JSON-текст шаблону, згенерований AI або експортований раніше.',
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: TextField(
+                controller: _controller,
+                maxLines: null,
+                expands: true,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: '{ "source": "lessons", ... }',
+                  contentPadding: EdgeInsets.all(8),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Скасувати'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(_controller.text.trim()),
+          child: const Text('Застосувати'),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// AI Info dialog — documentation for AI-assisted template generation
+// ---------------------------------------------------------------------------
+
+const _kAiInfoText = '''
+# Інструкція для генерації шаблону звіту GSPP
+
+## Загальна структура (JSON)
+Шаблон — це JSON-об'єкт з такими полями:
+  source        — "lessons" (єдиний варіант)
+  periodField   — "startTime" | "endTime"
+  rowMode       — "lesson" | "lesson_instructor"
+  columns       — масив об'єктів { key, label }
+  filters       — масив об'єктів фільтрів
+  groupBy       — масив рядків (ключів полів для групування)
+  sort          — масив об'єктів { key, dir: "asc"|"desc" }
+  totals        — масив об'єктів підсумків
+  sheet         — { name, freezeHeader, autoWidth }
+
+## Доступні поля (columns / groupBy / sort)
+lesson.title          — Назва заняття
+lesson.description    — Опис заняття
+lesson.startTime      — Дата і час початку (datetime)
+lesson.endTime        — Дата і час кінця (datetime)
+lesson.startDate      — Дата початку (тільки дата)
+lesson.endDate        — Дата завершення (тільки дата)
+lesson.unit           — Підрозділ
+lesson.status         — Статус (scheduled | completed | cancelled)
+lesson.duration       — Тривалість у хвилинах
+lesson.topic          — Тема
+instructor.name       — Ім'я викладача
+instructor.assignmentId — ID призначення викладача
+member.name           — Ім'я учасника (для rowMode lesson_instructor)
+custom.<code>         — Кастомне поле заняття (напр. custom.період_навчання)
+
+## Режими рядків (rowMode)
+"lesson"             — один рядок на заняття
+"lesson_instructor"  — один рядок на пару (заняття + викладач); потрібен для groupBy instructor.name
+
+## Фільтри
+Кожен фільтр: { key, operator, value? }
+Оператори:
+  "eq"           — дорівнює value
+  "neq"          — не дорівнює value
+  "in"           — входить до масиву values: [...]
+  "contains"     — рядок містить value
+  "exists"       — поле існує (value: true) або відсутнє (value: false)
+  "lte_now"      — дата <= поточного часу (для фільтрації минулих занять)
+  "date_between" — між start і end (ISO рядки, напр. "2026-01-01")
+
+## Підсумки (totals)
+Кожен підсумок: { type, label, key? }
+Типи:
+  "count"         — кількість рядків
+  "countDistinct" — унікальних значень поля key
+  "sum"           — сума числового поля key
+
+## Приклад повного шаблону
+{
+  "source": "lessons",
+  "periodField": "startTime",
+  "rowMode": "lesson_instructor",
+  "columns": [
+    { "key": "lesson.startDate", "label": "Дата" },
+    { "key": "lesson.unit", "label": "Підрозділ" },
+    { "key": "custom.період_навчання", "label": "Період навчання" },
+    { "key": "lesson.title", "label": "Назва заняття" }
+  ],
+  "filters": [
+    { "key": "lesson.endTime", "operator": "lte_now" }
+  ],
+  "groupBy": ["instructor.name"],
+  "sort": [
+    { "key": "lesson.startTime", "dir": "asc" }
+  ],
+  "totals": [
+    { "type": "count", "label": "Всього записів" }
+  ],
+  "sheet": {
+    "name": "Список занять",
+    "freezeHeader": true,
+    "autoWidth": true
+  }
+}
+''';
+
+class _AiInfoDialog extends StatelessWidget {
+  const _AiInfoDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Row(
+        children: [
+          Icon(Icons.smart_toy_outlined),
+          SizedBox(width: 8),
+          Text('AI Info — правила генерації шаблону'),
+        ],
+      ),
+      content: SizedBox(
+        width: 760,
+        height: 560,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              'Скопіюйте цей текст разом із вашим запитом і передайте AI. '
+              'AI поверне JSON, який можна вставити через кнопку "Імпорт".',
+              style: TextStyle(fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: TextField(
+                controller: TextEditingController(text: _kAiInfoText),
+                maxLines: null,
+                expands: true,
+                readOnly: true,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.all(8),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton.icon(
+          onPressed: () {
+            Clipboard.setData(const ClipboardData(text: _kAiInfoText));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Скопійовано в буфер обміну')),
+            );
+          },
+          icon: const Icon(Icons.copy, size: 16),
+          label: const Text('Копіювати'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Закрити'),
+        ),
+      ],
     );
   }
 }

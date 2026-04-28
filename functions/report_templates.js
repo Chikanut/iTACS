@@ -1502,9 +1502,9 @@ function formatDate(date) {
     return "";
   }
 
-  const day = String(currentDate.getDate()).padStart(2, "0");
-  const month = String(currentDate.getMonth() + 1).padStart(2, "0");
-  const year = currentDate.getFullYear();
+  const day = String(currentDate.getUTCDate()).padStart(2, "0");
+  const month = String(currentDate.getUTCMonth() + 1).padStart(2, "0");
+  const year = currentDate.getUTCFullYear();
   return `${day}.${month}.${year}`;
 }
 
@@ -1514,8 +1514,8 @@ function formatDateTime(date) {
     return "";
   }
 
-  const hours = String(currentDate.getHours()).padStart(2, "0");
-  const minutes = String(currentDate.getMinutes()).padStart(2, "0");
+  const hours = String(currentDate.getUTCHours()).padStart(2, "0");
+  const minutes = String(currentDate.getUTCMinutes()).padStart(2, "0");
   return `${formatDate(currentDate)} ${hours}:${minutes}`;
 }
 

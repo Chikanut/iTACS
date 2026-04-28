@@ -341,7 +341,12 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
     }
 
     Navigator.pop(context);
-    widget.onGenerate(range.$1, range.$2);
+    // Ensure endDate is end-of-day so lessons on the last day are included.
+    // Without this, endDate = midnight and lessons starting at e.g. 10:00
+    // local time (08:00 UTC) get cut off by the Firestore "<= endDate" query.
+    final end = range.$2;
+    final endOfDay = DateTime(end.year, end.month, end.day, 23, 59, 59);
+    widget.onGenerate(range.$1, endOfDay);
   }
 
   (DateTime, DateTime)? _resolvePeriodRange(String period) {

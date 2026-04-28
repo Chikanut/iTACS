@@ -383,7 +383,7 @@ class LessonCustomFieldValue {
   }
 
   static DateTime _normalizeDate(DateTime value) {
-    return DateTime(value.year, value.month, value.day);
+    return DateTime.utc(value.year, value.month, value.day);
   }
 
   static DateTime? _parseNullableDateTime(dynamic value) {
