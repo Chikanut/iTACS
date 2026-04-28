@@ -465,6 +465,8 @@ class _ReportTemplateEditorDialogState
   late List<String> _groupBy;
   late List<ReportTemplateSort> _sort;
   late List<ReportTemplateTotal> _totals;
+  late List<String> _calendarNoteFields;
+  late final TextEditingController _calendarCellMarkController;
 
   @override
   void initState() {
@@ -494,6 +496,10 @@ class _ReportTemplateEditorDialogState
     _groupBy = List<String>.from(config.groupBy);
     _sort = List<ReportTemplateSort>.from(config.sort);
     _totals = List<ReportTemplateTotal>.from(config.totals);
+    _calendarNoteFields = List<String>.from(config.calendarNoteFields);
+    _calendarCellMarkController = TextEditingController(
+      text: config.calendarCellMark,
+    );
   }
 
   @override
@@ -501,6 +507,7 @@ class _ReportTemplateEditorDialogState
     _nameController.dispose();
     _descriptionController.dispose();
     _sheetNameController.dispose();
+    _calendarCellMarkController.dispose();
     super.dispose();
   }
 
@@ -510,7 +517,9 @@ class _ReportTemplateEditorDialogState
       periodField: _periodField,
       rowMode: _rowMode,
       filters: _filters,
-      columns: _columns,
+      columns: _columns.isNotEmpty
+          ? _columns
+          : [const ReportTemplateColumn(key: 'lesson.title', label: 'Назва')],
       groupBy: _groupBy.where((item) => item.trim().isNotEmpty).toList(),
       sort: _sort,
       totals: _totals,
@@ -521,6 +530,11 @@ class _ReportTemplateEditorDialogState
         freezeHeader: _freezeHeader,
         autoWidth: _autoWidth,
       ),
+      calendarNoteFields:
+          _calendarNoteFields.where((f) => f.trim().isNotEmpty).toList(),
+      calendarCellMark: _calendarCellMarkController.text.trim().isEmpty
+          ? 'З'
+          : _calendarCellMarkController.text.trim(),
     );
   }
 
@@ -536,6 +550,8 @@ class _ReportTemplateEditorDialogState
       _groupBy = List<String>.from(config.groupBy);
       _sort = List<ReportTemplateSort>.from(config.sort);
       _totals = List<ReportTemplateTotal>.from(config.totals);
+      _calendarNoteFields = List<String>.from(config.calendarNoteFields);
+      _calendarCellMarkController.text = config.calendarCellMark;
     });
   }
 
@@ -581,7 +597,7 @@ class _ReportTemplateEditorDialogState
       Globals.errorNotificationManager.showError('Вкажіть назву шаблону');
       return;
     }
-    if (_columns.isEmpty) {
+    if (_rowMode != ReportTemplateRowMode.calendarGrid && _columns.isEmpty) {
       Globals.errorNotificationManager.showError('Додайте хоча б одну колонку');
       return;
     }
@@ -736,6 +752,53 @@ class _ReportTemplateEditorDialogState
               fieldSuggestions: fieldSuggestions,
               onChanged: (value) => setState(() => _sort[index] = value),
               onRemove: () => setState(() => _sort.removeAt(index)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCalendarGridSection(List<String> fieldSuggestions) {
+    return _SectionCard(
+      title: 'Календарна сітка',
+      onAdd: () {
+        setState(() {
+          _calendarNoteFields = [..._calendarNoteFields, 'lesson.unit'];
+        });
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _calendarCellMarkController,
+            decoration: const InputDecoration(
+              labelText: 'Мітка клітинки',
+              helperText: 'Символ або текст в клітинці заняття (напр. З)',
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Поля для приміток Excel (відображаються при наведенні на клітинку):',
+            style: TextStyle(fontSize: 12),
+          ),
+          const SizedBox(height: 4),
+          for (var index = 0; index < _calendarNoteFields.length; index++)
+            _EditableKeyChipRow(
+              label: 'Поле примітки',
+              value: _calendarNoteFields[index],
+              suggestions: fieldSuggestions,
+              onChanged: (value) =>
+                  setState(() => _calendarNoteFields[index] = value),
+              onRemove: () =>
+                  setState(() => _calendarNoteFields.removeAt(index)),
+            ),
+          if (_calendarNoteFields.isEmpty)
+            const Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: Text(
+                'Немає полів — примітки не генеруватимуться',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
             ),
         ],
       ),
@@ -902,16 +965,24 @@ class _ReportTemplateEditorDialogState
                 onChanged: (value) => setState(() => _autoWidth = value),
               ),
               const SizedBox(height: 16),
-              _buildColumnsSection(fieldSuggestions),
-              const SizedBox(height: 16),
+              if (_rowMode != ReportTemplateRowMode.calendarGrid) ...[
+                _buildColumnsSection(fieldSuggestions),
+                const SizedBox(height: 16),
+              ],
               _buildFiltersSection(fieldSuggestions),
               const SizedBox(height: 16),
               _buildGroupBySection(fieldSuggestions),
               const SizedBox(height: 16),
-              _buildSortSection(fieldSuggestions),
-              const SizedBox(height: 16),
-              _buildTotalsSection(fieldSuggestions),
-              const SizedBox(height: 16),
+              if (_rowMode != ReportTemplateRowMode.calendarGrid) ...[
+                _buildSortSection(fieldSuggestions),
+                const SizedBox(height: 16),
+                _buildTotalsSection(fieldSuggestions),
+                const SizedBox(height: 16),
+              ],
+              if (_rowMode == ReportTemplateRowMode.calendarGrid) ...[
+                _buildCalendarGridSection(fieldSuggestions),
+                const SizedBox(height: 16),
+              ],
               Text(
                 'Доступні поля: ${fieldSuggestions.join(', ')}',
                 style: TextStyle(color: Colors.grey.shade700, fontSize: 12),
@@ -1562,6 +1633,9 @@ custom.<code>         — Кастомне поле заняття (напр. cu
 ## Режими рядків (rowMode)
 "lesson"             — один рядок на заняття
 "lesson_instructor"  — один рядок на пару (заняття + викладач); потрібен для groupBy instructor.name
+"calendar_grid"      — МАТРИЧНА СІТКА: рядок = особа (groupBy), колонки = дні місяця
+                       Секції columns/sort/totals ігноруються.
+                       Потрібні поля: groupBy (хто є рядками), calendarNoteFields, calendarCellMark
 
 ## Фільтри
 Кожен фільтр: { key, operator, value? }
@@ -1573,6 +1647,32 @@ custom.<code>         — Кастомне поле заняття (напр. cu
   "exists"       — поле існує (value: true) або відсутнє (value: false)
   "lte_now"      — дата <= поточного часу (для фільтрації минулих занять)
   "date_between" — між start і end (ISO рядки, напр. "2026-01-01")
+
+## Параметри calendar_grid (лише для rowMode: "calendar_grid")
+calendarCellMark    — символ в клітинці заняття, напр. "З" (default: "З")
+                      Якщо занять > 1 в день — показується "З(2)", "З(3)" тощо
+calendarNoteFields  — масив ключів полів що йдуть в Excel-примітку клітинки
+                      Порядок важливий. Рекомендовані поля:
+                      "lesson.unit"        → Підрозділ
+                      "lesson.title"       → Назва (Т1/Т2 тощо)
+                      "lesson.description" → Тема заняття
+                      "lesson.duration"    → Тривалість
+                      "custom.<code>"      → Кастомне поле
+
+## Приклад calendar_grid шаблону
+{
+  "source": "lessons",
+  "periodField": "startTime",
+  "rowMode": "calendar_grid",
+  "filters": [{"key": "lesson.endTime", "operator": "lte_now"}],
+  "columns": [],
+  "groupBy": ["instructor.name"],
+  "sort": [],
+  "totals": [],
+  "calendarCellMark": "З",
+  "calendarNoteFields": ["lesson.unit", "lesson.title", "lesson.description", "lesson.duration"],
+  "sheet": {"name": "Відомість", "freezeHeader": true, "autoWidth": false}
+}
 
 ## Підсумки (totals)
 Кожен підсумок: { type, label, key? }

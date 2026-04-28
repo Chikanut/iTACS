@@ -57,7 +57,8 @@ enum ReportTemplatePeriodField {
 
 enum ReportTemplateRowMode {
   lesson('lesson', 'Один рядок = одне заняття'),
-  lessonInstructor('lesson_instructor', 'Один рядок = заняття + інструктор');
+  lessonInstructor('lesson_instructor', 'Один рядок = заняття + інструктор'),
+  calendarGrid('calendar_grid', 'Календарна сітка (рядок = особа, колонка = день)');
 
   const ReportTemplateRowMode(this.id, this.displayName);
 
@@ -318,6 +319,9 @@ class ReportTemplateConfig {
   final List<ReportTemplateSort> sort;
   final List<ReportTemplateTotal> totals;
   final ReportTemplateSheet sheet;
+  // calendar_grid specific
+  final List<String> calendarNoteFields;
+  final String calendarCellMark;
 
   const ReportTemplateConfig({
     required this.source,
@@ -329,6 +333,8 @@ class ReportTemplateConfig {
     required this.sort,
     required this.totals,
     required this.sheet,
+    this.calendarNoteFields = const [],
+    this.calendarCellMark = 'З',
   });
 
   factory ReportTemplateConfig.fromMap(Map<String, dynamic> map) {
@@ -373,6 +379,11 @@ class ReportTemplateConfig {
       sheet: ReportTemplateSheet.fromMap(
         Map<String, dynamic>.from(map['sheet'] ?? const {}),
       ),
+      calendarNoteFields: (map['calendarNoteFields'] as List? ?? const [])
+          .map((item) => item.toString().trim())
+          .where((item) => item.isNotEmpty)
+          .toList(),
+      calendarCellMark: (map['calendarCellMark'] as String?) ?? 'З',
     );
   }
 
@@ -386,6 +397,8 @@ class ReportTemplateConfig {
     'sort': sort.map((item) => item.toJson()).toList(),
     'totals': totals.map((item) => item.toJson()).toList(),
     'sheet': sheet.toJson(),
+    if (calendarNoteFields.isNotEmpty) 'calendarNoteFields': calendarNoteFields,
+    if (calendarCellMark != 'З') 'calendarCellMark': calendarCellMark,
   };
 
   ReportTemplateConfig copyWith({
@@ -398,6 +411,8 @@ class ReportTemplateConfig {
     List<ReportTemplateSort>? sort,
     List<ReportTemplateTotal>? totals,
     ReportTemplateSheet? sheet,
+    List<String>? calendarNoteFields,
+    String? calendarCellMark,
   }) {
     return ReportTemplateConfig(
       source: source ?? this.source,
@@ -409,6 +424,8 @@ class ReportTemplateConfig {
       sort: sort ?? this.sort,
       totals: totals ?? this.totals,
       sheet: sheet ?? this.sheet,
+      calendarNoteFields: calendarNoteFields ?? this.calendarNoteFields,
+      calendarCellMark: calendarCellMark ?? this.calendarCellMark,
     );
   }
 }

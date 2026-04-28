@@ -20,6 +20,7 @@ const TEMPLATE_PERIOD_FIELD = {
 const TEMPLATE_ROW_MODE = {
   lesson: "lesson",
   lessonInstructor: "lesson_instructor",
+  calendarGrid: "calendar_grid",
 };
 
 const FILTER_OPERATOR = {
@@ -207,6 +208,40 @@ function createPreviewHandler({db, admin, functionsV1}) {
     });
 
     const normalizedTemplate = normalizeTemplateDocument(template);
+
+    if (config.rowMode === TEMPLATE_ROW_MODE.calendarGrid) {
+      const {groups, days, warnings} = await buildCalendarGridDataset({
+        db, admin, groupId: request.groupId, config,
+        startDate: request.startDate, endDate: request.endDate,
+      });
+      const UA_WEEKDAYS = ["НД", "ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ"];
+      const columns = [
+        {key: "instructor", label: "Інструктор"},
+        ...days.slice(0, 10).map((d) => ({
+          key: `day_${d.dayNum}`,
+          label: `${d.dayNum} ${UA_WEEKDAYS[d.weekdayIdx]}`,
+        })),
+        {key: "total", label: "Всього"},
+      ];
+      const mark = asString(config.calendarCellMark) || "З";
+      const sampleRows = groups.slice(0, MAX_PREVIEW_ROWS).map((g) => {
+        const row = {instructor: g.name, total: String(g.totalLessons)};
+        for (const d of days.slice(0, 10)) {
+          const count = (g.dayMap.get(d.dayKey) || []).length;
+          row[`day_${d.dayNum}`] = count > 0 ? (count === 1 ? mark : `${mark}(${count})`) : "";
+        }
+        return row;
+      });
+      return {
+        templateId: request.templateId,
+        templateName: normalizedTemplate.name,
+        columns,
+        sampleRows,
+        totalRows: groups.length,
+        warnings,
+      };
+    }
+
     const dataset = await buildReportDataset({
       db,
       admin,
@@ -320,6 +355,33 @@ function createGenerateHandler({db, admin, functionsV1}) {
           "permission-denied",
           "Недостатньо прав для генерації цього звіту.",
       );
+    }
+
+    if (config.rowMode === TEMPLATE_ROW_MODE.calendarGrid) {
+      const {groups, days, warnings} = await buildCalendarGridDataset({
+        db, admin, groupId: request.groupId, config,
+        startDate: request.startDate, endDate: request.endDate,
+      });
+      const workbookBuffer = await buildCalendarGridWorkbookBuffer({
+        groupName: membership.groupName,
+        templateName: normalizedTemplate.name,
+        startDate: request.startDate,
+        endDate: request.endDate,
+        groups, days, config,
+      });
+      return {
+        templateId: request.templateId,
+        templateName: normalizedTemplate.name,
+        fileName: buildReportFileName({
+          templateName: normalizedTemplate.name,
+          startDate: request.startDate,
+          endDate: request.endDate,
+        }),
+        mimeType: XLSX_MIME_TYPE,
+        bytesBase64: Buffer.from(workbookBuffer).toString("base64"),
+        warnings,
+        totalRows: groups.reduce((s, g) => s + g.totalLessons, 0),
+      };
     }
 
     const dataset = await buildReportDataset({
@@ -1056,13 +1118,21 @@ function normalizeTemplateConfig(rawConfig) {
   if (!Object.values(TEMPLATE_ROW_MODE).includes(rowMode)) {
     throw new Error("Непідтримуваний режим рядків.");
   }
-  if (columns.length === 0) {
+  if (rowMode !== TEMPLATE_ROW_MODE.calendarGrid && columns.length === 0) {
     throw new Error("Шаблон має містити хоча б одну колонку.");
   }
 
   for (const key of groupBy) {
     validateFieldKey(key);
   }
+
+  const calendarNoteFields = ensureArray(rawConfig.calendarNoteFields)
+      .map((item) => asString(item).trim())
+      .filter(Boolean);
+  for (const key of calendarNoteFields) {
+    validateFieldKey(key);
+  }
+  const calendarCellMark = asString(rawConfig.calendarCellMark) || "З";
 
   return {
     source,
@@ -1074,6 +1144,8 @@ function normalizeTemplateConfig(rawConfig) {
     sort,
     totals,
     sheet,
+    calendarNoteFields,
+    calendarCellMark,
   };
 }
 
@@ -1183,6 +1255,230 @@ function getFieldLabel(key) {
     return key.slice("custom.".length);
   }
   return key;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CALENDAR GRID  (rowMode: "calendar_grid")
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function buildCalendarGridDataset({
+  db, admin, groupId, config, startDate, endDate,
+}) {
+  const lessons = await fetchLessonsForPeriod({
+    db, admin, groupId, config, startDate, endDate,
+  });
+
+  // Build day list (UTC day boundaries)
+  const days = [];
+  const cur = new Date(Date.UTC(
+      startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate(),
+  ));
+  const last = new Date(Date.UTC(
+      endDate.getUTCFullYear(), endDate.getUTCMonth(), endDate.getUTCDate(),
+  ));
+  while (cur <= last) {
+    const y = cur.getUTCFullYear();
+    const m = String(cur.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(cur.getUTCDate()).padStart(2, "0");
+    days.push({
+      date: new Date(cur),
+      dayNum: cur.getUTCDate(),
+      weekdayIdx: cur.getUTCDay(),
+      isWeekend: cur.getUTCDay() === 0 || cur.getUTCDay() === 6,
+      dayKey: `${y}-${m}-${d}`,
+    });
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+
+  // Group lessons by the first groupBy key
+  const groupByKey = (config.groupBy && config.groupBy[0]) || "instructor.name";
+  const groupMap = new Map();
+
+  function addToGroup(name, lesson, dayKey) {
+    if (!groupMap.has(name)) {
+      groupMap.set(name, {name, dayMap: new Map(), totalLessons: 0});
+    }
+    const g = groupMap.get(name);
+    if (!g.dayMap.has(dayKey)) g.dayMap.set(dayKey, []);
+    g.dayMap.get(dayKey).push(lesson);
+    g.totalLessons++;
+  }
+
+  for (const lesson of lessons) {
+    const lessonDate = toDate(lesson[config.periodField || "startTime"]);
+    if (!lessonDate) continue;
+    const y = lessonDate.getUTCFullYear();
+    const m = String(lessonDate.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(lessonDate.getUTCDate()).padStart(2, "0");
+    const dayKey = `${y}-${m}-${d}`;
+
+    if (groupByKey === "instructor.name") {
+      const names = Array.isArray(lesson.instructorNames) && lesson.instructorNames.length > 0
+        ? lesson.instructorNames
+        : [asString(lesson.instructorName) || "Без інструктора"];
+      for (const name of names) {
+        if (name) addToGroup(name, lesson, dayKey);
+      }
+    } else {
+      const descriptor = FIELD_CATALOG[groupByKey];
+      const row = {lesson, instructor: {name: ""}, member: {}};
+      const rawVal = descriptor ? descriptor.getRawValue(row) : null;
+      const groupName = formatFieldValue(groupByKey, rawVal) || "(без значення)";
+      addToGroup(groupName, lesson, dayKey);
+    }
+  }
+
+  const groups = [...groupMap.values()].sort((a, b) =>
+    a.name.localeCompare(b.name, "uk"),
+  );
+  const warnings = groups.length === 0 ? ["Не знайдено занять для вказаного періоду."] : [];
+  return {groups, days, warnings};
+}
+
+async function buildCalendarGridWorkbookBuffer({
+  groupName, templateName, startDate, endDate, groups, days, config,
+}) {
+  const workbook = new ExcelJS.Workbook();
+  const sheetName = (templateName || "Відомість").substring(0, 31);
+  const ws = workbook.addWorksheet(sheetName);
+
+  const UA_WEEKDAYS = ["НД", "ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ"];
+  const noteFields = Array.isArray(config.calendarNoteFields) ? config.calendarNoteFields : [];
+  const cellMark = asString(config.calendarCellMark) || "З";
+  const totalCols = days.length + 2; // col1=name, col2..N+1=days, last=total
+
+  const BLUE_HEADER = "FFD9E1F2";
+  const WEEKEND_HEADER = "FFFFCCCC";
+  const WEEKEND_EMPTY = "FFFFF5F5";
+  const THIN = {style: "thin", color: {argb: "FFB0B0B0"}};
+  const cellBorder = {top: THIN, left: THIN, bottom: THIN, right: THIN};
+
+  // ── Meta rows ──
+  ws.mergeCells(1, 1, 1, totalCols);
+  const r1 = ws.getCell(1, 1);
+  r1.value = (templateName || "").toUpperCase();
+  r1.font = {bold: true, size: 13};
+  r1.alignment = {horizontal: "center"};
+
+  ws.mergeCells(2, 1, 2, totalCols);
+  const r2 = ws.getCell(2, 1);
+  r2.value = `за період з ${formatDate(startDate)} по ${formatDate(endDate)} • Група: ${groupName || ""}`;
+  r2.alignment = {horizontal: "center"};
+
+  ws.mergeCells(3, 1, 3, totalCols);
+  const r3 = ws.getCell(3, 1);
+  r3.value = `Згенеровано: ${formatDateTime(new Date())}`;
+  r3.font = {size: 9, color: {argb: "FF888888"}};
+  r3.alignment = {horizontal: "center"};
+
+  // ── Header row ──
+  const HDR = 4;
+  ws.getRow(HDR).height = 28;
+
+  function styleHeader(cell, bg, isWeekend) {
+    cell.font = {bold: true, ...(isWeekend ? {color: {argb: "FFCC0000"}} : {})};
+    cell.alignment = {horizontal: "center", vertical: "middle", wrapText: true};
+    cell.fill = {type: "pattern", pattern: "solid", fgColor: {argb: bg}};
+    cell.border = cellBorder;
+  }
+
+  const nameHdr = ws.getCell(HDR, 1);
+  nameHdr.value = "Інструктор";
+  styleHeader(nameHdr, BLUE_HEADER, false);
+  nameHdr.alignment = {horizontal: "left", vertical: "middle"};
+
+  for (let i = 0; i < days.length; i++) {
+    const {dayNum, weekdayIdx, isWeekend} = days[i];
+    const hdr = ws.getCell(HDR, i + 2);
+    hdr.value = `${dayNum}\n${UA_WEEKDAYS[weekdayIdx]}`;
+    styleHeader(hdr, isWeekend ? WEEKEND_HEADER : BLUE_HEADER, isWeekend);
+  }
+
+  const totalHdr = ws.getCell(HDR, totalCols);
+  totalHdr.value = "Всього";
+  styleHeader(totalHdr, BLUE_HEADER, false);
+
+  // ── Data rows ──
+  for (let r = 0; r < groups.length; r++) {
+    const group = groups[r];
+    const rowIdx = HDR + 1 + r;
+    const rowBg = r % 2 === 0 ? "FFFAFAFA" : "FFFFFFFF";
+    ws.getRow(rowIdx).height = 16;
+
+    const nameCell = ws.getCell(rowIdx, 1);
+    nameCell.value = group.name;
+    nameCell.alignment = {vertical: "middle"};
+    nameCell.border = cellBorder;
+    nameCell.fill = {type: "pattern", pattern: "solid", fgColor: {argb: rowBg}};
+
+    let total = 0;
+    for (let i = 0; i < days.length; i++) {
+      const {dayKey, isWeekend} = days[i];
+      const cell = ws.getCell(rowIdx, i + 2);
+      cell.border = cellBorder;
+      const lessonsOnDay = group.dayMap.get(dayKey) || [];
+
+      if (lessonsOnDay.length === 0) {
+        cell.fill = {
+          type: "pattern", pattern: "solid",
+          fgColor: {argb: isWeekend ? WEEKEND_EMPTY : rowBg},
+        };
+      } else {
+        total += lessonsOnDay.length;
+        cell.value = lessonsOnDay.length === 1
+          ? cellMark
+          : `${cellMark}(${lessonsOnDay.length})`;
+        cell.alignment = {horizontal: "center", vertical: "middle"};
+        cell.font = {bold: true, color: {argb: "FF1F4E79"}};
+        cell.fill = {type: "pattern", pattern: "solid", fgColor: {argb: rowBg}};
+
+        if (noteFields.length > 0) {
+          const noteText = buildCalendarCellNote({lessonsOnDay, noteFields});
+          if (noteText) cell.note = noteText;
+        }
+      }
+    }
+
+    const totCell = ws.getCell(rowIdx, totalCols);
+    totCell.value = total || "";
+    totCell.alignment = {horizontal: "center", vertical: "middle"};
+    totCell.border = cellBorder;
+    totCell.fill = {type: "pattern", pattern: "solid", fgColor: {argb: BLUE_HEADER}};
+    if (total > 0) totCell.font = {bold: true};
+  }
+
+  // ── Column widths ──
+  ws.getColumn(1).width = 26;
+  for (let i = 0; i < days.length; i++) ws.getColumn(i + 2).width = 4.5;
+  ws.getColumn(totalCols).width = 8;
+
+  // ── Freeze: first col + header rows ──
+  ws.views = [{state: "frozen", xSplit: 1, ySplit: HDR}];
+
+  return workbook.xlsx.writeBuffer();
+}
+
+function buildCalendarCellNote({lessonsOnDay, noteFields}) {
+  const parts = [];
+  for (let li = 0; li < lessonsOnDay.length; li++) {
+    if (li > 0) parts.push("");
+    if (lessonsOnDay.length > 1) parts.push(`── Заняття ${li + 1} ──`);
+    const lesson = lessonsOnDay[li];
+    const row = {lesson, instructor: {name: ""}, member: {}};
+    for (const fieldKey of noteFields) {
+      const descriptor = FIELD_CATALOG[fieldKey];
+      if (descriptor) {
+        const rawValue = descriptor.getRawValue(row);
+        const formatted = formatFieldValue(fieldKey, rawValue);
+        if (formatted) parts.push(`${descriptor.label}: ${formatted}`);
+      } else if (isCustomFieldKey(fieldKey)) {
+        const code = fieldKey.slice("custom.".length);
+        const val = resolveCustomFieldValue(lesson, code);
+        if (val) parts.push(val);
+      }
+    }
+  }
+  return parts.join("\n");
 }
 
 async function buildWorkbookBuffer({
