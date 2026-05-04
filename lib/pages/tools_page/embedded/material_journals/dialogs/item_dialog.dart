@@ -170,11 +170,9 @@ class _ItemDialogState extends State<ItemDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final groups = widget.availableGroups
-        .where((g) => g.isNotEmpty)
-        .toSet()
-        .toList()
-      ..sort();
+    final groups =
+        widget.availableGroups.where((g) => g.isNotEmpty).toSet().toList()
+          ..sort();
 
     return AlertDialog(
       title: Text(widget.isEditing ? 'Редагувати елемент' : 'Новий елемент'),
@@ -326,8 +324,7 @@ class _ItemDialogState extends State<ItemDialog> {
                         avatar: const Icon(Icons.folder, size: 14),
                         label: Text(g, style: const TextStyle(fontSize: 12)),
                         visualDensity: VisualDensity.compact,
-                        onPressed: () =>
-                            setState(() => _groupCtrl.text = g),
+                        onPressed: () => setState(() => _groupCtrl.text = g),
                       ),
                   ],
                 ),

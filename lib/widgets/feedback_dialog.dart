@@ -85,7 +85,11 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.check_circle_outline, size: 56, color: AppTheme.secondaryGreen),
+          Icon(
+            Icons.check_circle_outline,
+            size: 56,
+            color: AppTheme.secondaryGreen,
+          ),
           const SizedBox(height: 16),
           const Text(
             'Дякуємо!',
@@ -131,7 +135,9 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
                   ),
                 ),
                 IconButton(
-                  onPressed: _isSending ? null : () => Navigator.of(context).pop(),
+                  onPressed: _isSending
+                      ? null
+                      : () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.close),
                   visualDensity: VisualDensity.compact,
                 ),
@@ -181,10 +187,14 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
                 hintText: _descriptionPlaceholder,
                 alignLabelWithHint: true,
                 border: const OutlineInputBorder(),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 12,
+                ),
               ),
               validator: (v) {
-                if (v == null || v.trim().isEmpty) return 'Будь ласка, опишіть проблему або пропозицію';
+                if (v == null || v.trim().isEmpty)
+                  return 'Будь ласка, опишіть проблему або пропозицію';
                 if (v.trim().length < 10) return 'Опис занадто короткий';
                 return null;
               },
@@ -196,7 +206,9 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
-                  onPressed: _isSending ? null : () => Navigator.of(context).pop(),
+                  onPressed: _isSending
+                      ? null
+                      : () => Navigator.of(context).pop(),
                   child: const Text('Скасувати'),
                 ),
                 const SizedBox(width: 8),
@@ -206,7 +218,10 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
                       ? const SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
                         )
                       : const Icon(Icons.send_outlined, size: 18),
                   label: const Text('Надіслати'),
@@ -256,14 +271,29 @@ class _CategorySelector extends StatelessWidget {
       children: [
         _chip(context, FeedbackCategory.bug, Icons.bug_report_outlined, 'Баг'),
         const SizedBox(width: 8),
-        _chip(context, FeedbackCategory.feature, Icons.lightbulb_outline, 'Пропозиція'),
+        _chip(
+          context,
+          FeedbackCategory.feature,
+          Icons.lightbulb_outline,
+          'Пропозиція',
+        ),
         const SizedBox(width: 8),
-        _chip(context, FeedbackCategory.other, Icons.chat_bubble_outline, 'Інше'),
+        _chip(
+          context,
+          FeedbackCategory.other,
+          Icons.chat_bubble_outline,
+          'Інше',
+        ),
       ],
     );
   }
 
-  Widget _chip(BuildContext context, FeedbackCategory cat, IconData icon, String label) {
+  Widget _chip(
+    BuildContext context,
+    FeedbackCategory cat,
+    IconData icon,
+    String label,
+  ) {
     final isSelected = selected == cat;
     final colorScheme = Theme.of(context).colorScheme;
     return Expanded(
@@ -273,9 +303,13 @@ class _CategorySelector extends StatelessWidget {
           duration: const Duration(milliseconds: 150),
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? colorScheme.primary.withOpacity(0.15) : colorScheme.surface,
+            color: isSelected
+                ? colorScheme.primary.withOpacity(0.15)
+                : colorScheme.surface,
             border: Border.all(
-              color: isSelected ? colorScheme.primary : colorScheme.outline.withOpacity(0.4),
+              color: isSelected
+                  ? colorScheme.primary
+                  : colorScheme.outline.withOpacity(0.4),
               width: isSelected ? 1.5 : 1,
             ),
             borderRadius: BorderRadius.circular(8),
@@ -286,7 +320,9 @@ class _CategorySelector extends StatelessWidget {
               Icon(
                 icon,
                 size: 20,
-                color: isSelected ? colorScheme.primary : colorScheme.onSurface.withOpacity(0.6),
+                color: isSelected
+                    ? colorScheme.primary
+                    : colorScheme.onSurface.withOpacity(0.6),
               ),
               const SizedBox(height: 4),
               Text(
@@ -294,7 +330,9 @@ class _CategorySelector extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-                  color: isSelected ? colorScheme.primary : colorScheme.onSurface.withOpacity(0.7),
+                  color: isSelected
+                      ? colorScheme.primary
+                      : colorScheme.onSurface.withOpacity(0.7),
                 ),
               ),
             ],
@@ -319,14 +357,24 @@ class _PrioritySelector extends StatelessWidget {
       children: [
         _pill(context, FeedbackPriority.low, 'Низька', AppTheme.secondaryGreen),
         const SizedBox(width: 8),
-        _pill(context, FeedbackPriority.medium, 'Середня', AppTheme.warningOrange),
+        _pill(
+          context,
+          FeedbackPriority.medium,
+          'Середня',
+          AppTheme.warningOrange,
+        ),
         const SizedBox(width: 8),
         _pill(context, FeedbackPriority.high, 'Критична', AppTheme.dangerRed),
       ],
     );
   }
 
-  Widget _pill(BuildContext context, FeedbackPriority p, String label, Color color) {
+  Widget _pill(
+    BuildContext context,
+    FeedbackPriority p,
+    String label,
+    Color color,
+  ) {
     final isSelected = selected == p;
     return Expanded(
       child: GestureDetector(

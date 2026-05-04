@@ -434,7 +434,8 @@ class _PersonnelFullInfoTabState extends State<PersonnelFullInfoTab> {
             _buildFamilySection(),
             _buildExperienceSection(),
             _buildLanguageSection(),
-            if (Globals.profileManager.isCurrentGroupAdmin) _buildAdminSection(),
+            if (Globals.profileManager.isCurrentGroupAdmin)
+              _buildAdminSection(),
             const SizedBox(height: 24),
           ],
         ),
@@ -1358,8 +1359,7 @@ class _PersonnelFullInfoTabState extends State<PersonnelFullInfoTab> {
               (lang) => lang.toLowerCase().contains(query),
             );
           },
-          onSelected: (value) =>
-              setDialogState(() => selectedLanguage = value),
+          onSelected: (value) => setDialogState(() => selectedLanguage = value),
           fieldViewBuilder: (_, controller, focusNode, onSubmit) {
             return TextFormField(
               controller: controller,

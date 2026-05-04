@@ -46,12 +46,9 @@ class _MaterialJournalPageState extends State<MaterialJournalPage>
   String get _journalId => widget.journal.id;
   String get _userName => Globals.profileManager.currentUserName;
 
-  List<String> get _availableGroups => _items
-      .map((i) => i.group)
-      .where((g) => g.isNotEmpty)
-      .toSet()
-      .toList()
-    ..sort();
+  List<String> get _availableGroups =>
+      _items.map((i) => i.group).where((g) => g.isNotEmpty).toSet().toList()
+        ..sort();
 
   @override
   void initState() {
@@ -349,9 +346,7 @@ class _MaterialJournalPageState extends State<MaterialJournalPage>
                 children: [
                   if (criticalCount > 0) _CriticalBanner(count: criticalCount),
                   Expanded(
-                    child: _items.isEmpty
-                        ? _buildEmpty()
-                        : _buildGroupedList(),
+                    child: _items.isEmpty ? _buildEmpty() : _buildGroupedList(),
                   ),
                 ],
               ),
@@ -394,9 +389,8 @@ class _MaterialJournalPageState extends State<MaterialJournalPage>
           name: groupName,
           count: groupItems.length,
           collapsed: collapsed,
-          onToggle: () => setState(
-            () => _collapsedGroups[groupName] = !collapsed,
-          ),
+          onToggle: () =>
+              setState(() => _collapsedGroups[groupName] = !collapsed),
           children: groupItems.map(_buildItemTile).toList(),
         ),
       );
@@ -573,10 +567,7 @@ class _GroupSection extends StatelessWidget {
           ),
           // Items
           if (!collapsed) ...[
-            Divider(
-              height: 1,
-              color: Colors.amber.shade200.withOpacity(0.8),
-            ),
+            Divider(height: 1, color: Colors.amber.shade200.withOpacity(0.8)),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
               child: Column(
@@ -1147,11 +1138,7 @@ class _TemplateCard extends StatelessWidget {
                     onPressed: onEdit,
                   ),
                   IconButton(
-                    icon: const Icon(
-                      Icons.delete,
-                      size: 18,
-                      color: Colors.red,
-                    ),
+                    icon: const Icon(Icons.delete, size: 18, color: Colors.red),
                     visualDensity: VisualDensity.compact,
                     padding: const EdgeInsets.all(8),
                     tooltip: 'Видалити',
