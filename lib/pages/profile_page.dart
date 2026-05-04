@@ -16,12 +16,16 @@ class ProfilePage extends StatefulWidget {
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class _ProfilePageState extends State<ProfilePage>
+    with SingleTickerProviderStateMixin {
   final TextEditingController _firstNameController = TextEditingController();
   final TextEditingController _lastNameController = TextEditingController();
   final TextEditingController _rankController = TextEditingController();
   final TextEditingController _positionController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
+
+  late final TabController _tabController;
+  int _currentTab = 0;
 
   NotificationPreferences _notificationPreferences =
       NotificationPreferences.defaults;
@@ -32,11 +36,18 @@ class _ProfilePageState extends State<ProfilePage> {
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() => _currentTab = _tabController.index);
+      }
+    });
     _loadProfile();
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _firstNameController.dispose();
     _lastNameController.dispose();
     _rankController.dispose();
@@ -156,58 +167,63 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final profile = Globals.profileManager.profile;
 
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Профіль'),
-          actions: [
-            IconButton(
-              onPressed: _loadProfile,
-              icon: const Icon(Icons.refresh),
-              tooltip: 'Оновити дані',
-            ),
-          ],
-          bottom: const TabBar(
-            isScrollable: true,
-            tabs: [
-              Tab(text: 'Загальна інформація'),
-              Tab(text: 'Повна інформація'),
-              Tab(text: 'Налаштування'),
-            ],
+    // Tab index 1 is "Повна інформація" — hide header & bottom buttons there
+    final isFullInfoTab = _currentTab == 1;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Профіль'),
+        actions: [
+          IconButton(
+            onPressed: _loadProfile,
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Оновити дані',
           ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabs: const [
+            Tab(text: 'Загальна інформація'),
+            Tab(text: 'Повна інформація'),
+            Tab(text: 'Налаштування'),
+          ],
         ),
-        body: Column(
-          children: [
+      ),
+      body: Column(
+        children: [
+          // Profile header — hidden on Повна інформація tab to save space
+          if (!isFullInfoTab)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
               child: _buildProfileHeader(profile),
             ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildEditForm(),
-                        const SizedBox(height: 24),
-                        _buildGroupsInfo(profile),
-                      ],
-                    ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildEditForm(),
+                      const SizedBox(height: 24),
+                      _buildGroupsInfo(profile),
+                    ],
                   ),
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: const PersonnelFullInfoTab(),
-                  ),
-                  SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: _buildNotificationSettings(),
-                  ),
-                ],
-              ),
+                ),
+                // Повна інформація — no outer padding, no header, no bottom buttons
+                const PersonnelFullInfoTab(),
+                SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: _buildNotificationSettings(),
+                ),
+              ],
             ),
+          ),
+          // Save / Logout buttons — hidden on Повна інформація (has own toolbar)
+          if (!isFullInfoTab)
             SafeArea(
               top: false,
               child: Padding(
@@ -215,8 +231,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 child: _buildActionButtons(),
               ),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

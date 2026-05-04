@@ -379,35 +379,44 @@ class _MaterialJournalPageState extends State<MaterialJournalPage>
       }
     }
 
+    // Sort group names alphabetically
     final sortedGroupNames = grouped.keys.toList()..sort();
 
     final children = <Widget>[];
 
     for (final groupName in sortedGroupNames) {
       final groupItems = grouped[groupName]!;
-      final collapsed = _collapsedGroups[groupName] ?? false;
+      // Default to collapsed
+      final collapsed = _collapsedGroups[groupName] ?? true;
+
       children.add(
-        _GroupHeader(
+        _GroupSection(
           name: groupName,
           count: groupItems.length,
           collapsed: collapsed,
           onToggle: () => setState(
             () => _collapsedGroups[groupName] = !collapsed,
           ),
+          children: groupItems.map(_buildItemTile).toList(),
         ),
       );
-      if (!collapsed) {
-        for (final item in groupItems) {
-          children.add(const SizedBox(height: 8));
-          children.add(_buildItemTile(item));
-        }
-        children.add(const SizedBox(height: 4));
-      }
+      children.add(const SizedBox(height: 12));
     }
 
     if (ungrouped.isNotEmpty) {
       if (sortedGroupNames.isNotEmpty) {
-        children.add(const SizedBox(height: 4));
+        children.add(
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Без групи',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Colors.grey[500],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        );
       }
       for (int i = 0; i < ungrouped.length; i++) {
         if (i > 0) children.add(const SizedBox(height: 8));
@@ -476,58 +485,111 @@ class _MaterialJournalPageState extends State<MaterialJournalPage>
   }
 }
 
-// ── Group header ───────────────────────────────────────────────────────────
+// ── Group section (header + collapsible items) ─────────────────────────────
 
-class _GroupHeader extends StatelessWidget {
+class _GroupSection extends StatelessWidget {
   final String name;
   final int count;
   final bool collapsed;
   final VoidCallback onToggle;
+  final List<Widget> children;
 
-  const _GroupHeader({
+  const _GroupSection({
     required this.name,
     required this.count,
     required this.collapsed,
     required this.onToggle,
+    required this.children,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onToggle,
-      borderRadius: BorderRadius.circular(8),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-        child: Row(
-          children: [
-            Icon(
-              collapsed ? Icons.folder : Icons.folder_open,
-              color: Colors.amber[700],
-              size: 20,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                name,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+    final colorScheme = Theme.of(context).colorScheme;
+    final bgColor = colorScheme.surfaceContainerHighest.withOpacity(0.4);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: Colors.amber.shade300.withOpacity(0.6),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Group header
+          InkWell(
+            onTap: onToggle,
+            borderRadius: collapsed
+                ? BorderRadius.circular(12)
+                : const BorderRadius.vertical(top: Radius.circular(12)),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Row(
+                children: [
+                  Icon(
+                    collapsed ? Icons.folder : Icons.folder_open,
+                    color: Colors.amber[700],
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      name,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade100,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '$count',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.amber.shade800,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    collapsed ? Icons.expand_more : Icons.expand_less,
+                    size: 18,
+                    color: Colors.grey[600],
+                  ),
+                ],
               ),
             ),
-            Text(
-              '$count',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+          ),
+          // Items
+          if (!collapsed) ...[
+            Divider(
+              height: 1,
+              color: Colors.amber.shade200.withOpacity(0.8),
             ),
-            const SizedBox(width: 4),
-            Icon(
-              collapsed ? Icons.expand_more : Icons.expand_less,
-              size: 18,
-              color: Colors.grey[600],
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
+              child: Column(
+                children: [
+                  for (int i = 0; i < children.length; i++) ...[
+                    if (i > 0) const SizedBox(height: 8),
+                    children[i],
+                  ],
+                ],
+              ),
             ),
           ],
-        ),
+        ],
       ),
     );
   }

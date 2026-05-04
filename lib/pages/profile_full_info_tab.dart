@@ -414,21 +414,30 @@ class _PersonnelFullInfoTabState extends State<PersonnelFullInfoTab> {
 
     return Form(
       key: _formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildToolbar(),
-          const SizedBox(height: 12),
-          _buildMainSection(),
-          _buildServiceSection(),
-          _buildRankSection(),
-          _buildEducationSection(),
-          _buildFamilySection(),
-          _buildExperienceSection(),
-          _buildLanguageSection(),
-          if (Globals.profileManager.isCurrentGroupAdmin) _buildAdminSection(),
-          const SizedBox(height: 24),
-        ],
+      child: SingleChildScrollView(
+        padding: EdgeInsets.only(
+          left: 16,
+          right: 16,
+          top: 16,
+          // Extra bottom padding so content clears the keyboard
+          bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildToolbar(),
+            const SizedBox(height: 12),
+            _buildMainSection(),
+            _buildServiceSection(),
+            _buildRankSection(),
+            _buildEducationSection(),
+            _buildFamilySection(),
+            _buildExperienceSection(),
+            _buildLanguageSection(),
+            if (Globals.profileManager.isCurrentGroupAdmin) _buildAdminSection(),
+            const SizedBox(height: 24),
+          ],
+        ),
       ),
     );
   }
@@ -505,7 +514,34 @@ class _PersonnelFullInfoTabState extends State<PersonnelFullInfoTab> {
           _textField(_militaryUnitController, 'В/ч'),
           _textField(_positionController, 'Посада'),
           _textField(_staffRankController, 'ШПК / штатне звання'),
-          _textField(_rankController, 'Фактичне звання'),
+          _dialogDropdownText(
+            controller: _rankController,
+            label: 'Фактичне звання',
+            options: const [
+              'Солдат',
+              'Старший солдат',
+              'Молодший сержант',
+              'Сержант',
+              'Старший сержант',
+              'Головний сержант',
+              'Штаб-сержант',
+              'Майстер-сержант',
+              'Перший сержант',
+              'Головний майстер-сержант',
+              'Молодший лейтенант',
+              'Лейтенант',
+              'Старший лейтенант',
+              'Капітан',
+              'Майор',
+              'Підполковник',
+              'Полковник',
+              'Бригадний генерал',
+              'Генерал-майор',
+              'Генерал-лейтенант',
+              'Генерал',
+              'Генерал армії України',
+            ],
+          ),
           _textField(_militarySpecialtyController, 'ВОС'),
           _dateField('Дата народження', _birthDate, (date) {
             setState(() => _birthDate = date);
@@ -666,8 +702,33 @@ class _PersonnelFullInfoTabState extends State<PersonnelFullInfoTab> {
       icon: Icons.home_work,
       children: [
         _responsiveFields([
-          _textField(_familyStatusController, 'Сімейний стан', maxLines: 2),
-          _textField(_housingStatusController, 'Забезпеченість житлом'),
+          _dialogDropdownText(
+            controller: _familyStatusController,
+            label: 'Сімейний стан',
+            options: const [
+              'Одружений',
+              'Заміжня',
+              'Не одружений',
+              'Не заміжня',
+              'Розлучений',
+              'Розлучена',
+              'Вдівець',
+              'Вдова',
+              'Цивільний шлюб',
+            ],
+          ),
+          _dialogDropdownText(
+            controller: _housingStatusController,
+            label: 'Забезпеченість житлом',
+            options: const [
+              'Забезпечений (власне житло)',
+              'Забезпечений (оренда)',
+              'Проживає з батьками',
+              'Проживає у гуртожитку',
+              'Не забезпечений',
+              'Потребує покращення умов',
+            ],
+          ),
           _textField(_homeAddressController, 'Домашня адреса', maxLines: 2),
         ]),
         const SizedBox(height: 12),
@@ -967,7 +1028,34 @@ class _PersonnelFullInfoTabState extends State<PersonnelFullInfoTab> {
     return _typedDialog<RankHistoryEntry>(
       title: initial == null ? 'Додати звання' : 'Редагувати звання',
       builder: (setDialogState) => [
-        _dialogText(rank, 'Звання'),
+        _dialogDropdownText(
+          controller: rank,
+          label: 'Звання',
+          options: const [
+            'Солдат',
+            'Старший солдат',
+            'Молодший сержант',
+            'Сержант',
+            'Старший сержант',
+            'Головний сержант',
+            'Штаб-сержант',
+            'Майстер-сержант',
+            'Перший сержант',
+            'Головний майстер-сержант',
+            'Молодший лейтенант',
+            'Лейтенант',
+            'Старший лейтенант',
+            'Капітан',
+            'Майор',
+            'Підполковник',
+            'Полковник',
+            'Бригадний генерал',
+            'Генерал-майор',
+            'Генерал-лейтенант',
+            'Генерал',
+            'Генерал армії України',
+          ],
+        ),
         _dialogText(order, '№ наказу'),
         _dialogDate('Дата наказу', orderDate, (date) {
           setDialogState(() => orderDate = date);
@@ -1219,17 +1307,102 @@ class _PersonnelFullInfoTabState extends State<PersonnelFullInfoTab> {
     if (entry != null) setState(() => _languageSkills[index] = entry);
   }
 
+  static const _knownLanguages = [
+    'Англійська',
+    'Арабська',
+    'Білоруська',
+    'Болгарська',
+    'Вірменська',
+    'Грецька',
+    'Грузинська',
+    'Датська',
+    'Іврит',
+    'Іспанська',
+    'Італійська',
+    'Китайська',
+    'Корейська',
+    'Нідерландська',
+    'Німецька',
+    'Норвезька',
+    'Польська',
+    'Португальська',
+    'Румунська',
+    'Словацька',
+    'Турецька',
+    'Угорська',
+    'Українська',
+    'Фінська',
+    'Французька',
+    'Чеська',
+    'Шведська',
+    'Японська',
+  ];
+
   Future<LanguageSkillEntry?> _languageDialog({
     LanguageSkillEntry? initial,
   }) async {
-    final language = TextEditingController(text: initial?.language ?? '');
+    var selectedLanguage = initial?.language ?? '';
     var civilian = initial?.civilianLevel ?? '';
     var military = initial?.militaryLevel ?? '';
 
     return _typedDialog<LanguageSkillEntry>(
       title: initial == null ? 'Додати мову' : 'Редагувати мову',
       builder: (setDialogState) => [
-        _dialogText(language, 'Мова'),
+        // Searchable autocomplete for language name
+        Autocomplete<String>(
+          initialValue: TextEditingValue(text: selectedLanguage),
+          optionsBuilder: (textEditingValue) {
+            final query = textEditingValue.text.toLowerCase();
+            if (query.isEmpty) return _knownLanguages;
+            return _knownLanguages.where(
+              (lang) => lang.toLowerCase().contains(query),
+            );
+          },
+          onSelected: (value) =>
+              setDialogState(() => selectedLanguage = value),
+          fieldViewBuilder: (_, controller, focusNode, onSubmit) {
+            return TextFormField(
+              controller: controller,
+              focusNode: focusNode,
+              onFieldSubmitted: (_) {
+                onSubmit();
+                setDialogState(() => selectedLanguage = controller.text.trim());
+              },
+              onChanged: (value) =>
+                  setDialogState(() => selectedLanguage = value.trim()),
+              decoration: const InputDecoration(
+                labelText: 'Мова',
+                border: OutlineInputBorder(),
+                hintText: 'Почніть вводити або оберіть зі списку',
+              ),
+            );
+          },
+          optionsViewBuilder: (_, onSelected, options) {
+            return Align(
+              alignment: Alignment.topLeft,
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(8),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 200),
+                  child: ListView.builder(
+                    padding: EdgeInsets.zero,
+                    shrinkWrap: true,
+                    itemCount: options.length,
+                    itemBuilder: (_, i) {
+                      final option = options.elementAt(i);
+                      return ListTile(
+                        dense: true,
+                        title: Text(option),
+                        onTap: () => onSelected(option),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
         DropdownButtonFormField<String>(
           value: civilian.isEmpty ? null : civilian,
           decoration: const InputDecoration(
@@ -1258,7 +1431,7 @@ class _PersonnelFullInfoTabState extends State<PersonnelFullInfoTab> {
         ),
       ],
       onSubmit: () => LanguageSkillEntry(
-        language: language.text.trim(),
+        language: selectedLanguage.trim(),
         civilianLevel: civilian,
         militaryLevel: military,
       ),
@@ -1382,18 +1555,27 @@ class _Section extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      child: ExpansionTile(
-        initiallyExpanded: true,
-        leading: Icon(icon),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
-        trailing: action == null
-            ? null
-            : Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [action!, const Icon(Icons.expand_more)],
-              ),
-        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        children: children,
+      clipBehavior: Clip.antiAlias,
+      child: Theme(
+        // Remove ExpansionTile's internal dividers to avoid double-line artefacts
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          initiallyExpanded: true,
+          leading: Icon(icon),
+          title: Text(
+            title,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+          ),
+          trailing: action == null
+              ? null
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [action!, const Icon(Icons.expand_more)],
+                ),
+          // Extra top padding so floating labels aren't clipped by the card edge
+          childrenPadding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          children: children,
+        ),
       ),
     );
   }

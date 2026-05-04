@@ -52,6 +52,42 @@ exports.generateReportTemplate = functionsV1.https.onCall(
     reportTemplates.createGenerateHandler({db, admin, functionsV1}),
 );
 
+// ── Feedback / Bug reports ─────────────────────────────────────────────────
+
+exports.submitFeedback = functionsV1.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functionsV1.https.HttpsError(
+        "unauthenticated",
+        "Користувач не авторизований",
+    );
+  }
+
+  const {category, priority, description, appVersion, platform} = data;
+
+  if (!description || description.trim().length < 10) {
+    throw new functionsV1.https.HttpsError(
+        "invalid-argument",
+        "Опис занадто короткий",
+    );
+  }
+
+  await db.collection("app_feedback").add({
+    category: category ?? "other",
+    priority: priority ?? null,
+    description: description.trim(),
+    userEmail: context.auth.token.email ?? "",
+    userName: context.auth.token.name ?? context.auth.token.email ?? "",
+    userId: context.auth.uid,
+    appVersion: appVersion ?? "unknown",
+    platform: platform ?? "unknown",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    status: "new",
+  });
+
+  logger.info("Feedback submitted", {userId: context.auth.uid, category});
+  return {success: true};
+});
+
 exports.proxyDownload = functionsV1.https.onRequest((req, res) => {
   cors(req, res, async () => {
     const fileId = req.query.fileId;

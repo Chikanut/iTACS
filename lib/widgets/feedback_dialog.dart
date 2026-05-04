@@ -40,12 +40,19 @@ class _FeedbackDialogState extends State<FeedbackDialog> {
     setState(() => _isSending = true);
 
     try {
-      final info = await PackageInfo.fromPlatform();
+      String appVersion = AppTheme.appVersion;
+      try {
+        final info = await PackageInfo.fromPlatform();
+        appVersion = '${info.version}+${info.buildNumber}';
+      } catch (_) {
+        // plugin not available on this platform — use static version
+      }
+
       await _feedbackService.submitFeedback(
         category: _category,
         priority: _category == FeedbackCategory.bug ? _priority : null,
         description: _descriptionController.text,
-        appVersion: '${info.version}+${info.buildNumber}',
+        appVersion: appVersion,
       );
       if (mounted) setState(() => _sent = true);
     } catch (e) {
