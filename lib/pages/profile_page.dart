@@ -5,6 +5,7 @@ import '../models/notification_preferences.dart';
 import '../services/app_session_controller.dart';
 import '../services/profile_manager.dart';
 import '../theme/app_theme.dart';
+import 'profile_full_info_tab.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key, required this.sessionController});
@@ -198,7 +199,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
-                    child: _buildFullInfoPlaceholder(),
+                    child: const PersonnelFullInfoTab(),
                   ),
                   SingleChildScrollView(
                     padding: const EdgeInsets.all(16),
@@ -432,39 +433,6 @@ class _ProfilePageState extends State<ProfilePage> {
                 ),
               );
             }),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFullInfoPlaceholder() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Повна інформація',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: AppTheme.neutralStatus.background,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppTheme.neutralStatus.border),
-              ),
-              child: const Text(
-                'В розробці',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-            ),
           ],
         ),
       ),

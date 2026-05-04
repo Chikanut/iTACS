@@ -52,9 +52,7 @@ class _TransferDialogState extends State<TransferDialog> {
     if (groupId == null) return;
     final journals = await MaterialJournalService().getJournals(groupId);
     setState(() {
-      _journals = journals
-          .where((j) => j.id != widget.fromJournalId)
-          .toList();
+      _journals = journals.where((j) => j.id != widget.fromJournalId).toList();
       _loading = false;
     });
   }
@@ -135,9 +133,9 @@ class _TransferDialogState extends State<TransferDialog> {
                   children: [
                     Text(
                       'Доступно: ${_fmt(widget.fromItem.quantity)} $unit',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey[600],
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 16),
                     DropdownButtonFormField<MaterialJournal>(
@@ -148,10 +146,8 @@ class _TransferDialogState extends State<TransferDialog> {
                       ),
                       items: _journals
                           .map(
-                            (j) => DropdownMenuItem(
-                              value: j,
-                              child: Text(j.name),
-                            ),
+                            (j) =>
+                                DropdownMenuItem(value: j, child: Text(j.name)),
                           )
                           .toList(),
                       onChanged: (j) {
@@ -180,8 +176,7 @@ class _TransferDialogState extends State<TransferDialog> {
                                   )
                                   .toList(),
                         onChanged: (i) => setState(() => _targetItem = i),
-                        validator: (v) =>
-                            v == null ? 'Оберіть елемент' : null,
+                        validator: (v) => v == null ? 'Оберіть елемент' : null,
                         hint: _targetItems.isEmpty
                             ? const Text('Немає збігів за назвою')
                             : null,

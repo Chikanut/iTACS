@@ -530,8 +530,9 @@ class _ReportTemplateEditorDialogState
         freezeHeader: _freezeHeader,
         autoWidth: _autoWidth,
       ),
-      calendarNoteFields:
-          _calendarNoteFields.where((f) => f.trim().isNotEmpty).toList(),
+      calendarNoteFields: _calendarNoteFields
+          .where((f) => f.trim().isNotEmpty)
+          .toList(),
       calendarCellMark: _calendarCellMarkController.text.trim().isEmpty
           ? 'З'
           : _calendarCellMarkController.text.trim(),
@@ -572,11 +573,16 @@ class _ReportTemplateEditorDialogState
     if (result == null) return;
     try {
       final decoded = jsonDecode(result);
-      if (decoded is! Map) throw const FormatException('Очікується JSON об\'єкт');
-      final config = ReportTemplateConfig.fromMap(Map<String, dynamic>.from(decoded));
+      if (decoded is! Map)
+        throw const FormatException('Очікується JSON об\'єкт');
+      final config = ReportTemplateConfig.fromMap(
+        Map<String, dynamic>.from(decoded),
+      );
       _applyConfig(config);
       if (mounted) {
-        Globals.errorNotificationManager.showSuccess('Шаблон імпортовано успішно');
+        Globals.errorNotificationManager.showSuccess(
+          'Шаблон імпортовано успішно',
+        );
       }
     } catch (e) {
       if (mounted) {

@@ -33,23 +33,19 @@ class MaterialJournalService {
   CollectionReference<Map<String, dynamic>> _itemsRef(
     String groupId,
     String journalId,
-  ) =>
-      _journalsRef(groupId).doc(journalId).collection('items');
+  ) => _journalsRef(groupId).doc(journalId).collection('items');
 
   CollectionReference<Map<String, dynamic>> _templatesRef(
     String groupId,
     String journalId,
-  ) =>
-      _journalsRef(groupId).doc(journalId).collection('templates');
+  ) => _journalsRef(groupId).doc(journalId).collection('templates');
 
   CollectionReference<Map<String, dynamic>> _historyRef(String groupId) =>
       _db.collection(_root).doc(groupId).collection('history');
 
   Future<List<MaterialJournal>> getJournals(String groupId) async {
     try {
-      final snap = await _journalsRef(groupId)
-          .orderBy('name')
-          .get();
+      final snap = await _journalsRef(groupId).orderBy('name').get();
       return snap.docs.map(MaterialJournal.fromFirestore).toList();
     } catch (e) {
       debugPrint('[material_journal] getJournals error: $e');
@@ -118,9 +114,7 @@ class MaterialJournalService {
 
   Future<List<MaterialItem>> getItems(String groupId, String journalId) async {
     try {
-      final snap = await _itemsRef(groupId, journalId)
-          .orderBy('name')
-          .get();
+      final snap = await _itemsRef(groupId, journalId).orderBy('name').get();
       return snap.docs.map(MaterialItem.fromFirestore).toList();
     } catch (e) {
       debugPrint('[material_journal] getItems error: $e');
@@ -128,10 +122,7 @@ class MaterialJournalService {
     }
   }
 
-  Future<JournalStats> getJournalStats(
-    String groupId,
-    String journalId,
-  ) async {
+  Future<JournalStats> getJournalStats(String groupId, String journalId) async {
     final items = await getItems(groupId, journalId);
     final critical = items.where((i) => i.isCritical).length;
     final low = items
@@ -422,9 +413,10 @@ class MaterialJournalService {
     String journalId,
   ) async {
     try {
-      final snap = await _templatesRef(groupId, journalId)
-          .orderBy('name')
-          .get();
+      final snap = await _templatesRef(
+        groupId,
+        journalId,
+      ).orderBy('name').get();
       return snap.docs.map(MaterialTemplate.fromFirestore).toList();
     } catch (e) {
       debugPrint('[material_journal] getTemplates error: $e');
@@ -451,9 +443,10 @@ class MaterialJournalService {
     MaterialTemplate template,
   ) async {
     try {
-      await _templatesRef(groupId, journalId)
-          .doc(template.id)
-          .update(template.toMap());
+      await _templatesRef(
+        groupId,
+        journalId,
+      ).doc(template.id).update(template.toMap());
     } catch (e) {
       debugPrint('[material_journal] updateTemplate error: $e');
       rethrow;

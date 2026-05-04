@@ -8,10 +8,7 @@ import '../pages/calendar_page/calendar_utils.dart';
 class AbsencesService {
   FirebaseFirestore get _firestore => FirebaseFirestore.instance;
 
-  AbsenceStatus _resolveActualStatus(
-    AbsenceStatus status,
-    DateTime endDate,
-  ) {
+  AbsenceStatus _resolveActualStatus(AbsenceStatus status, DateTime endDate) {
     if (status == AbsenceStatus.active && _isPastAbsence(endDate)) {
       return AbsenceStatus.completed;
     }
@@ -400,10 +397,7 @@ class AbsencesService {
         absence.endDate,
       );
 
-      await _updateAbsenceStatus(
-        absence.id,
-        approvedStatus,
-      );
+      await _updateAbsenceStatus(absence.id, approvedStatus);
       await Globals.groupNotificationsService.notifyAbsenceApproved(
         absence.copyWith(status: approvedStatus),
       );
@@ -526,9 +520,9 @@ class AbsencesService {
   Future<bool> _checkAbsenceConflict(
     String instructorId,
     DateTime startDate,
-    DateTime endDate,
-    {String? excludeAbsenceId}
-  ) async {
+    DateTime endDate, {
+    String? excludeAbsenceId,
+  }) async {
     final existingAbsences = await getAbsencesForPeriod(
       startDate: CalendarUtils.addDays(startDate, -1),
       endDate: CalendarUtils.addDays(endDate, 1),

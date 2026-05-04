@@ -58,7 +58,10 @@ enum ReportTemplatePeriodField {
 enum ReportTemplateRowMode {
   lesson('lesson', 'Один рядок = одне заняття'),
   lessonInstructor('lesson_instructor', 'Один рядок = заняття + інструктор'),
-  calendarGrid('calendar_grid', 'Календарна сітка (рядок = особа, колонка = день)');
+  calendarGrid(
+    'calendar_grid',
+    'Календарна сітка (рядок = особа, колонка = день)',
+  );
 
   const ReportTemplateRowMode(this.id, this.displayName);
 

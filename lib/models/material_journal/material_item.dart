@@ -147,7 +147,8 @@ class MaterialItem {
       id: doc.id,
       name: data['name'] as String? ?? '',
       type: type,
-      modifiedAt: (data['modifiedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      modifiedAt:
+          (data['modifiedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       modifiedBy: data['modifiedBy'] as String? ?? '',
       quantity: quantity,
       unit: MaterialUnitX.fromString(data['unit'] as String? ?? ''),

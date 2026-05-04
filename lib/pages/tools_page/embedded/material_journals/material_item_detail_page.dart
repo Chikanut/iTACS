@@ -89,7 +89,10 @@ class _MaterialItemDetailPageState extends State<MaterialItemDetailPage> {
             Text(item.name),
             Text(
               widget.journalName,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal),
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.normal,
+              ),
             ),
           ],
         ),
@@ -119,12 +122,13 @@ class _MaterialItemDetailPageState extends State<MaterialItemDetailPage> {
                             if (isNonConsumable) ...[
                               Text(
                                 '${item.count} шт',
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.headlineMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: statusColor,
-                                ),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .headlineMedium
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                      color: statusColor,
+                                    ),
                               ),
                               Text(
                                 item.condition.label,
@@ -144,12 +148,13 @@ class _MaterialItemDetailPageState extends State<MaterialItemDetailPage> {
                                 children: [
                                   Text(
                                     _fmt(item.quantity),
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.headlineMedium?.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                      color: statusColor,
-                                    ),
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineMedium
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.bold,
+                                          color: statusColor,
+                                        ),
                                   ),
                                   const SizedBox(width: 4),
                                   Padding(
@@ -209,9 +214,9 @@ class _MaterialItemDetailPageState extends State<MaterialItemDetailPage> {
                     const Divider(height: 20),
                     Text(
                       'Змінено: ${item.modifiedBy} · ${_formatDate(item.modifiedAt)}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[500],
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.grey[500]),
                     ),
                   ],
                 ],
@@ -224,9 +229,9 @@ class _MaterialItemDetailPageState extends State<MaterialItemDetailPage> {
               alignment: Alignment.centerLeft,
               child: Text(
                 'Історія змін',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -235,23 +240,21 @@ class _MaterialItemDetailPageState extends State<MaterialItemDetailPage> {
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
                 : _history.isEmpty
-                    ? Center(
-                        child: Text(
-                          'Записів ще немає',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _fetch,
-                        child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _history.length,
-                          separatorBuilder: (_, __) =>
-                              const Divider(height: 1),
-                          itemBuilder: (_, i) =>
-                              _HistoryRow(record: _history[i]),
-                        ),
-                      ),
+                ? Center(
+                    child: Text(
+                      'Записів ще немає',
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _fetch,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _history.length,
+                      separatorBuilder: (_, index) => const Divider(height: 1),
+                      itemBuilder: (_, i) => _HistoryRow(record: _history[i]),
+                    ),
+                  ),
           ),
         ],
       ),
@@ -293,11 +296,7 @@ class _HistoryRow extends StatelessWidget {
               color: color.withOpacity(0.1),
               shape: BoxShape.circle,
             ),
-            child: Icon(
-              _actionIcon(),
-              size: 16,
-              color: color,
-            ),
+            child: Icon(_actionIcon(), size: 16, color: color),
           ),
           const SizedBox(width: 12),
           Expanded(

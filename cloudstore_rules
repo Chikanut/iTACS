@@ -29,6 +29,15 @@ service cloud.firestore {
       }
     }
 
+    // Повні кадрові профілі військовослужбовців у межах групи.
+    match /personnel_profiles/{groupId}/members/{userId} {
+      allow read, create, update: if isInGroup(groupId) &&
+                                    request.auth != null &&
+                                    request.auth.uid == userId;
+      allow read, create, update: if hasAdminRights(groupId);
+      allow delete: if false;
+    }
+
     // Методички по групах.
     match /materials/{groupId}/items/{materialId} {
       allow read: if isInGroup(groupId);

@@ -441,8 +441,8 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
       reason: _reasonController.text.trim(),
       documentNumber: _selectedType == AbsenceType.sickLeave
           ? _orderNumberController.text.trim().isNotEmpty
-              ? _orderNumberController.text.trim()
-              : null
+                ? _orderNumberController.text.trim()
+                : null
           : null,
       assignmentDetails: _selectedType == AbsenceType.sickLeave
           ? null
@@ -452,18 +452,23 @@ class _AbsenceAssignmentDialogState extends State<AbsenceAssignmentDialog> {
 
   AssignmentDetails _buildAssignmentDetails() {
     return AssignmentDetails(
-      orderNumber: _selectedType == AbsenceType.businessTrip &&
+      orderNumber:
+          _selectedType == AbsenceType.businessTrip &&
               _orderNumberController.text.trim().isNotEmpty
           ? _orderNumberController.text.trim()
           : null,
-      destination: _selectedType == AbsenceType.businessTrip &&
+      destination:
+          _selectedType == AbsenceType.businessTrip &&
               _destinationController.text.trim().isNotEmpty
           ? _destinationController.text.trim()
           : null,
-      duty: _selectedType == AbsenceType.duty && _dutyController.text.trim().isNotEmpty
+      duty:
+          _selectedType == AbsenceType.duty &&
+              _dutyController.text.trim().isNotEmpty
           ? _dutyController.text.trim()
           : null,
-      instructions: _selectedType != AbsenceType.sickLeave &&
+      instructions:
+          _selectedType != AbsenceType.sickLeave &&
               _instructionsController.text.trim().isNotEmpty
           ? _instructionsController.text.trim()
           : null,

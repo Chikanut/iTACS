@@ -927,7 +927,6 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
   // ─── Pluralization helpers ────────────────────────────────────────────────
 
   String _deptWord(int n) {
-
     if (n == 1) return 'підрозділ';
     if (n >= 2 && n <= 4) return 'підрозділи';
     return 'підрозділів';

@@ -22,8 +22,7 @@ class ContactEntry {
     'rank': rank,
     'name': name,
     'phone': phone,
-    if (updatedAt != null)
-      'updatedAt': Timestamp.fromDate(updatedAt!),
+    if (updatedAt != null) 'updatedAt': Timestamp.fromDate(updatedAt!),
     if (updatedBy != null) 'updatedBy': updatedBy,
   };
 

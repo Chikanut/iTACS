@@ -49,7 +49,8 @@ class _MaterialJournalsHomePageState extends State<MaterialJournalsHomePage>
         journals.map((j) => _service.getJournalStats(groupId, j.id)),
       );
       final stats = {
-        for (var i = 0; i < journals.length; i++) journals[i].id: statsResults[i],
+        for (var i = 0; i < journals.length; i++)
+          journals[i].id: statsResults[i],
       };
 
       if (mounted) {
@@ -125,9 +126,7 @@ class _MaterialJournalsHomePageState extends State<MaterialJournalsHomePage>
 
   void _openJournal(MaterialJournal journal) {
     Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => MaterialJournalPage(journal: journal),
-      ),
+      MaterialPageRoute(builder: (_) => MaterialJournalPage(journal: journal)),
     );
   }
 
@@ -148,17 +147,17 @@ class _MaterialJournalsHomePageState extends State<MaterialJournalsHomePage>
                   : ListView.separated(
                       padding: const EdgeInsets.all(16),
                       itemCount: _journals.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (context, i) =>
-                          _JournalCard(
-                            journal: _journals[i],
-                            stats: _stats[_journals[i].id],
-                            canManage: _canManage,
-                            isAdmin: _isAdmin,
-                            onTap: () => _openJournal(_journals[i]),
-                            onEdit: () => _showEditDialog(_journals[i]),
-                            onDelete: () => _deleteJournal(_journals[i]),
-                          ),
+                      separatorBuilder: (_, index) =>
+                          const SizedBox(height: 12),
+                      itemBuilder: (context, i) => _JournalCard(
+                        journal: _journals[i],
+                        stats: _stats[_journals[i].id],
+                        canManage: _canManage,
+                        isAdmin: _isAdmin,
+                        onTap: () => _openJournal(_journals[i]),
+                        onEdit: () => _showEditDialog(_journals[i]),
+                        onDelete: () => _deleteJournal(_journals[i]),
+                      ),
                     ),
             ),
       floatingActionButton: _canManage
@@ -184,9 +183,9 @@ class _MaterialJournalsHomePageState extends State<MaterialJournalsHomePage>
           const SizedBox(height: 16),
           Text(
             'Журнали відсутні',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.grey[600],
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
           ),
           if (_canManage) ...[
             const SizedBox(height: 24),
@@ -266,10 +265,7 @@ class _JournalCard extends StatelessWidget {
                   color: _iconColor(context),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  Icons.inventory_2,
-                  color: _iconFgColor(context),
-                ),
+                child: Icon(Icons.inventory_2, color: _iconFgColor(context)),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -308,9 +304,9 @@ class _JournalCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       'Змінено: ${_formatDate(journal.modifiedAt)}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[500],
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.grey[500]),
                     ),
                   ],
                 ),

@@ -43,8 +43,9 @@ class _ApplyTemplateDialogState extends State<ApplyTemplateDialog> {
   @override
   Widget build(BuildContext context) {
     final lines = widget.template.items;
-    final anyProblem =
-        lines.any((l) => _lineStatus(l) != TemplateLineStatus.ok);
+    final anyProblem = lines.any(
+      (l) => _lineStatus(l) != TemplateLineStatus.ok,
+    );
 
     return AlertDialog(
       title: Text('Застосувати: ${widget.template.name}'),
@@ -66,13 +67,11 @@ class _ApplyTemplateDialogState extends State<ApplyTemplateDialog> {
                 padding: const EdgeInsets.symmetric(vertical: 3),
                 child: Row(
                   children: [
-                    Text(
-                      switch (status) {
-                        TemplateLineStatus.ok => '🟢',
-                        TemplateLineStatus.low => '🟡',
-                        TemplateLineStatus.missing => '🔴',
-                      },
-                    ),
+                    Text(switch (status) {
+                      TemplateLineStatus.ok => '🟢',
+                      TemplateLineStatus.low => '🟡',
+                      TemplateLineStatus.missing => '🔴',
+                    }),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(

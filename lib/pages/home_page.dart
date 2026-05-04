@@ -11,9 +11,7 @@ import '../models/lesson_model.dart';
 import '../pages/calendar_page/calendar_utils.dart';
 import '../pages/calendar_page/widgets/lesson_details_dialog.dart';
 import '../models/report_template_model.dart';
-import '../services/reports_service.dart';
 import '../services/report_templates_service.dart';
-import '../services/reports/base_report.dart';
 import '../services/reports/quick_report_dialog.dart';
 import '../models/instructor_absence.dart';
 import '../models/group_notification.dart';
@@ -29,7 +27,6 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final DashboardService _dashboardService = DashboardService();
-  final ReportsService _reportsService = ReportsService();
   DashboardFeed _feed = DashboardFeed.empty;
   bool _isLoading = true;
   String? _error;
@@ -242,7 +239,8 @@ class _HomePageState extends State<HomePage> {
     final nextLesson = _feed.nextLesson;
     final tomorrowLessons = _feed.tomorrowLessons;
     final shownLessonIds = {
-      if (tomorrowLessons.isNotEmpty) ...tomorrowLessons.map((lesson) => lesson.id),
+      if (tomorrowLessons.isNotEmpty)
+        ...tomorrowLessons.map((lesson) => lesson.id),
       if (tomorrowLessons.isEmpty && nextLesson != null) nextLesson.id,
     };
     final acknowledgementLessons =
@@ -293,7 +291,7 @@ class _HomePageState extends State<HomePage> {
         _PersonalStatsCard(stats: _feed.userStats),
 
         // Генерація звітів
-        _ReportsCard(reportsService: _reportsService),
+        const _ReportsCard(),
 
         // Остання оновка та відступ
         _LastUpdatedCard(lastUpdated: _feed.lastUpdated),
@@ -882,9 +880,7 @@ class _StatItem extends StatelessWidget {
 
 /// Картка генерації звітів
 class _ReportsCard extends StatefulWidget {
-  final ReportsService reportsService;
-
-  const _ReportsCard({required this.reportsService});
+  const _ReportsCard();
 
   @override
   State<_ReportsCard> createState() => _ReportsCardState();
@@ -1009,35 +1005,12 @@ class _ReportsCardState extends State<_ReportsCard> {
                     )
                     .toList(),
               ),
-              const SizedBox(height: 16),
+            ] else if (!_isLoadingTemplates && !isReadOnlyOffline) ...[
+              Text(
+                'Активних шаблонів звітів поки немає.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
             ],
-            Text(
-              'Legacy-звіти',
-              style: Theme.of(
-                context,
-              ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                _ReportButton(
-                  label: 'Список занять',
-                  icon: Icons.list_alt,
-                  onPressed: isReadOnlyOffline
-                      ? null
-                      : () => _generateLessonsList(context),
-                ),
-                _ReportButton(
-                  label: 'Календарна сітка',
-                  icon: Icons.calendar_view_month,
-                  onPressed: isReadOnlyOffline
-                      ? null
-                      : () => _generateCalendarGrid(context),
-                ),
-              ],
-            ),
           ],
         ),
       ),
@@ -1097,141 +1070,6 @@ class _ReportsCardState extends State<_ReportsCard> {
             Navigator.of(context).pop();
             Globals.errorNotificationManager.showError(
               'Помилка генерації шаблонного звіту: ${e.toString()}',
-            );
-          }
-        }
-      },
-    );
-  }
-
-  Future<void> _generateLessonsList(BuildContext context) async {
-    // Спочатку показуємо діалог вибору періоду
-    await showQuickReportDialog(
-      context: context,
-      reportTitle: 'Список занять',
-      onGenerate: (startDate, endDate) async {
-        try {
-          // Показуємо індикатор завантаження
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => const Dialog(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Генерація звіту...'),
-                  ],
-                ),
-              ),
-            ),
-          );
-
-          // Використовуємо новий ReportsService
-          final data = await widget.reportsService.generateReport(
-            reportId: 'lessons_list',
-            format: ReportFormat.excel,
-            startDate: startDate,
-            endDate: endDate,
-            parameters: null, // Без фільтрів - всі інструктори
-          );
-
-          // Закриваємо індикатор
-          if (context.mounted) {
-            Navigator.of(context).pop();
-          }
-
-          // Отримуємо ім'я файлу
-          final fileName = widget.reportsService.getReportFileName(
-            reportId: 'lessons_list',
-            format: ReportFormat.excel,
-            startDate: startDate,
-            endDate: endDate,
-          );
-
-          await Globals.fileManager.shareFileByData(fileName, data);
-
-          if (context.mounted) {
-            Globals.errorNotificationManager.showSuccess(
-              'Список занять згенеровано!\nПеріод: ${DateFormat('dd.MM.yyyy').format(startDate)} - ${DateFormat('dd.MM.yyyy').format(endDate)}',
-            );
-          }
-        } catch (e) {
-          // Закриваємо індикатор якщо відкритий
-          if (context.mounted) {
-            Navigator.of(context).pop();
-            Globals.errorNotificationManager.showError(
-              'Помилка генерації звіту: ${e.toString()}',
-            );
-          }
-        }
-      },
-    );
-  }
-
-  Future<void> _generateCalendarGrid(BuildContext context) async {
-    await showQuickReportDialog(
-      context: context,
-      reportTitle: 'Календарна сітка',
-      onGenerate: (startDate, endDate) async {
-        try {
-          // Показуємо індикатор завантаження
-          showDialog(
-            context: context,
-            barrierDismissible: false,
-            builder: (context) => const Dialog(
-              child: Padding(
-                padding: EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Генерація календарної сітки...'),
-                  ],
-                ),
-              ),
-            ),
-          );
-
-          // Використовуємо новий ReportsService
-          final data = await widget.reportsService.generateReport(
-            reportId: 'calendar_grid',
-            format: ReportFormat.excel,
-            startDate: startDate,
-            endDate: endDate,
-            parameters: null,
-          );
-
-          // Закриваємо індикатор
-          if (context.mounted) {
-            Navigator.of(context).pop();
-          }
-
-          // Отримуємо ім'я файлу
-          final fileName = widget.reportsService.getReportFileName(
-            reportId: 'calendar_grid',
-            format: ReportFormat.excel,
-            startDate: startDate,
-            endDate: endDate,
-          );
-
-          await Globals.fileManager.shareFileByData(fileName, data);
-
-          if (context.mounted) {
-            Globals.errorNotificationManager.showSuccess(
-              'Календарну сітку згенеровано!\nПеріод: ${DateFormat('dd.MM.yyyy').format(startDate)} - ${DateFormat('dd.MM.yyyy').format(endDate)}',
-            );
-          }
-        } catch (e) {
-          // Закриваємо індикатор якщо відкритий
-          if (context.mounted) {
-            Navigator.of(context).pop();
-            Globals.errorNotificationManager.showError(
-              'Помилка генерації календарної сітки: ${e.toString()}',
             );
           }
         }

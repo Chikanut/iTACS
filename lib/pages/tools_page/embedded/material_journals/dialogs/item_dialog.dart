@@ -186,8 +186,7 @@ class _ItemDialogState extends State<ItemDialog> {
                   ),
                   items: ItemCondition.values
                       .map(
-                        (c) =>
-                            DropdownMenuItem(value: c, child: Text(c.label)),
+                        (c) => DropdownMenuItem(value: c, child: Text(c.label)),
                       )
                       .toList(),
                   onChanged: (v) => setState(() => _condition = v!),
@@ -250,11 +249,9 @@ class _ItemDialogState extends State<ItemDialog> {
                 TextFormField(
                   controller: _minCtrl,
                   decoration: InputDecoration(
-                    labelText:
-                        'Мінімальний залишок (${_unit.label})',
+                    labelText: 'Мінімальний залишок (${_unit.label})',
                     border: const OutlineInputBorder(),
-                    helperText:
-                        'При досягненні — статус "Мало"',
+                    helperText: 'При досягненні — статус "Мало"',
                   ),
                   keyboardType: const TextInputType.numberWithOptions(
                     decimal: true,

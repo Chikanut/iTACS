@@ -147,9 +147,9 @@ class _MaterialJournalPageState extends State<MaterialJournalPage>
   Future<void> _showConditionChange(MaterialItem item) async {
     final result =
         await showDialog<({ItemCondition condition, String? comment})>(
-      context: context,
-      builder: (_) => ConditionDialog(item: item),
-    );
+          context: context,
+          builder: (_) => ConditionDialog(item: item),
+        );
     if (result == null) return;
     try {
       await _service.changeCondition(
@@ -248,10 +248,8 @@ class _MaterialJournalPageState extends State<MaterialJournalPage>
     final itemsById = {for (final i in _items) i.id: i};
     final result = await showDialog<({bool confirmed, String? comment})>(
       context: context,
-      builder: (_) => ApplyTemplateDialog(
-        template: template,
-        itemsById: itemsById,
-      ),
+      builder: (_) =>
+          ApplyTemplateDialog(template: template, itemsById: itemsById),
     );
     // null  → dialog dismissed (back button / tap outside) or Скасувати
     // record → user pressed Підтвердити
@@ -331,15 +329,14 @@ class _MaterialJournalPageState extends State<MaterialJournalPage>
               onRefresh: _fetchAll,
               child: Column(
                 children: [
-                  if (criticalCount > 0)
-                    _CriticalBanner(count: criticalCount),
+                  if (criticalCount > 0) _CriticalBanner(count: criticalCount),
                   Expanded(
                     child: _items.isEmpty
                         ? _buildEmpty()
                         : ListView.separated(
                             padding: const EdgeInsets.all(16),
                             itemCount: _items.length,
-                            separatorBuilder: (_, __) =>
+                            separatorBuilder: (_, index) =>
                                 const SizedBox(height: 8),
                             itemBuilder: (context, i) => _ItemTile(
                               item: _items[i],
@@ -402,9 +399,9 @@ class _MaterialJournalPageState extends State<MaterialJournalPage>
           const SizedBox(height: 16),
           Text(
             'Матбаза порожня',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: Colors.grey[600],
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(color: Colors.grey[600]),
           ),
           if (_canManage) ...[
             const SizedBox(height: 24),
@@ -535,9 +532,9 @@ class _ItemTile extends StatelessWidget {
                   children: [
                     Text(
                       '${item.type.label} · ${_statusLabel()}',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: Colors.grey[600],
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
                     ),
                     if (item.type != MaterialItemType.nonConsumable &&
                         item.minQuantity > 0)
@@ -696,10 +693,7 @@ class _ActionBtn extends StatelessWidget {
     return OutlinedButton.icon(
       onPressed: onTap,
       icon: Icon(icon, size: 14, color: color),
-      label: Text(
-        label,
-        style: TextStyle(fontSize: 12, color: color),
-      ),
+      label: Text(label, style: TextStyle(fontSize: 12, color: color)),
       style: OutlinedButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         side: BorderSide(color: color.withOpacity(0.5)),
@@ -833,10 +827,7 @@ class _TemplatesSheetState extends State<_TemplatesSheet> {
                 const Expanded(
                   child: Text(
                     'Шаблони списання',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
                 if (widget.canManage)
@@ -891,7 +882,7 @@ class _TemplatesSheetState extends State<_TemplatesSheet> {
                     controller: ctrl,
                     padding: const EdgeInsets.all(16),
                     itemCount: _templates.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    separatorBuilder: (_, index) => const SizedBox(height: 8),
                     itemBuilder: (_, i) {
                       final t = _templates[i];
                       return Card(
@@ -977,10 +968,11 @@ class _JournalHistoryPageState extends State<_JournalHistoryPage> {
       groupId,
       journalId: widget.journalId,
     );
-    if (mounted) setState(() {
-      _history = records;
-      _loading = false;
-    });
+    if (mounted)
+      setState(() {
+        _history = records;
+        _loading = false;
+      });
   }
 
   @override
@@ -990,13 +982,13 @@ class _JournalHistoryPageState extends State<_JournalHistoryPage> {
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _history.isEmpty
-              ? const Center(child: Text('Записів немає'))
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _history.length,
-                  separatorBuilder: (_, __) => const Divider(height: 1),
-                  itemBuilder: (_, i) => _HistoryTile(record: _history[i]),
-                ),
+          ? const Center(child: Text('Записів немає'))
+          : ListView.separated(
+              padding: const EdgeInsets.all(16),
+              itemCount: _history.length,
+              separatorBuilder: (_, index) => const Divider(height: 1),
+              itemBuilder: (_, i) => _HistoryTile(record: _history[i]),
+            ),
     );
   }
 }

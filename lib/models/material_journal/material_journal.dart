@@ -24,7 +24,8 @@ class MaterialJournal {
       name: data['name'] as String? ?? '',
       description: data['description'] as String?,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      modifiedAt: (data['modifiedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      modifiedAt:
+          (data['modifiedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       authorEmail: data['authorEmail'] as String? ?? '',
     );
   }
@@ -41,10 +42,7 @@ class MaterialJournal {
     'createdAt': FieldValue.serverTimestamp(),
   };
 
-  MaterialJournal copyWith({
-    String? name,
-    String? description,
-  }) =>
+  MaterialJournal copyWith({String? name, String? description}) =>
       MaterialJournal(
         id: id,
         name: name ?? this.name,

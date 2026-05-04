@@ -10,6 +10,7 @@ import 'services/auth_service.dart';
 import 'services/file_manager/file_manager.dart';
 import 'services/firestore_manager.dart';
 import 'services/profile_manager.dart';
+import 'services/personnel_profile_service.dart';
 import 'services/reports_service.dart';
 import 'services/report_templates_service.dart';
 import 'services/templates_service.dart';
@@ -29,6 +30,8 @@ class Globals {
   static final StartupTelemetry startupTelemetry = StartupTelemetry();
   static final FirestoreManager firestoreManager = FirestoreManager();
   static final ProfileManager profileManager = ProfileManager();
+  static final PersonnelProfileService personnelProfileService =
+      PersonnelProfileService();
   static final FileManager fileManager = FileManager();
   static final ReportsService reportsService = ReportsService(); // 👈 ДОДАЄМО
   static final ReportTemplatesService reportTemplatesService =

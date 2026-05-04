@@ -72,9 +72,9 @@ class _QuantityActionDialogState extends State<QuantityActionDialog> {
           children: [
             Text(
               'Поточний залишок: ${_fmt(current)} $unit',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Colors.grey[600],
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: Colors.grey[600]),
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -84,7 +84,9 @@ class _QuantityActionDialogState extends State<QuantityActionDialog> {
                 border: const OutlineInputBorder(),
               ),
               autofocus: true,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
               inputFormatters: [
                 FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
               ],
@@ -112,9 +114,9 @@ class _QuantityActionDialogState extends State<QuantityActionDialog> {
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
                   'Корекція — адміністративна правка залишку.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Colors.orange[700],
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: Colors.orange[700]),
                 ),
               ),
           ],
@@ -125,10 +127,7 @@ class _QuantityActionDialogState extends State<QuantityActionDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('Скасувати'),
         ),
-        FilledButton(
-          onPressed: _confirm,
-          child: Text(_title),
-        ),
+        FilledButton(onPressed: _confirm, child: Text(_title)),
       ],
     );
   }
