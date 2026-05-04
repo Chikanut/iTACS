@@ -439,7 +439,16 @@ function sendTelegramMessage(token, chatId, text) {
         (res) => {
           let data = "";
           res.on("data", (chunk) => (data += chunk));
-          res.on("end", () => resolve(JSON.parse(data)));
+          res.on("end", () => {
+            const response = JSON.parse(data);
+            if (!response.ok) {
+              reject(new Error(
+                  `Telegram API error: ${response.description || data}`,
+              ));
+              return;
+            }
+            resolve(response);
+          });
         },
     );
     req.on("error", reject);
@@ -448,17 +457,38 @@ function sendTelegramMessage(token, chatId, text) {
   });
 }
 
+function normalizeTelegramSecret(value) {
+  return String(value || "").trim();
+}
+
+function validateTelegramBotToken(token) {
+  if (!/^\d+:[A-Za-z0-9_-]+$/.test(token)) {
+    throw new Error(
+        "Invalid TELEGRAM_BOT_TOKEN format. Check for quotes, spaces, or line breaks.",
+    );
+  }
+}
+
+function escapeTelegramHtml(value) {
+  return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+}
+
 exports.notifyOnNewFeedback = functionsV1
     .runWith({secrets: ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"]})
     .firestore.document("app_feedback/{docId}")
     .onCreate(async (snap) => {
-      const token = telegramBotToken.value();
-      const chatId = telegramChatId.value();
+      const token = normalizeTelegramSecret(telegramBotToken.value());
+      const chatId = normalizeTelegramSecret(telegramChatId.value());
 
       if (!token || !chatId) {
         logger.warn("Telegram secrets missing — set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID");
         return null;
       }
+
+      validateTelegramBotToken(token);
 
       const d = snap.data() || {};
 
@@ -476,12 +506,12 @@ exports.notifyOnNewFeedback = functionsV1
       const text = [
         `${categoryEmoji} <b>Новий відгук — ${categoryLabel}</b>${priorityLine}`,
         ``,
-        `👤 ${d.userName || "—"} (<code>${d.userEmail || "—"}</code>)`,
-        `📱 ${d.platform || "—"} · v${d.appVersion || "—"}`,
+        `👤 ${escapeTelegramHtml(d.userName || "—")} (<code>${escapeTelegramHtml(d.userEmail || "—")}</code>)`,
+        `📱 ${escapeTelegramHtml(d.platform || "—")} · v${escapeTelegramHtml(d.appVersion || "—")}`,
         `🕐 ${createdAt}`,
         ``,
         `💬 <b>Опис:</b>`,
-        d.description || "—",
+        escapeTelegramHtml(d.description || "—"),
       ].join("\n");
 
       try {
