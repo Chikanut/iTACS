@@ -379,6 +379,87 @@ exports.cleanupLessonReminderJobs = functionsV1.pubsub
       return null;
     });
 
+// ─── Telegram-сповіщення при новому feedback ─────────────────────────────────
+
+const https = require("https");
+const {defineSecret} = require("firebase-functions/params");
+
+const telegramBotToken = defineSecret("TELEGRAM_BOT_TOKEN");
+const telegramChatId = defineSecret("TELEGRAM_CHAT_ID");
+
+function sendTelegramMessage(token, chatId, text) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify({chat_id: chatId, text, parse_mode: "HTML"});
+    const req = https.request(
+        {
+          hostname: "api.telegram.org",
+          path: `/bot${token}/sendMessage`,
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(body),
+          },
+        },
+        (res) => {
+          let data = "";
+          res.on("data", (chunk) => (data += chunk));
+          res.on("end", () => resolve(JSON.parse(data)));
+        },
+    );
+    req.on("error", reject);
+    req.write(body);
+    req.end();
+  });
+}
+
+exports.notifyOnNewFeedback = functionsV1
+    .runWith({secrets: ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"]})
+    .firestore.document("app_feedback/{docId}")
+    .onCreate(async (snap) => {
+      const token = telegramBotToken.value();
+      const chatId = telegramChatId.value();
+
+      if (!token || !chatId) {
+        logger.warn("Telegram secrets missing — set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID");
+        return null;
+      }
+
+      const d = snap.data() || {};
+
+      const categoryEmoji = {bug: "🐛", feature: "💡", other: "💬"}[d.category] || "💬";
+      const categoryLabel = {bug: "Баг", feature: "Пропозиція", other: "Інше"}[d.category] || d.category;
+
+      const priorityLine = d.priority
+        ? `\n⚡️ Критичність: ${{low: "🟢 Низька", medium: "🟡 Середня", high: "🔴 Критична"}[d.priority] || d.priority}`
+        : "";
+
+      const createdAt = d.createdAt
+        ? new Date(d.createdAt.toMillis()).toLocaleString("uk-UA", {timeZone: "Europe/Kyiv"})
+        : "—";
+
+      const text = [
+        `${categoryEmoji} <b>Новий відгук — ${categoryLabel}</b>${priorityLine}`,
+        ``,
+        `👤 ${d.userName || "—"} (<code>${d.userEmail || "—"}</code>)`,
+        `📱 ${d.platform || "—"} · v${d.appVersion || "—"}`,
+        `🕐 ${createdAt}`,
+        ``,
+        `💬 <b>Опис:</b>`,
+        d.description || "—",
+      ].join("\n");
+
+      try {
+        await sendTelegramMessage(token, chatId, text);
+        logger.info("Telegram feedback notification sent", {docId: snap.id});
+      } catch (err) {
+        logger.error("Failed to send Telegram notification", err);
+      }
+
+      return null;
+    });
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 function buildEventKey(prefix, eventId) {
   return `${prefix}_${eventId}`;
 }

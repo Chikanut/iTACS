@@ -17,6 +17,7 @@ import '../models/instructor_absence.dart';
 import '../models/group_notification.dart';
 import '../widgets/absence_request_dialog.dart';
 import '../theme/app_theme.dart';
+import '../widgets/feedback_dialog.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -208,9 +209,17 @@ class _HomePageState extends State<HomePage> {
         'Користувач';
 
     return SliverAppBar(
-      expandedHeight: 80, // Збільшуємо висоту
+      expandedHeight: 80,
       floating: false,
       pinned: true,
+      actions: [
+        IconButton(
+          tooltip: 'Зв\'язок з підтримкою',
+          icon: const Icon(Icons.headset_mic_outlined),
+          onPressed: () => FeedbackDialog.show(context),
+        ),
+        const SizedBox(width: 4),
+      ],
       flexibleSpace: FlexibleSpaceBar(
         title: Column(
           mainAxisSize: MainAxisSize.min,
