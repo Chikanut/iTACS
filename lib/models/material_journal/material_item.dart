@@ -110,6 +110,9 @@ class MaterialItem {
   final DateTime modifiedAt;
   final String modifiedBy;
 
+  // Grouping
+  final String group;
+
   // Consumable / value_based fields
   final double quantity;
   final MaterialUnit unit;
@@ -127,6 +130,7 @@ class MaterialItem {
     required this.type,
     required this.modifiedAt,
     required this.modifiedBy,
+    this.group = '',
     this.quantity = 0,
     this.unit = MaterialUnit.pcs,
     this.minQuantity = 0,
@@ -150,6 +154,7 @@ class MaterialItem {
       modifiedAt:
           (data['modifiedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       modifiedBy: data['modifiedBy'] as String? ?? '',
+      group: data['group'] as String? ?? '',
       quantity: quantity,
       unit: MaterialUnitX.fromString(data['unit'] as String? ?? ''),
       minQuantity: minQuantity,
@@ -166,6 +171,7 @@ class MaterialItem {
       'type': type.value,
       'modifiedAt': FieldValue.serverTimestamp(),
       'modifiedBy': modifiedBy,
+      'group': group,
     };
 
     if (type == MaterialItemType.nonConsumable) {
@@ -187,6 +193,7 @@ class MaterialItem {
     String? name,
     MaterialItemType? type,
     String? modifiedBy,
+    String? group,
     double? quantity,
     MaterialUnit? unit,
     double? minQuantity,
@@ -202,6 +209,7 @@ class MaterialItem {
       type: type ?? this.type,
       modifiedAt: DateTime.now(),
       modifiedBy: modifiedBy ?? this.modifiedBy,
+      group: group ?? this.group,
       quantity: newQty,
       unit: unit ?? this.unit,
       minQuantity: newMin,

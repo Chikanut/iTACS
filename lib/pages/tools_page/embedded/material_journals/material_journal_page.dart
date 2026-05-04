@@ -32,6 +32,7 @@ class _MaterialJournalPageState extends State<MaterialJournalPage>
   final _service = MaterialJournalService();
   List<MaterialItem> _items = [];
   List<MaterialTemplate> _templates = [];
+  final Map<String, bool> _collapsedGroups = {};
 
   bool get _canManage =>
       !Globals.appRuntimeState.isReadOnlyOffline &&
@@ -44,6 +45,13 @@ class _MaterialJournalPageState extends State<MaterialJournalPage>
   String get _groupId => Globals.profileManager.currentGroupId ?? '';
   String get _journalId => widget.journal.id;
   String get _userName => Globals.profileManager.currentUserName;
+
+  List<String> get _availableGroups => _items
+      .map((i) => i.group)
+      .where((g) => g.isNotEmpty)
+      .toSet()
+      .toList()
+    ..sort();
 
   @override
   void initState() {
@@ -227,6 +235,18 @@ class _MaterialJournalPageState extends State<MaterialJournalPage>
     }
   }
 
+  void _showItemDialog({MaterialItem? existing}) {
+    showDialog<void>(
+      context: context,
+      builder: (_) => ItemDialog(
+        journalId: _journalId,
+        existing: existing,
+        availableGroups: _availableGroups,
+        onSaved: _fetchItems,
+      ),
+    );
+  }
+
   // ── Templates ────────────────────────────────────────────────────────────
 
   Future<void> _showTemplates() async {
@@ -251,8 +271,6 @@ class _MaterialJournalPageState extends State<MaterialJournalPage>
       builder: (_) =>
           ApplyTemplateDialog(template: template, itemsById: itemsById),
     );
-    // null  → dialog dismissed (back button / tap outside) or Скасувати
-    // record → user pressed Підтвердити
     if (result == null || !result.confirmed) return;
     if (!mounted) return;
 
@@ -333,56 +351,97 @@ class _MaterialJournalPageState extends State<MaterialJournalPage>
                   Expanded(
                     child: _items.isEmpty
                         ? _buildEmpty()
-                        : ListView.separated(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _items.length,
-                            separatorBuilder: (_, index) =>
-                                const SizedBox(height: 8),
-                            itemBuilder: (context, i) => _ItemTile(
-                              item: _items[i],
-                              canManage: _canManage,
-                              isAdmin: _isAdmin,
-                              onTap: () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => MaterialItemDetailPage(
-                                    journalId: _journalId,
-                                    journalName: widget.journal.name,
-                                    item: _items[i],
-                                  ),
-                                ),
-                              ),
-                              onWriteOff: () => _showWriteOff(_items[i]),
-                              onReplenish: () => _showReplenish(_items[i]),
-                              onTransfer: () => _showTransfer(_items[i]),
-                              onCondition: () =>
-                                  _showConditionChange(_items[i]),
-                              onCorrection: () => _showCorrection(_items[i]),
-                              onEdit: () => showDialog<void>(
-                                context: context,
-                                builder: (_) => ItemDialog(
-                                  journalId: _journalId,
-                                  existing: _items[i],
-                                  onSaved: _fetchItems,
-                                ),
-                              ),
-                              onDelete: () => _deleteItem(_items[i]),
-                            ),
-                          ),
+                        : _buildGroupedList(),
                   ),
                 ],
               ),
             ),
       floatingActionButton: _canManage
           ? FloatingActionButton(
-              onPressed: () => showDialog<void>(
-                context: context,
-                builder: (_) =>
-                    ItemDialog(journalId: _journalId, onSaved: _fetchItems),
-              ),
+              onPressed: () => _showItemDialog(),
               tooltip: 'Додати елемент',
               child: const Icon(Icons.add),
             )
           : null,
+    );
+  }
+
+  Widget _buildGroupedList() {
+    // Split items into groups and ungrouped
+    final grouped = <String, List<MaterialItem>>{};
+    final ungrouped = <MaterialItem>[];
+
+    for (final item in _items) {
+      if (item.group.isEmpty) {
+        ungrouped.add(item);
+      } else {
+        grouped.putIfAbsent(item.group, () => []).add(item);
+      }
+    }
+
+    final sortedGroupNames = grouped.keys.toList()..sort();
+
+    final children = <Widget>[];
+
+    for (final groupName in sortedGroupNames) {
+      final groupItems = grouped[groupName]!;
+      final collapsed = _collapsedGroups[groupName] ?? false;
+      children.add(
+        _GroupHeader(
+          name: groupName,
+          count: groupItems.length,
+          collapsed: collapsed,
+          onToggle: () => setState(
+            () => _collapsedGroups[groupName] = !collapsed,
+          ),
+        ),
+      );
+      if (!collapsed) {
+        for (final item in groupItems) {
+          children.add(const SizedBox(height: 8));
+          children.add(_buildItemTile(item));
+        }
+        children.add(const SizedBox(height: 4));
+      }
+    }
+
+    if (ungrouped.isNotEmpty) {
+      if (sortedGroupNames.isNotEmpty) {
+        children.add(const SizedBox(height: 4));
+      }
+      for (int i = 0; i < ungrouped.length; i++) {
+        if (i > 0) children.add(const SizedBox(height: 8));
+        children.add(_buildItemTile(ungrouped[i]));
+      }
+    }
+
+    return ListView(
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 16, bottom: 88),
+      children: children,
+    );
+  }
+
+  Widget _buildItemTile(MaterialItem item) {
+    return _ItemTile(
+      item: item,
+      canManage: _canManage,
+      isAdmin: _isAdmin,
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => MaterialItemDetailPage(
+            journalId: _journalId,
+            journalName: widget.journal.name,
+            item: item,
+          ),
+        ),
+      ),
+      onWriteOff: () => _showWriteOff(item),
+      onReplenish: () => _showReplenish(item),
+      onTransfer: () => _showTransfer(item),
+      onCondition: () => _showConditionChange(item),
+      onCorrection: () => _showCorrection(item),
+      onEdit: () => _showItemDialog(existing: item),
+      onDelete: () => _deleteItem(item),
     );
   }
 
@@ -406,16 +465,69 @@ class _MaterialJournalPageState extends State<MaterialJournalPage>
           if (_canManage) ...[
             const SizedBox(height: 24),
             ElevatedButton.icon(
-              onPressed: () => showDialog<void>(
-                context: context,
-                builder: (_) =>
-                    ItemDialog(journalId: _journalId, onSaved: _fetchItems),
-              ),
+              onPressed: () => _showItemDialog(),
               icon: const Icon(Icons.add),
               label: const Text('Додати перший елемент'),
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+// ── Group header ───────────────────────────────────────────────────────────
+
+class _GroupHeader extends StatelessWidget {
+  final String name;
+  final int count;
+  final bool collapsed;
+  final VoidCallback onToggle;
+
+  const _GroupHeader({
+    required this.name,
+    required this.count,
+    required this.collapsed,
+    required this.onToggle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onToggle,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        child: Row(
+          children: [
+            Icon(
+              collapsed ? Icons.folder : Icons.folder_open,
+              color: Colors.amber[700],
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                name,
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            Text(
+              '$count',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+            ),
+            const SizedBox(width: 4),
+            Icon(
+              collapsed ? Icons.expand_more : Icons.expand_less,
+              size: 18,
+              color: Colors.grey[600],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -629,7 +741,9 @@ class _ActionRow extends StatelessWidget {
           ),
         const Spacer(),
         PopupMenuButton<String>(
-          icon: const Icon(Icons.more_vert, size: 18),
+          icon: const Icon(Icons.more_vert, size: 20),
+          iconSize: 20,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
           onSelected: (v) {
             if (v == 'edit') onEdit();
             if (v == 'correction') onCorrection();
@@ -695,10 +809,10 @@ class _ActionBtn extends StatelessWidget {
       icon: Icon(icon, size: 14, color: color),
       label: Text(label, style: TextStyle(fontSize: 12, color: color)),
       style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         side: BorderSide(color: color.withOpacity(0.5)),
-        minimumSize: Size.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        minimumSize: const Size(0, 36),
+        tapTargetSize: MaterialTapTargetSize.padded,
       ),
     );
   }
@@ -885,52 +999,112 @@ class _TemplatesSheetState extends State<_TemplatesSheet> {
                     separatorBuilder: (_, index) => const SizedBox(height: 8),
                     itemBuilder: (_, i) {
                       final t = _templates[i];
-                      return Card(
-                        elevation: 1,
-                        child: ListTile(
-                          leading: const Icon(Icons.auto_awesome),
-                          title: Text(t.name),
-                          subtitle: Text('${t.items.length} позицій'),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (widget.canManage) ...[
-                                IconButton(
-                                  icon: const Icon(Icons.edit, size: 18),
-                                  onPressed: () => showDialog<void>(
-                                    context: context,
-                                    builder: (_) => TemplateDialog(
-                                      journalId: widget.journalId,
-                                      journalItems: widget.items,
-                                      existing: t,
-                                      onSaved: _reload,
-                                    ),
-                                  ),
-                                ),
-                                IconButton(
-                                  icon: const Icon(
-                                    Icons.delete,
-                                    size: 18,
-                                    color: Colors.red,
-                                  ),
-                                  onPressed: () => _deleteTemplate(t),
-                                ),
-                              ],
-                              FilledButton(
-                                onPressed: () async {
-                                  Navigator.of(context).pop();
-                                  await widget.onApply(t);
-                                },
-                                child: const Text('Застосувати'),
-                              ),
-                            ],
+                      return _TemplateCard(
+                        template: t,
+                        canManage: widget.canManage,
+                        onEdit: () => showDialog<void>(
+                          context: context,
+                          builder: (_) => TemplateDialog(
+                            journalId: widget.journalId,
+                            journalItems: widget.items,
+                            existing: t,
+                            onSaved: _reload,
                           ),
                         ),
+                        onDelete: () => _deleteTemplate(t),
+                        onApply: () async {
+                          Navigator.of(context).pop();
+                          await widget.onApply(t);
+                        },
                       );
                     },
                   ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _TemplateCard extends StatelessWidget {
+  final MaterialTemplate template;
+  final bool canManage;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
+  final VoidCallback onApply;
+
+  const _TemplateCard({
+    required this.template,
+    required this.canManage,
+    required this.onEdit,
+    required this.onDelete,
+    required this.onApply,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.auto_awesome, size: 18, color: Colors.amber),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    template.name,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 26, top: 2),
+              child: Text(
+                '${template.items.length} позицій',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Colors.grey[600]),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                if (canManage) ...[
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 18),
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.all(8),
+                    tooltip: 'Редагувати',
+                    onPressed: onEdit,
+                  ),
+                  IconButton(
+                    icon: const Icon(
+                      Icons.delete,
+                      size: 18,
+                      color: Colors.red,
+                    ),
+                    visualDensity: VisualDensity.compact,
+                    padding: const EdgeInsets.all(8),
+                    tooltip: 'Видалити',
+                    onPressed: onDelete,
+                  ),
+                ],
+                const Spacer(),
+                FilledButton(
+                  onPressed: onApply,
+                  child: const Text('Застосувати'),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

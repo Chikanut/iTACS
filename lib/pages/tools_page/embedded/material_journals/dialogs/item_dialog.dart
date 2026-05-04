@@ -9,12 +9,14 @@ class ItemDialog extends StatefulWidget {
   final String journalId;
   final MaterialItem? existing;
   final VoidCallback onSaved;
+  final List<String> availableGroups;
 
   const ItemDialog({
     super.key,
     required this.journalId,
     this.existing,
     required this.onSaved,
+    this.availableGroups = const [],
   });
 
   bool get isEditing => existing != null;
@@ -30,6 +32,7 @@ class _ItemDialogState extends State<ItemDialog> {
   late final TextEditingController _minCtrl;
   late final TextEditingController _countCtrl;
   late final TextEditingController _commentCtrl;
+  late final TextEditingController _groupCtrl;
 
   MaterialItemType _type = MaterialItemType.consumable;
   MaterialUnit _unit = MaterialUnit.pcs;
@@ -54,6 +57,7 @@ class _ItemDialogState extends State<ItemDialog> {
       text: e?.count != null ? e!.count.toString() : '',
     );
     _commentCtrl = TextEditingController(text: e?.conditionComment ?? '');
+    _groupCtrl = TextEditingController(text: e?.group ?? '');
   }
 
   @override
@@ -63,6 +67,7 @@ class _ItemDialogState extends State<ItemDialog> {
     _minCtrl.dispose();
     _countCtrl.dispose();
     _commentCtrl.dispose();
+    _groupCtrl.dispose();
     super.dispose();
   }
 
@@ -71,12 +76,45 @@ class _ItemDialogState extends State<ItemDialog> {
     return v.toStringAsFixed(2);
   }
 
+  void _onTypeChanged(MaterialItemType? v) {
+    if (v == null || v == _type) return;
+    if (widget.isEditing) {
+      _confirmTypeChange(v);
+    } else {
+      setState(() => _type = v);
+    }
+  }
+
+  Future<void> _confirmTypeChange(MaterialItemType newType) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Змінити тип елемента?'),
+        content: const Text(
+          'Зміна типу призведе до того, що деякі дані (кількість або стан) будуть скинуті. Продовжити?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Скасувати'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Змінити'),
+          ),
+        ],
+      ),
+    );
+    if (ok == true && mounted) setState(() => _type = newType);
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     final groupId = Globals.profileManager.currentGroupId;
     if (groupId == null) return;
 
     final userName = Globals.profileManager.currentUserName;
+    final group = _groupCtrl.text.trim();
     setState(() => _saving = true);
     try {
       final service = MaterialJournalService();
@@ -89,6 +127,7 @@ class _ItemDialogState extends State<ItemDialog> {
           type: _type,
           modifiedAt: DateTime.now(),
           modifiedBy: userName,
+          group: group,
           count: int.tryParse(_countCtrl.text.trim()) ?? 0,
           condition: _condition,
           conditionComment: _commentCtrl.text.trim(),
@@ -102,6 +141,7 @@ class _ItemDialogState extends State<ItemDialog> {
           type: _type,
           modifiedAt: DateTime.now(),
           modifiedBy: userName,
+          group: group,
           quantity: qty,
           unit: _unit,
           minQuantity: min,
@@ -130,6 +170,12 @@ class _ItemDialogState extends State<ItemDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final groups = widget.availableGroups
+        .where((g) => g.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+
     return AlertDialog(
       title: Text(widget.isEditing ? 'Редагувати елемент' : 'Новий елемент'),
       content: SingleChildScrollView(
@@ -162,9 +208,7 @@ class _ItemDialogState extends State<ItemDialog> {
                       (t) => DropdownMenuItem(value: t, child: Text(t.label)),
                     )
                     .toList(),
-                onChanged: widget.isEditing
-                    ? null
-                    : (v) => setState(() => _type = v!),
+                onChanged: _onTypeChanged,
               ),
               const SizedBox(height: 12),
               if (_type == MaterialItemType.nonConsumable) ...[
@@ -258,6 +302,33 @@ class _ItemDialogState extends State<ItemDialog> {
                   ),
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d*')),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _groupCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Група (необов\'язково)',
+                  hintText: 'напр. Резерв, Медикаменти',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.folder_outlined, size: 18),
+                ),
+              ),
+              if (groups.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    for (final g in groups)
+                      ActionChip(
+                        avatar: const Icon(Icons.folder, size: 14),
+                        label: Text(g, style: const TextStyle(fontSize: 12)),
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () =>
+                            setState(() => _groupCtrl.text = g),
+                      ),
                   ],
                 ),
               ],
