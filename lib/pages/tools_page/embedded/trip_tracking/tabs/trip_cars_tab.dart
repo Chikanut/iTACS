@@ -79,11 +79,7 @@ class _CarsTabState extends State<CarsTab> {
                         onPressed: () {
                           setS(() {
                             routes.add(
-                              TripRoute(
-                                id: _uuid.v4(),
-                                name: '',
-                                price: 0,
-                              ),
+                              TripRoute(id: _uuid.v4(), name: '', price: 0),
                             );
                           });
                         },
@@ -160,8 +156,9 @@ class _CarsTabState extends State<CarsTab> {
               onPressed: () async {
                 final name = nameCtrl.text.trim();
                 if (name.isEmpty) return;
-                final validRoutes =
-                    routes.where((r) => r.name.isNotEmpty).toList();
+                final validRoutes = routes
+                    .where((r) => r.name.isNotEmpty)
+                    .toList();
                 try {
                   if (car == null) {
                     final newCar = widget.service.newCar(
@@ -183,9 +180,7 @@ class _CarsTabState extends State<CarsTab> {
                   if (ctx.mounted) Navigator.pop(ctx);
                   await _reload();
                 } catch (e) {
-                  Globals.errorNotificationManager.showError(
-                    'Помилка: $e',
-                  );
+                  Globals.errorNotificationManager.showError('Помилка: $e');
                 }
               },
               child: const Text('Зберегти'),
@@ -216,9 +211,7 @@ class _CarsTabState extends State<CarsTab> {
             ),
             ElevatedButton(
               onPressed: () => Navigator.pop(ctx, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
               child: const Text('Все одно видалити'),
             ),
           ],
@@ -231,9 +224,7 @@ class _CarsTabState extends State<CarsTab> {
       await widget.service.deleteCar(widget.groupId, car.id);
       await _reload();
       if (mounted) {
-        Globals.errorNotificationManager.showSuccess(
-          '${car.name} видалено',
-        );
+        Globals.errorNotificationManager.showSuccess('${car.name} видалено');
       }
     } catch (e) {
       if (mounted) {
@@ -280,8 +271,10 @@ class _CarsTabState extends State<CarsTab> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             if (car.routes.isEmpty)
-                              const Text('Маршрути не вказані',
-                                  style: TextStyle(fontSize: 12))
+                              const Text(
+                                'Маршрути не вказані',
+                                style: TextStyle(fontSize: 12),
+                              )
                             else
                               ...car.routes.map(
                                 (r) => Text(
@@ -305,8 +298,7 @@ class _CarsTabState extends State<CarsTab> {
                                 children: [
                                   IconButton(
                                     icon: const Icon(Icons.edit_outlined),
-                                    onPressed: () =>
-                                        _showCarDialog(car: car),
+                                    onPressed: () => _showCarDialog(car: car),
                                   ),
                                   IconButton(
                                     icon: const Icon(

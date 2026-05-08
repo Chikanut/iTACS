@@ -170,9 +170,12 @@ class PushNotificationsService extends ChangeNotifier {
   bool _needsIosPermissionPrompt = false;
   String? _registeredToken;
   PushNavigationRequest? _pendingNavigationRequest;
+  PushNavigationRequest? _foregroundPresentationRequest;
 
   PushNavigationRequest? get pendingNavigationRequest =>
       _pendingNavigationRequest;
+  PushNavigationRequest? get foregroundPresentationRequest =>
+      _foregroundPresentationRequest;
 
   /// True when running as an iOS PWA and the user has not yet granted
   /// notification permission. The UI should show a prompt with a button that
@@ -317,6 +320,15 @@ class PushNotificationsService extends ChangeNotifier {
     notifyListeners();
   }
 
+  void clearForegroundPresentationRequest() {
+    if (_foregroundPresentationRequest == null) {
+      return;
+    }
+
+    _foregroundPresentationRequest = null;
+    notifyListeners();
+  }
+
   void queueNavigationRequest(PushNavigationRequest request) {
     _setPendingNavigationRequest(request);
   }
@@ -440,30 +452,7 @@ class PushNotificationsService extends ChangeNotifier {
       return;
     }
 
-    if (kIsWeb) {
-      _setPendingNavigationRequest(request);
-      return;
-    }
-
-    final notificationId =
-        message.messageId?.hashCode ??
-        request.toLocalNotificationPayload().hashCode;
-
-    await _localNotifications.show(
-      id: notificationId,
-      title: request.title,
-      body: request.body.isNotEmpty ? request.body : null,
-      notificationDetails: const NotificationDetails(
-        android: AndroidNotificationDetails(
-          androidChannelId,
-          androidChannelName,
-          channelDescription: androidChannelDescription,
-          importance: Importance.max,
-          priority: Priority.high,
-        ),
-      ),
-      payload: request.toLocalNotificationPayload(),
-    );
+    _setForegroundPresentationRequest(request);
   }
 
   Future<void> _deleteDeviceTokenDocument(String uid, String token) async {
@@ -500,12 +489,22 @@ class PushNotificationsService extends ChangeNotifier {
     notifyListeners();
   }
 
+  void _setForegroundPresentationRequest(PushNavigationRequest? request) {
+    if (request == null) {
+      return;
+    }
+
+    _foregroundPresentationRequest = request;
+    notifyListeners();
+  }
+
   void _resetSessionState() {
     _initialized = false;
     _initializing = false;
     _registeredToken = null;
     _needsIosPermissionPrompt = false;
     _pendingNavigationRequest = null;
+    _foregroundPresentationRequest = null;
     notifyListeners();
   }
 

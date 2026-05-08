@@ -77,6 +77,7 @@ class LessonModel {
   final String instructorName;
   final List<String> instructorIds;
   final List<String> instructorNames;
+  final List<String> externalInstructorNames;
   final String location;
   final int maxParticipants;
   final List<String> participants;
@@ -107,6 +108,7 @@ class LessonModel {
     required String instructorName,
     List<String>? instructorIds,
     List<String>? instructorNames,
+    List<String>? externalInstructorNames,
     required this.location,
     required this.maxParticipants,
     required this.participants,
@@ -128,6 +130,9 @@ class LessonModel {
        instructorNames = _normalizeInstructorNames(
          instructorNames,
          fallbackName: instructorName,
+       ),
+       externalInstructorNames = _normalizeInstructorNames(
+         externalInstructorNames,
        ),
        instructorId = _resolvePrimaryInstructorId(
          instructorId: instructorId,
@@ -177,6 +182,9 @@ class LessonModel {
       instructorName: data['instructorName'] ?? '',
       instructorIds: List<String>.from(data['instructorIds'] ?? const []),
       instructorNames: List<String>.from(data['instructorNames'] ?? const []),
+      externalInstructorNames: List<String>.from(
+        data['externalInstructorNames'] ?? const [],
+      ),
       location: data['location'] ?? '',
       maxParticipants: data['maxParticipants'] ?? 0,
       participants: List<String>.from(data['participants'] ?? []),
@@ -229,6 +237,9 @@ class LessonModel {
       instructorName: data['instructorName'] ?? '',
       instructorIds: List<String>.from(data['instructorIds'] ?? const []),
       instructorNames: List<String>.from(data['instructorNames'] ?? const []),
+      externalInstructorNames: List<String>.from(
+        data['externalInstructorNames'] ?? const [],
+      ),
       location: data['location'] ?? '',
       maxParticipants: data['maxParticipants'] ?? 0,
       participants: List<String>.from(data['participants'] ?? []),
@@ -273,6 +284,7 @@ class LessonModel {
       'instructorName': instructorName,
       'instructorIds': instructorIds,
       'instructorNames': instructorNames,
+      'externalInstructorNames': externalInstructorNames,
       'location': location,
       'maxParticipants': maxParticipants,
       'participants': participants,
@@ -312,6 +324,7 @@ class LessonModel {
       'instructorName': instructorName,
       'instructorIds': instructorIds,
       'instructorNames': instructorNames,
+      'externalInstructorNames': externalInstructorNames,
       'location': location,
       'maxParticipants': maxParticipants,
       'participants': participants,
@@ -355,6 +368,7 @@ class LessonModel {
     String? instructorName,
     List<String>? instructorIds,
     List<String>? instructorNames,
+    List<String>? externalInstructorNames,
     String? location,
     int? maxParticipants,
     List<String>? participants,
@@ -385,6 +399,8 @@ class LessonModel {
       instructorName: instructorName ?? this.instructorName,
       instructorIds: instructorIds ?? this.instructorIds,
       instructorNames: instructorNames ?? this.instructorNames,
+      externalInstructorNames:
+          externalInstructorNames ?? this.externalInstructorNames,
       location: location ?? this.location,
       maxParticipants: maxParticipants ?? this.maxParticipants,
       participants: participants ?? this.participants,
@@ -467,11 +483,19 @@ class LessonModel {
     return '${formatter.format(startTime)}-${formatter.format(endTime)}';
   }
 
-  bool get hasInstructors => instructorIds.isNotEmpty;
+  bool get hasInternalInstructors => instructorIds.isNotEmpty;
+
+  bool get hasExternalInstructors => externalInstructorNames.isNotEmpty;
+
+  bool get hasOnlyExternalInstructors =>
+      hasExternalInstructors && !hasInternalInstructors;
+
+  bool get hasInstructors => hasInternalInstructors || hasExternalInstructors;
 
   String get displayInstructorNames {
-    if (instructorNames.isNotEmpty) {
-      return instructorNames.join(', ');
+    final names = <String>[...instructorNames, ...externalInstructorNames];
+    if (names.isNotEmpty) {
+      return names.join(', ');
     }
     if (instructorName.trim().isNotEmpty) {
       return instructorName.trim();
@@ -599,7 +623,7 @@ class LessonModel {
 
   @override
   String toString() {
-    return 'LessonModel(id: $id, title: $title, startTime: $startTime, instructorIds: $instructorIds, instructorNames: $instructorNames)';
+    return 'LessonModel(id: $id, title: $title, startTime: $startTime, instructorIds: $instructorIds, instructorNames: $instructorNames, externalInstructorNames: $externalInstructorNames)';
   }
 
   @override

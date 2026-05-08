@@ -155,6 +155,50 @@ void main() {
       );
     });
 
+    test('does not require acknowledgement for external-only instructors', () {
+      final lesson = _buildLesson(
+        instructorIds: const [],
+        instructorNames: const [],
+        externalInstructorNames: const ['Запрошений викладач'],
+      );
+
+      expect(lesson.hasInstructors, isTrue);
+      expect(lesson.instructorAssignmentsById, isEmpty);
+      expect(
+        LessonStatusUtils.getAcknowledgementStatusForInstructor(
+          lesson,
+          instructorAssignmentId: 'Запрошений викладач',
+        ),
+        LessonAcknowledgementStatus.notRequired,
+      );
+    });
+
+    test(
+      'requires acknowledgement only for internal instructor in mixed lesson',
+      () {
+        final lesson = _buildLesson(
+          instructorIds: const ['other-uid'],
+          instructorNames: const ['Інший викладач'],
+          externalInstructorNames: const ['Запрошений викладач'],
+        );
+
+        expect(
+          LessonStatusUtils.getAcknowledgementStatusForInstructor(
+            lesson,
+            instructorAssignmentId: 'other-uid',
+          ),
+          LessonAcknowledgementStatus.pending,
+        );
+        expect(
+          LessonStatusUtils.getAcknowledgementStatusForInstructor(
+            lesson,
+            instructorAssignmentId: 'Запрошений викладач',
+          ),
+          LessonAcknowledgementStatus.notRequired,
+        );
+      },
+    );
+
     test(
       'preserves other instructor acknowledgement on non-critical changes',
       () {
@@ -242,6 +286,7 @@ LessonModel _buildLesson({
   String createdBy = 'author-uid',
   List<String> instructorIds = const ['other-uid'],
   List<String> instructorNames = const ['Інший викладач'],
+  List<String> externalInstructorNames = const [],
   DateTime? startTime,
   DateTime? endTime,
   DateTime? acknowledgementResetAt,
@@ -258,10 +303,11 @@ LessonModel _buildLesson({
     groupId: 'group-1',
     groupName: 'GSPP',
     unit: '1 взвод',
-    instructorId: instructorIds.first,
-    instructorName: instructorNames.first,
+    instructorId: instructorIds.isNotEmpty ? instructorIds.first : '',
+    instructorName: instructorNames.isNotEmpty ? instructorNames.first : '',
     instructorIds: instructorIds,
     instructorNames: instructorNames,
+    externalInstructorNames: externalInstructorNames,
     location: 'Клас 1',
     maxParticipants: 20,
     participants: const [],

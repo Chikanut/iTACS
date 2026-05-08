@@ -76,10 +76,7 @@ class _PeopleTabState extends State<PeopleTab> {
                 } else {
                   await widget.service.updatePerson(
                     widget.groupId,
-                    person.copyWith(
-                      name: name,
-                      email: emailCtrl.text.trim(),
-                    ),
+                    person.copyWith(name: name, email: emailCtrl.text.trim()),
                   );
                 }
                 if (ctx.mounted) Navigator.pop(ctx);
@@ -96,8 +93,10 @@ class _PeopleTabState extends State<PeopleTab> {
   }
 
   Future<void> _deletePerson(TripPerson person) async {
-    final used =
-        await widget.service.isPersonUsedInTrips(widget.groupId, person.id);
+    final used = await widget.service.isPersonUsedInTrips(
+      widget.groupId,
+      person.id,
+    );
     if (!mounted) return;
 
     if (used) {

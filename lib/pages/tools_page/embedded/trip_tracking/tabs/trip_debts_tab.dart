@@ -21,8 +21,9 @@ class DebtsTab extends StatelessWidget {
   final List<TripPerson> people;
   final List<TripCar> cars;
 
-  Map<String, String> get _personNames =>
-      {for (final p in people) p.id: p.name};
+  Map<String, String> get _personNames => {
+    for (final p in people) p.id: p.name,
+  };
 
   // Current user's person record (matched by email)
   TripPerson? get _myPerson {
@@ -35,7 +36,10 @@ class DebtsTab extends StatelessWidget {
 
   // Cars owned by current user (driver can close debts on their car)
   Set<String> get _myCarIds {
-    return cars.where((c) => c.ownerEmail == userEmail).map((c) => c.id).toSet();
+    return cars
+        .where((c) => c.ownerEmail == userEmail)
+        .map((c) => c.id)
+        .toSet();
   }
 
   bool get _isAdmin {
@@ -146,8 +150,7 @@ class DebtsTab extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () async {
-                final amount =
-                    double.tryParse(amountCtrl.text.trim()) ?? 0;
+                final amount = double.tryParse(amountCtrl.text.trim()) ?? 0;
                 if (amount <= 0) return;
 
                 final fromPerson = people.firstWhere(
@@ -224,10 +227,7 @@ class DebtsTab extends StatelessWidget {
                 // ── Min transactions ──────────────────────────────────────
                 const Text(
                   'Мінімум переказів',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                 ),
                 const SizedBox(height: 8),
                 if (!hasAnyDebt)
@@ -264,11 +264,11 @@ class DebtsTab extends StatelessWidget {
                                 style: TextStyle(color: Colors.red),
                               )
                             : isCreditor
-                                ? const Text(
-                                    'Вам мають сплатити',
-                                    style: TextStyle(color: Colors.green),
-                                  )
-                                : null,
+                            ? const Text(
+                                'Вам мають сплатити',
+                                style: TextStyle(color: Colors.green),
+                              )
+                            : null,
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -286,12 +286,8 @@ class DebtsTab extends StatelessWidget {
                                   color: Colors.green,
                                 ),
                                 tooltip: 'Закрити борг',
-                                onPressed: () => _markAsPaid(
-                                  context,
-                                  trips,
-                                  payments,
-                                  debt,
-                                ),
+                                onPressed: () =>
+                                    _markAsPaid(context, trips, payments, debt),
                               ),
                           ],
                         ),

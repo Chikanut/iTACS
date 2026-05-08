@@ -179,6 +179,7 @@ class CalendarService {
         'instructorId': lesson.instructorId,
         'instructorIds': lesson.instructorIds,
         'instructorNames': lesson.instructorNames,
+        'externalInstructorNames': lesson.externalInstructorNames,
         'location': lesson.location,
         'maxParticipants': lesson.maxParticipants,
         'currentParticipants': 0,
@@ -592,6 +593,7 @@ class CalendarService {
     String lessonId, {
     required List<String> instructorIds,
     required List<String> instructorNames,
+    List<String> externalInstructorNames = const [],
   }) async {
     try {
       if (!Globals.profileManager.isCurrentGroupEditor) {
@@ -623,6 +625,18 @@ class CalendarService {
         normalizedInstructorNames.add(normalizedInstructorName);
       }
 
+      final normalizedExternalInstructorNames = <String>[];
+      for (final instructorName in externalInstructorNames) {
+        final normalizedInstructorName = instructorName.trim();
+        if (normalizedInstructorName.isEmpty ||
+            normalizedExternalInstructorNames.contains(
+              normalizedInstructorName,
+            )) {
+          continue;
+        }
+        normalizedExternalInstructorNames.add(normalizedInstructorName);
+      }
+
       return await updateLesson(lessonId, {
         'instructorId': normalizedInstructorIds.isNotEmpty
             ? normalizedInstructorIds.first
@@ -632,6 +646,7 @@ class CalendarService {
             : '',
         'instructorIds': normalizedInstructorIds,
         'instructorNames': normalizedInstructorNames,
+        'externalInstructorNames': normalizedExternalInstructorNames,
       });
     } catch (e) {
       debugPrint('CalendarService: Помилка призначення викладачів: $e');

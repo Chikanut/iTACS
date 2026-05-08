@@ -180,18 +180,16 @@ class TripTrackingService {
   // ─── Check if person/car is used in trips ────────────────────────────────────
 
   Future<bool> isCarUsedInTrips(String groupId, String carId) async {
-    final snap = await _trips(groupId)
-        .where('carId', isEqualTo: carId)
-        .limit(1)
-        .get();
+    final snap = await _trips(
+      groupId,
+    ).where('carId', isEqualTo: carId).limit(1).get();
     return snap.docs.isNotEmpty;
   }
 
   Future<bool> isPersonUsedInTrips(String groupId, String personId) async {
-    final snap = await _trips(groupId)
-        .where('passengerIds', arrayContains: personId)
-        .limit(1)
-        .get();
+    final snap = await _trips(
+      groupId,
+    ).where('passengerIds', arrayContains: personId).limit(1).get();
     return snap.docs.isNotEmpty;
   }
 }

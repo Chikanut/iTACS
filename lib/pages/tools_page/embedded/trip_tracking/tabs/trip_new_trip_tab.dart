@@ -40,9 +40,7 @@ class _NewTripTabState extends State<NewTripTab> {
   List<TripCar> get _myCars {
     final role = Globals.profileManager.currentRole;
     if (role == 'admin' || role == 'editor') return widget.cars;
-    return widget.cars
-        .where((c) => c.ownerEmail == widget.userEmail)
-        .toList();
+    return widget.cars.where((c) => c.ownerEmail == widget.userEmail).toList();
   }
 
   List<TripRoute> get _carRoutes => _selectedCar?.routes ?? [];
@@ -56,7 +54,9 @@ class _NewTripTabState extends State<NewTripTab> {
   void _onCarChanged(TripCar? car) {
     setState(() {
       _selectedCar = car;
-      _selectedRoute = car?.routes.isNotEmpty == true ? car!.routes.first : null;
+      _selectedRoute = car?.routes.isNotEmpty == true
+          ? car!.routes.first
+          : null;
       _useCustomPrice = car?.routes.isEmpty == true;
     });
   }
@@ -109,7 +109,9 @@ class _NewTripTabState extends State<NewTripTab> {
       return;
     }
     if (_passengerIds.isEmpty) {
-      Globals.errorNotificationManager.showError('Додайте хоча б одного пасажира');
+      Globals.errorNotificationManager.showError(
+        'Додайте хоча б одного пасажира',
+      );
       return;
     }
     if (_effectivePrice <= 0) {
@@ -192,12 +194,7 @@ class _NewTripTabState extends State<NewTripTab> {
               ),
               hint: const Text('Оберіть машину'),
               items: _myCars
-                  .map(
-                    (c) => DropdownMenuItem(
-                      value: c,
-                      child: Text(c.name),
-                    ),
-                  )
+                  .map((c) => DropdownMenuItem(value: c, child: Text(c.name)))
                   .toList(),
               onChanged: _onCarChanged,
             ),
@@ -211,11 +208,10 @@ class _NewTripTabState extends State<NewTripTab> {
                 (r) => RadioListTile<TripRoute>(
                   value: r,
                   groupValue: _useCustomPrice ? null : _selectedRoute,
-                  onChanged: (v) =>
-                      setState(() {
-                        _selectedRoute = v;
-                        _useCustomPrice = false;
-                      }),
+                  onChanged: (v) => setState(() {
+                    _selectedRoute = v;
+                    _useCustomPrice = false;
+                  }),
                   title: Text(r.name),
                   subtitle: Text('${r.price.toStringAsFixed(0)} ₴'),
                   contentPadding: EdgeInsets.zero,
@@ -252,12 +248,7 @@ class _NewTripTabState extends State<NewTripTab> {
             ),
             hint: const Text('Оберіть водія'),
             items: widget.people
-                .map(
-                  (p) => DropdownMenuItem(
-                    value: p,
-                    child: Text(p.name),
-                  ),
-                )
+                .map((p) => DropdownMenuItem(value: p, child: Text(p.name)))
                 .toList(),
             onChanged: _onDriverChanged,
           ),
@@ -310,7 +301,9 @@ class _NewTripTabState extends State<NewTripTab> {
           const SizedBox(height: 24),
 
           // Price preview
-          if (_selectedCar != null && _passengerIds.isNotEmpty && _effectivePrice > 0)
+          if (_selectedCar != null &&
+              _passengerIds.isNotEmpty &&
+              _effectivePrice > 0)
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(

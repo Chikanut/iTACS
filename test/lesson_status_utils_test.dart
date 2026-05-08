@@ -168,6 +168,67 @@ void main() {
         expect(LessonStatusUtils.areCriticalFieldsFilled(lesson), isFalse);
       },
     );
+
+    test('treats external-only instructor as assigned', () {
+      final lesson = _buildLesson(
+        instructorIds: const [],
+        instructorNames: const [],
+        externalInstructorNames: const ['Запрошений викладач'],
+      );
+
+      final evaluation = LessonStatusUtils.evaluateLessonStatus(lesson);
+
+      expect(evaluation.tone, LessonReadinessTone.normal);
+      expect(evaluation.missingInstructor, isFalse);
+      expect(evaluation.issues, isEmpty);
+      expect(LessonStatusUtils.areCriticalFieldsFilled(lesson), isTrue);
+    });
+
+    test(
+      'does not require custom fields for external-only completed lesson',
+      () {
+        final lesson = _buildLesson(
+          startTime: DateTime.now().subtract(const Duration(hours: 4)),
+          endTime: DateTime.now().subtract(const Duration(hours: 1)),
+          instructorIds: const [],
+          instructorNames: const [],
+          externalInstructorNames: const ['Гість'],
+          customFieldDefinitions: const [
+            LessonCustomFieldDefinition(
+              code: 'note',
+              label: 'Примітка',
+              type: CustomFieldType.string,
+            ),
+          ],
+        );
+
+        final evaluation = LessonStatusUtils.evaluateLessonStatus(lesson);
+
+        expect(evaluation.tone, LessonReadinessTone.normal);
+        expect(evaluation.missingPostLessonCustomFields, isEmpty);
+        expect(LessonStatusUtils.getCriticalFieldsProgress(lesson), 1.0);
+      },
+    );
+
+    test('still requires custom fields for mixed completed lesson', () {
+      final lesson = _buildLesson(
+        startTime: DateTime.now().subtract(const Duration(hours: 4)),
+        endTime: DateTime.now().subtract(const Duration(hours: 1)),
+        externalInstructorNames: const ['Гість'],
+        customFieldDefinitions: const [
+          LessonCustomFieldDefinition(
+            code: 'note',
+            label: 'Примітка',
+            type: CustomFieldType.string,
+          ),
+        ],
+      );
+
+      final evaluation = LessonStatusUtils.evaluateLessonStatus(lesson);
+
+      expect(evaluation.tone, LessonReadinessTone.problem);
+      expect(evaluation.missingPostLessonCustomFields, ['Примітка']);
+    });
   });
 }
 
@@ -176,6 +237,7 @@ LessonModel _buildLesson({
   DateTime? endTime,
   List<String> instructorIds = const ['inst-1'],
   List<String> instructorNames = const ['Інструктор'],
+  List<String> externalInstructorNames = const [],
   String location = 'Клас 1',
   String unit = '1 взвод',
   int maxParticipants = 20,
@@ -202,6 +264,7 @@ LessonModel _buildLesson({
     instructorName: resolvedInstructorName,
     instructorIds: instructorIds,
     instructorNames: instructorNames,
+    externalInstructorNames: externalInstructorNames,
     location: location,
     maxParticipants: maxParticipants,
     participants: const [],

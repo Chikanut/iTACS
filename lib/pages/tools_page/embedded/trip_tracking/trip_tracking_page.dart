@@ -30,8 +30,7 @@ class _TripTrackingPageState extends State<TripTrackingPage>
   bool _loading = true;
 
   String? get _groupId => Globals.profileManager.currentGroupId;
-  String get _userEmail =>
-      Globals.firebaseAuth.currentUser?.email ?? '';
+  String get _userEmail => Globals.firebaseAuth.currentUser?.email ?? '';
 
   @override
   void initState() {
@@ -107,9 +106,8 @@ class _TripTrackingPageState extends State<TripTrackingPage>
                   cars: _cars,
                   people: _people,
                   service: _service,
-                  onTripAdded: () => _service.watchTrips(gid).first.then(
-                    _onTripsChanged,
-                  ),
+                  onTripAdded: () =>
+                      _service.watchTrips(gid).first.then(_onTripsChanged),
                 ),
                 DebtsTab(
                   groupId: gid,

@@ -78,8 +78,7 @@ class HistoryTab extends StatelessWidget {
           itemBuilder: (ctx, i) {
             final trip = trips[i];
             final share = trip.sharePerPerson;
-            final canDelete =
-                _isAdmin || trip.createdByEmail == userEmail;
+            final canDelete = _isAdmin || trip.createdByEmail == userEmail;
 
             return Card(
               margin: const EdgeInsets.only(bottom: 10),
@@ -116,8 +115,11 @@ class HistoryTab extends StatelessWidget {
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        const Icon(Icons.directions_car,
-                            size: 14, color: Colors.grey),
+                        const Icon(
+                          Icons.directions_car,
+                          size: 14,
+                          color: Colors.grey,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           trip.carName,
@@ -161,10 +163,7 @@ class HistoryTab extends StatelessWidget {
                     const SizedBox(height: 6),
                     Text(
                       'Частка: ${share.toStringAsFixed(2)} ₴ / особу',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
                   ],
                 ),

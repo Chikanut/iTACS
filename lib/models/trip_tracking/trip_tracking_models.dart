@@ -287,17 +287,19 @@ List<DebtTransaction> calculateMinTransactions(
   }
 
   // Step 3: greedy min-cash-flow
-  final debtors = balance.entries
-      .where((e) => e.value < -0.005)
-      .map((e) => MapEntry(e.key, e.value))
-      .toList()
-    ..sort((a, b) => a.value.compareTo(b.value));
+  final debtors =
+      balance.entries
+          .where((e) => e.value < -0.005)
+          .map((e) => MapEntry(e.key, e.value))
+          .toList()
+        ..sort((a, b) => a.value.compareTo(b.value));
 
-  final creditors = balance.entries
-      .where((e) => e.value > 0.005)
-      .map((e) => MapEntry(e.key, e.value))
-      .toList()
-    ..sort((a, b) => b.value.compareTo(a.value));
+  final creditors =
+      balance.entries
+          .where((e) => e.value > 0.005)
+          .map((e) => MapEntry(e.key, e.value))
+          .toList()
+        ..sort((a, b) => b.value.compareTo(a.value));
 
   final result = <DebtTransaction>[];
   int di = 0;

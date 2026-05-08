@@ -172,7 +172,8 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                       const SizedBox(height: 16),
                     ],
 
-                    if (lesson.hasCustomFields) ...[
+                    if (lesson.hasCustomFields &&
+                        !lesson.hasOnlyExternalInstructors) ...[
                       _buildCustomFieldsSection(lesson),
                       const SizedBox(height: 16),
                     ],
@@ -180,7 +181,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                     // Учасники
                     _buildParticipantsSection(lesson),
 
-                    if (lesson.hasInstructors) ...[
+                    if (lesson.hasInternalInstructors) ...[
                       const SizedBox(height: 16),
                       _buildInstructorAcknowledgementsSection(lesson),
                     ],
@@ -793,6 +794,10 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
 
     final availableOptions = _availableInstructorOptions();
     final selectedInstructorIds = {..._lesson.instructorIds};
+    final selectedExternalInstructorNames = [
+      ..._lesson.externalInstructorNames,
+    ];
+    final externalInstructorController = TextEditingController();
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -803,30 +808,97 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
               title: const Text('Призначити викладачів'),
               content: SizedBox(
                 width: 420,
-                child: availableOptions.isEmpty
-                    ? const Text('У групі поки немає доступних викладачів.')
-                    : SingleChildScrollView(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: availableOptions.entries.map((entry) {
-                            return CheckboxListTile(
-                              value: selectedInstructorIds.contains(entry.key),
-                              title: Text(entry.value),
-                              contentPadding: EdgeInsets.zero,
-                              controlAffinity: ListTileControlAffinity.leading,
-                              onChanged: (checked) {
-                                setStateDialog(() {
-                                  if (checked == true) {
-                                    selectedInstructorIds.add(entry.key);
-                                  } else {
-                                    selectedInstructorIds.remove(entry.key);
-                                  }
-                                });
-                              },
-                            );
-                          }).toList(),
-                        ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (availableOptions.isEmpty)
+                        const Text('У групі поки немає доступних викладачів.')
+                      else
+                        ...availableOptions.entries.map((entry) {
+                          return CheckboxListTile(
+                            value: selectedInstructorIds.contains(entry.key),
+                            title: Text(entry.value),
+                            contentPadding: EdgeInsets.zero,
+                            controlAffinity: ListTileControlAffinity.leading,
+                            onChanged: (checked) {
+                              setStateDialog(() {
+                                if (checked == true) {
+                                  selectedInstructorIds.add(entry.key);
+                                } else {
+                                  selectedInstructorIds.remove(entry.key);
+                                }
+                              });
+                            },
+                          );
+                        }),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Інші викладачі',
+                        style: TextStyle(fontWeight: FontWeight.w600),
                       ),
+                      const SizedBox(height: 8),
+                      if (selectedExternalInstructorNames.isNotEmpty)
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: selectedExternalInstructorNames
+                              .map(
+                                (name) => Chip(
+                                  avatar: const Icon(
+                                    Icons.person_outline,
+                                    size: 18,
+                                  ),
+                                  label: Text(name),
+                                  onDeleted: () {
+                                    setStateDialog(() {
+                                      selectedExternalInstructorNames.remove(
+                                        name,
+                                      );
+                                    });
+                                  },
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      const SizedBox(height: 8),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: externalInstructorController,
+                              decoration: const InputDecoration(
+                                labelText: 'Імʼя або позначення',
+                                border: OutlineInputBorder(),
+                                isDense: true,
+                              ),
+                              textCapitalization: TextCapitalization.words,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton.filledTonal(
+                            onPressed: () {
+                              final name = externalInstructorController.text
+                                  .trim();
+                              if (name.isEmpty) return;
+                              setStateDialog(() {
+                                if (!selectedExternalInstructorNames.contains(
+                                  name,
+                                )) {
+                                  selectedExternalInstructorNames.add(name);
+                                }
+                                externalInstructorController.clear();
+                              });
+                            },
+                            icon: const Icon(Icons.add),
+                            tooltip: 'Додати',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
               actions: [
                 TextButton(
@@ -843,6 +915,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
         );
       },
     );
+    externalInstructorController.dispose();
 
     if (confirmed != true) return;
 
@@ -856,6 +929,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
         _lesson.id,
         instructorIds: selectedInstructorIds.toList(),
         instructorNames: selectedNames,
+        externalInstructorNames: selectedExternalInstructorNames,
       );
 
       if (success && mounted) {
@@ -866,7 +940,8 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  selectedInstructorIds.isEmpty
+                  selectedInstructorIds.isEmpty &&
+                          selectedExternalInstructorNames.isEmpty
                       ? 'Для заняття "${_lesson.title}" очищено список викладачів'
                       : 'Для заняття "${_lesson.title}" оновлено список викладачів',
                 ),
@@ -1042,6 +1117,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
           'instructorName': _lesson.instructorName,
           'instructorIds': _lesson.instructorIds,
           'instructorNames': _lesson.instructorNames,
+          'externalInstructorNames': _lesson.externalInstructorNames,
           'tags': _lesson.tags,
           'customFieldDefinitions': _lesson.customFieldDefinitions
               .map((definition) => definition.toJson())

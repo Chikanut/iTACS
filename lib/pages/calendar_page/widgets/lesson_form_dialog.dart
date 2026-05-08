@@ -74,6 +74,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   String? _timeValidationError;
   bool _isLoadingInstructors = false;
   final Map<String, String> _selectedInstructors = {};
+  final List<String> _externalInstructorNames = [];
 
   @override
   void initState() {
@@ -129,6 +130,9 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         ..addAll(
           _pairInstructors(lesson.instructorIds, lesson.instructorNames),
         );
+      _externalInstructorNames
+        ..clear()
+        ..addAll(lesson.externalInstructorNames);
 
       if (lesson.recurrence != null) {
         _isRecurring = true;
@@ -181,6 +185,11 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
               fallbackId: template['instructorId'] ?? '',
               fallbackName: template['instructorName'] ?? '',
             ),
+          );
+        _externalInstructorNames
+          ..clear()
+          ..addAll(
+            List<String>.from(template['externalInstructorNames'] ?? const []),
           );
 
         if (template['durationMinutes'] != null) {
@@ -612,6 +621,23 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   }
 
   Widget _buildCustomFieldsSection() {
+    if (_hasOnlyExternalInstructorsForm()) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Кастомні параметри',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Для заняття лише з гостьовим викладачем поля для заповнення не потрібні.',
+            style: TextStyle(color: Colors.grey.shade700),
+          ),
+        ],
+      );
+    }
+
     final canManageDefinitions = _canManageCustomFieldDefinitions();
     final canEditValues = _canEditCustomFieldValues();
 
@@ -717,23 +743,34 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
                     ),
                   ),
                 )
-              : _selectedInstructors.isEmpty
+              : _selectedInstructors.isEmpty && _externalInstructorNames.isEmpty
               ? const Text('Не призначено')
               : Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: _selectedInstructors.entries
-                      .map(
-                        (entry) => Chip(
-                          label: Text(entry.value),
-                          onDeleted: () {
-                            setState(() {
-                              _selectedInstructors.remove(entry.key);
-                            });
-                          },
-                        ),
-                      )
-                      .toList(),
+                  children: [
+                    ..._selectedInstructors.entries.map(
+                      (entry) => Chip(
+                        label: Text(entry.value),
+                        onDeleted: () {
+                          setState(() {
+                            _selectedInstructors.remove(entry.key);
+                          });
+                        },
+                      ),
+                    ),
+                    ..._externalInstructorNames.map(
+                      (name) => Chip(
+                        avatar: const Icon(Icons.person_outline, size: 18),
+                        label: Text(name),
+                        onDeleted: () {
+                          setState(() {
+                            _externalInstructorNames.remove(name);
+                          });
+                        },
+                      ),
+                    ),
+                  ],
                 ),
         ),
         const SizedBox(height: 8),
@@ -744,16 +781,23 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
               onPressed: _isLoadingInstructors ? null : _showInstructorPicker,
               icon: const Icon(Icons.people_alt_outlined, size: 18),
               label: Text(
-                _selectedInstructors.isEmpty
+                _selectedInstructors.isEmpty && _externalInstructorNames.isEmpty
                     ? 'Обрати викладачів'
                     : 'Змінити список',
               ),
             ),
-            if (_selectedInstructors.isNotEmpty)
+            OutlinedButton.icon(
+              onPressed: _addExternalInstructor,
+              icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
+              label: const Text('Інші'),
+            ),
+            if (_selectedInstructors.isNotEmpty ||
+                _externalInstructorNames.isNotEmpty)
               TextButton(
                 onPressed: () {
                   setState(() {
                     _selectedInstructors.clear();
+                    _externalInstructorNames.clear();
                   });
                 },
                 child: const Text('Очистити'),
@@ -1151,6 +1195,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
             : '',
         instructorIds: _resolvedInstructorIds(),
         instructorNames: _resolvedInstructorNames(),
+        externalInstructorNames: _resolvedExternalInstructorNames(),
         location: _locationController.text.trim(),
         maxParticipants: int.parse(_maxParticipantsController.text),
         participants: widget.lesson?.participants ?? [],
@@ -1181,6 +1226,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
           'instructorName': lesson.instructorName,
           'instructorIds': lesson.instructorIds,
           'instructorNames': lesson.instructorNames,
+          'externalInstructorNames': lesson.externalInstructorNames,
           'maxParticipants': lesson.maxParticipants,
           'tags': lesson.tags,
           'customFieldDefinitions': lesson.customFieldDefinitions
@@ -1350,6 +1396,27 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     return widget.lesson?.instructorNames ?? const [];
   }
 
+  List<String> _resolvedExternalInstructorNames() {
+    if (_canAssignInstructor()) {
+      return _normalizeExternalInstructorNames(_externalInstructorNames);
+    }
+    return widget.lesson?.externalInstructorNames ?? const [];
+  }
+
+  bool _hasOnlyExternalInstructorsForm() {
+    return _selectedInstructors.isEmpty && _externalInstructorNames.isNotEmpty;
+  }
+
+  List<String> _normalizeExternalInstructorNames(Iterable<String> names) {
+    final result = <String>[];
+    for (final name in names) {
+      final normalized = name.trim();
+      if (normalized.isEmpty || result.contains(normalized)) continue;
+      result.add(normalized);
+    }
+    return result;
+  }
+
   String _memberAssignmentId(Map<String, dynamic> member) {
     final uid = ((member['uid'] as String?) ?? '').trim();
     if (uid.isNotEmpty) {
@@ -1455,6 +1522,49 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
             (entry) => selectedIds.contains(entry.key),
           ),
         );
+    });
+  }
+
+  Future<void> _addExternalInstructor() async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Інший викладач'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Імʼя або позначення',
+              hintText: 'Запрошений викладач',
+              border: OutlineInputBorder(),
+            ),
+            textCapitalization: TextCapitalization.words,
+            onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Скасувати'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+              child: const Text('Додати'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+
+    final normalized = name?.trim() ?? '';
+    if (normalized.isEmpty) return;
+
+    setState(() {
+      if (!_externalInstructorNames.contains(normalized)) {
+        _externalInstructorNames.add(normalized);
+      }
     });
   }
 

@@ -168,7 +168,23 @@ class _MainScaffoldState extends State<MainScaffold> {
   }
 
   void _handlePushNavigationChanged() {
+    _handleForegroundPushPresentation();
     unawaited(_handlePendingPushNavigation());
+  }
+
+  void _handleForegroundPushPresentation() {
+    if (!mounted || !_groupsLoaded) {
+      return;
+    }
+
+    final request =
+        Globals.pushNotificationsService.foregroundPresentationRequest;
+    if (request == null) {
+      return;
+    }
+
+    Globals.pushNotificationsService.clearForegroundPresentationRequest();
+    _showForegroundPushSnackBar(request);
   }
 
   void _hydrateWebPushFromUrl() {
@@ -274,6 +290,70 @@ class _MainScaffoldState extends State<MainScaffold> {
         SnackBar(content: Text(message), backgroundColor: Colors.blue),
       );
     });
+  }
+
+  void _showForegroundPushSnackBar(PushNavigationRequest request) {
+    final messenger = ScaffoldMessenger.of(context);
+    final title = request.title.trim().isNotEmpty
+        ? request.title.trim()
+        : 'Нове сповіщення';
+    final body = request.body.trim();
+    final message = body.isNotEmpty ? '$title\n$body' : title;
+
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        behavior: SnackBarBehavior.floating,
+        showCloseIcon: true,
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        backgroundColor: Theme.of(context).colorScheme.inverseSurface,
+        content: Row(
+          children: [
+            Icon(
+              request.isLesson
+                  ? Icons.event_available_outlined
+                  : Icons.notifications_none,
+              color: Theme.of(context).colorScheme.onInverseSurface,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onInverseSurface,
+                ),
+              ),
+            ),
+          ],
+        ),
+        action: SnackBarAction(
+          label: request.isLesson ? 'Відкрити' : 'Переглянути',
+          textColor: Theme.of(context).colorScheme.inversePrimary,
+          onPressed: () {
+            unawaited(_openForegroundPushRequest(request));
+          },
+        ),
+        duration: const Duration(seconds: 6),
+      ),
+    );
+  }
+
+  Future<void> _openForegroundPushRequest(PushNavigationRequest request) async {
+    if (request.groupId != null &&
+        request.groupId != Globals.profileManager.currentGroupId) {
+      Globals.pushNotificationsService.queueNavigationRequest(request);
+      return;
+    }
+
+    if (request.isLesson) {
+      await _openLessonFromNotification(request);
+      return;
+    }
+
+    _openGroupNotification(request);
   }
 
   Future<void> _openLessonFromNotification(

@@ -244,7 +244,8 @@ class LessonStatusUtils {
     final missingInstructor = !lesson.hasInstructors;
     final missingLegacyFields = _getMissingLegacyFields(lesson);
     final missingPostLessonCustomFields =
-        progressStatus == LessonProgressStatus.completed
+        progressStatus == LessonProgressStatus.completed &&
+            !lesson.hasOnlyExternalInstructors
         ? _getMissingPostLessonCustomFields(lesson)
         : const <String>[];
     final issues = <String>[
@@ -379,7 +380,8 @@ class LessonStatusUtils {
       filledCount++;
     }
 
-    if (getProgressStatus(lesson) == LessonProgressStatus.completed) {
+    if (getProgressStatus(lesson) == LessonProgressStatus.completed &&
+        !lesson.hasOnlyExternalInstructors) {
       totalCount += lesson.customFieldDefinitions.length;
       for (final definition in lesson.customFieldDefinitions) {
         if (_isCustomFieldFilled(
