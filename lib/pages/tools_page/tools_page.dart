@@ -10,6 +10,7 @@ import 'embedded/checklist_builder/checklist_builder_home_page.dart';
 import 'embedded/contacts_tool_page.dart';
 import 'embedded/material_journals/material_journals_home_page.dart';
 import 'embedded/schedule_calculator_page.dart';
+import 'embedded/trip_tracking/trip_tracking_page.dart';
 import 'tool_dialog.dart';
 import 'tool_tile.dart';
 
@@ -210,6 +211,7 @@ class _ToolsPageState extends State<ToolsPage> with LoadingStateMixin {
       'contacts' => const ContactsToolPage(),
       'schedule_calculator' => const ScheduleCalculatorPage(),
       'material_journals' => const MaterialJournalsHomePage(),
+      'trip_tracking' => const TripTrackingPage(),
       _ => Scaffold(
         appBar: AppBar(title: const Text('Інструмент')),
         body: Center(child: Text('Невідомий інструмент: $toolKey')),

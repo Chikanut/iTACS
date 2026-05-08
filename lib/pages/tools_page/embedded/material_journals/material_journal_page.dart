@@ -796,7 +796,8 @@ class _ActionRow extends StatelessWidget {
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert, size: 20),
           iconSize: 20,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: EdgeInsets.zero,
+          constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
           onSelected: (v) {
             if (v == 'edit') onEdit();
             if (v == 'correction') onCorrection();

@@ -134,6 +134,56 @@ service cloud.firestore {
       }
     }
 
+    // Облік поїздок групи (вбудований інструмент).
+    match /trips_by_group/{groupId} {
+      // Машини — читають усі учасники, редагують editor/admin або власник машини
+      match /cars/{carId} {
+        allow read: if isInGroup(groupId);
+        allow create: if isInGroup(groupId) &&
+                       request.auth != null &&
+                       request.resource.data.ownerEmail == request.auth.token.email;
+        allow update: if hasEditorRights(groupId) ||
+                       (isInGroup(groupId) &&
+                        request.auth != null &&
+                        resource.data.ownerEmail == request.auth.token.email);
+        allow delete: if hasEditorRights(groupId) ||
+                       (isInGroup(groupId) &&
+                        request.auth != null &&
+                        resource.data.ownerEmail == request.auth.token.email);
+      }
+
+      // Люди — читають усі учасники, редагують editor/admin
+      match /people/{personId} {
+        allow read: if isInGroup(groupId);
+        allow create, update, delete: if hasEditorRights(groupId);
+      }
+
+      // Поїздки — читають усі, додавати може будь-який учасник групи
+      // (тільки на свою машину — перевіряється на рівні UI та car.ownerEmail)
+      match /trips/{tripId} {
+        allow read: if isInGroup(groupId);
+        allow create: if isInGroup(groupId) &&
+                       request.auth != null &&
+                       request.resource.data.createdByEmail == request.auth.token.email;
+        allow delete: if hasEditorRights(groupId) ||
+                       (isInGroup(groupId) &&
+                        request.auth != null &&
+                        resource.data.createdByEmail == request.auth.token.email);
+        allow update: if hasEditorRights(groupId);
+      }
+
+      // Платежі (закриття боргів) — читають усі, створює будь-який учасник
+      // (право закривати тільки свій борг перевіряється на рівні UI)
+      match /payments/{paymentId} {
+        allow read: if isInGroup(groupId);
+        allow create: if isInGroup(groupId) &&
+                       request.auth != null &&
+                       request.resource.data.createdByEmail == request.auth.token.email;
+        allow delete: if hasAdminRights(groupId);
+        allow update: if false;
+      }
+    }
+
     // Файли.
     match /files/{fileId} {
       allow read: if request.auth != null;
