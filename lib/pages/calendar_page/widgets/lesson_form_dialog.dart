@@ -274,13 +274,11 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
                     children: [
                       _buildBasicInfoSection(),
                       const SizedBox(height: 20),
-                      _buildTimeSection(),
-                      const SizedBox(height: 20),
-                      _buildProgressRemindersSection(),
-                      const SizedBox(height: 20),
                       _buildDetailsSection(),
                       const SizedBox(height: 20),
                       _buildCustomFieldsSection(),
+                      const SizedBox(height: 20),
+                      _buildProgressRemindersSection(),
                       const SizedBox(height: 20),
                       _buildRecurrenceSection(),
                       const SizedBox(height: 20),
@@ -334,30 +332,8 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Основна інформація',
+          'Основне',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-
-        // Назва заняття
-        TextFormField(
-          controller: _titleController,
-          decoration: const InputDecoration(
-            labelText: 'Назва заняття *',
-            hintText: 'Тактична підготовка',
-            prefixIcon: Icon(Icons.title),
-            border: OutlineInputBorder(),
-          ),
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return 'Назва заняття обов\'язкова';
-            }
-            if (value.trim().length < 2) {
-              return 'Назва повинна містити мінімум 2 символи';
-            }
-            return null;
-          },
-          textCapitalization: TextCapitalization.sentences,
         ),
         if (_availableTemplates.isNotEmpty) ...[
           const SizedBox(height: 12),
@@ -385,18 +361,54 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
 
         const SizedBox(height: 16),
 
-        // Опис
+        // Назва заняття
         TextFormField(
-          controller: _descriptionController,
+          controller: _titleController,
           decoration: const InputDecoration(
-            labelText: 'Опис заняття',
-            hintText: 'Детальний опис програми заняття...',
-            prefixIcon: Icon(Icons.description),
+            labelText: 'Назва заняття *',
+            hintText: 'Тактична підготовка',
+            prefixIcon: Icon(Icons.title),
             border: OutlineInputBorder(),
           ),
-          maxLines: 3,
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Назва заняття обов\'язкова';
+            }
+            if (value.trim().length < 2) {
+              return 'Назва повинна містити мінімум 2 символи';
+            }
+            return null;
+          },
           textCapitalization: TextCapitalization.sentences,
         ),
+
+        const SizedBox(height: 20),
+        _buildTimeSection(),
+
+        const SizedBox(height: 20),
+
+        // Місце проведення
+        AutocompleteField(
+          controller: _locationController,
+          labelText: 'Місце проведення *',
+          hintText: 'Навчальний клас №1',
+          prefixIcon: Icons.location_on,
+          getSuggestions: (query) =>
+              _templatesService.getLocationSuggestions(query),
+          onNewValue: (value) => _templatesService.addLocation(value),
+          validator: (value) {
+            if (value == null || value.trim().isEmpty) {
+              return 'Місце проведення обов\'язкове';
+            }
+            return null;
+          },
+          textCapitalization: TextCapitalization.sentences,
+        ),
+
+        if (_canAssignInstructor()) ...[
+          const SizedBox(height: 16),
+          _buildInstructorSection(),
+        ],
       ],
     );
   }
@@ -542,29 +554,9 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Деталі заняття',
+          'Планування',
           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        const SizedBox(height: 16),
-
-        // Місце проведення
-        AutocompleteField(
-          controller: _locationController,
-          labelText: 'Місце проведення *',
-          hintText: 'Навчальний клас №1',
-          prefixIcon: Icons.location_on,
-          getSuggestions: (query) =>
-              _templatesService.getLocationSuggestions(query),
-          onNewValue: (value) => _templatesService.addLocation(value),
-          validator: (value) {
-            if (value == null || value.trim().isEmpty) {
-              return 'Місце проведення обов\'язкове';
-            }
-            return null;
-          },
-          textCapitalization: TextCapitalization.sentences,
-        ),
-
         const SizedBox(height: 16),
 
         // Підрозділ
@@ -580,11 +572,6 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         ),
 
         const SizedBox(height: 16),
-
-        if (_canAssignInstructor()) ...[
-          _buildInstructorSection(),
-          const SizedBox(height: 16),
-        ],
 
         // Максимальна кількість учасників
         TextFormField(
@@ -615,6 +602,21 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
             }
             return null;
           },
+        ),
+
+        const SizedBox(height: 16),
+
+        // Опис
+        TextFormField(
+          controller: _descriptionController,
+          decoration: const InputDecoration(
+            labelText: 'Опис заняття',
+            hintText: 'Детальний опис програми заняття...',
+            prefixIcon: Icon(Icons.description),
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+          textCapitalization: TextCapitalization.sentences,
         ),
       ],
     );

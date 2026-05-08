@@ -28,7 +28,8 @@ class AutocompleteField extends StatefulWidget {
   State<AutocompleteField> createState() => _AutocompleteFieldState();
 }
 
-class _AutocompleteFieldState extends State<AutocompleteField> {
+class _AutocompleteFieldState extends State<AutocompleteField>
+    with WidgetsBindingObserver {
   final FocusNode _focusNode = FocusNode();
   final LayerLink _layerLink = LayerLink();
   final GlobalKey _fieldKey = GlobalKey();
@@ -39,12 +40,14 @@ class _AutocompleteFieldState extends State<AutocompleteField> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _focusNode.addListener(_onFocusChanged);
     widget.controller.addListener(_onTextChanged);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _removeOverlay();
     _focusNode.removeListener(_onFocusChanged);
     _focusNode.dispose();
@@ -52,12 +55,28 @@ class _AutocompleteFieldState extends State<AutocompleteField> {
     super.dispose();
   }
 
+  @override
+  void didChangeMetrics() {
+    if (!_focusNode.hasFocus || !_showSuggestions) {
+      return;
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_focusNode.hasFocus || !_showSuggestions) {
+        return;
+      }
+      _showSuggestionsOverlay();
+    });
+  }
+
   void _onFocusChanged() {
     if (_focusNode.hasFocus) {
+      _scrollFieldIntoView();
       _updateSuggestions();
     } else {
       // Затримка для обробки натискання на елемент списку
       Future.delayed(const Duration(milliseconds: 150), () {
+        if (!mounted || _focusNode.hasFocus) return;
         _hideSuggestions();
       });
     }
@@ -67,6 +86,23 @@ class _AutocompleteFieldState extends State<AutocompleteField> {
     if (_focusNode.hasFocus) {
       _updateSuggestions();
     }
+  }
+
+  void _scrollFieldIntoView() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final fieldContext = _fieldKey.currentContext;
+      if (!mounted || fieldContext == null) {
+        return;
+      }
+
+      Scrollable.ensureVisible(
+        fieldContext,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        alignment: 0.12,
+        alignmentPolicy: ScrollPositionAlignmentPolicy.explicit,
+      );
+    });
   }
 
   void _updateSuggestions() {
@@ -98,17 +134,37 @@ class _AutocompleteFieldState extends State<AutocompleteField> {
 
     final size = renderBox.size;
     final offset = renderBox.localToGlobal(Offset.zero);
+    final mediaQuery = MediaQuery.of(context);
+    final viewportHeight = mediaQuery.size.height;
+    final keyboardTop = viewportHeight - mediaQuery.viewInsets.bottom;
+    final safeTop = mediaQuery.padding.top + 8;
+    final safeBottom = keyboardTop - mediaQuery.padding.bottom - 8;
+    final fieldTop = offset.dy;
+    final fieldBottom = offset.dy + size.height;
+    final spaceBelow = safeBottom - fieldBottom - 4;
+    final spaceAbove = fieldTop - safeTop - 4;
+    final showBelow = spaceBelow >= 96 || spaceBelow >= spaceAbove;
+    final availableHeight = showBelow ? spaceBelow : spaceAbove;
+
+    if (availableHeight < 56) {
+      return;
+    }
+
+    final maxHeight = availableHeight > 220 ? 220.0 : availableHeight;
+    final top = showBelow
+        ? fieldBottom + 4
+        : (fieldTop - maxHeight - 4).clamp(safeTop, viewportHeight);
 
     _overlayEntry = OverlayEntry(
       builder: (context) => Positioned(
         left: offset.dx,
-        top: offset.dy + size.height + 4,
+        top: top.toDouble(),
         width: size.width,
         child: Material(
           elevation: 4.0,
           borderRadius: BorderRadius.circular(8),
           child: Container(
-            constraints: const BoxConstraints(maxHeight: 200),
+            constraints: BoxConstraints(maxHeight: maxHeight),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(8),
