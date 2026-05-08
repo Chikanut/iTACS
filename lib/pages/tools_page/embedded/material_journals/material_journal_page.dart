@@ -765,34 +765,42 @@ class _ActionRow extends StatelessWidget {
     return Row(
       children: [
         if (!isNonConsumable) ...[
-          _ActionBtn(
-            icon: Icons.remove,
-            label: 'Списати',
-            color: Colors.red,
-            onTap: onWriteOff,
+          Expanded(
+            child: _ActionBtn(
+              icon: Icons.remove,
+              label: 'Списати',
+              color: Colors.red,
+              onTap: onWriteOff,
+            ),
           ),
           const SizedBox(width: 6),
-          _ActionBtn(
-            icon: Icons.add,
-            label: 'Поповнити',
-            color: Colors.green,
-            onTap: onReplenish,
+          Expanded(
+            child: _ActionBtn(
+              icon: Icons.add,
+              label: 'Поповнити',
+              color: Colors.green,
+              onTap: onReplenish,
+            ),
           ),
           const SizedBox(width: 6),
-          _ActionBtn(
-            icon: Icons.swap_horiz,
-            label: 'Перенести',
-            color: Colors.blue,
-            onTap: onTransfer,
+          Expanded(
+            child: _ActionBtn(
+              icon: Icons.swap_horiz,
+              label: 'Перенести',
+              color: Colors.blue,
+              onTap: onTransfer,
+            ),
           ),
         ] else
-          _ActionBtn(
-            icon: Icons.build,
-            label: 'Стан',
-            color: Colors.orange,
-            onTap: onCondition,
+          Expanded(
+            child: _ActionBtn(
+              icon: Icons.build,
+              label: 'Стан',
+              color: Colors.orange,
+              onTap: onCondition,
+            ),
           ),
-        const Spacer(),
+        const SizedBox(width: 4),
         PopupMenuButton<String>(
           icon: const Icon(Icons.more_vert, size: 20),
           iconSize: 20,

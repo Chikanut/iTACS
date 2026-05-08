@@ -313,6 +313,71 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
     }
   }
 
+  Future<void> _showReorderContactsDialog(DepartmentEntry dept) async {
+    final reordered = List<ContactEntry>.from(dept.contacts);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: const Text('Змінити порядок номерів'),
+            content: SizedBox(
+              width: 420,
+              height: 420,
+              child: ReorderableListView.builder(
+                itemCount: reordered.length,
+                onReorder: (oldIndex, newIndex) {
+                  setDialogState(() {
+                    if (newIndex > oldIndex) newIndex -= 1;
+                    final item = reordered.removeAt(oldIndex);
+                    reordered.insert(newIndex, item);
+                  });
+                },
+                itemBuilder: (context, index) {
+                  final contact = reordered[index];
+                  final title = contact.name.isNotEmpty
+                      ? contact.name
+                      : contact.unit;
+                  final subtitle = [
+                    if (contact.rank.isNotEmpty) contact.rank,
+                    if (contact.phone.isNotEmpty) contact.phone,
+                  ].join(' • ');
+
+                  return ListTile(
+                    key: ValueKey(
+                      '${contact.unit}_${contact.rank}_${contact.name}_${contact.phone}_$index',
+                    ),
+                    contentPadding: EdgeInsets.zero,
+                    leading: ReorderableDragStartListener(
+                      index: index,
+                      child: const Icon(Icons.drag_handle),
+                    ),
+                    title: Text(title),
+                    subtitle: subtitle.isNotEmpty ? Text(subtitle) : null,
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Скасувати'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Зберегти порядок'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    if (confirmed == true) {
+      await _service.updateContacts(_groupId!, dept.id, reordered);
+    }
+  }
+
   // ─── UI Builders ─────────────────────────────────────────────────────────
 
   Widget _buildSearchBar() {
@@ -700,6 +765,9 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                         case 'add_contact':
                           await _showContactDialog(dept: dept);
                           break;
+                        case 'reorder_contacts':
+                          await _showReorderContactsDialog(dept);
+                          break;
                         case 'delete':
                           await _confirmDeleteDepartment(dept);
                           break;
@@ -724,6 +792,16 @@ class _ContactsToolPageState extends State<ContactsToolPage> {
                           contentPadding: EdgeInsets.zero,
                         ),
                       ),
+                      if (dept.contacts.length > 1)
+                        const PopupMenuItem(
+                          value: 'reorder_contacts',
+                          child: ListTile(
+                            leading: Icon(Icons.swap_vert, size: 16),
+                            title: Text('Змінити порядок номерів'),
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                        ),
                       const PopupMenuDivider(),
                       const PopupMenuItem(
                         value: 'delete',
