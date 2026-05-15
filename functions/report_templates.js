@@ -1489,37 +1489,112 @@ async function buildCalendarGridWorkbookBuffer({
 // Returns {text, _width, _height} for use as cell.note object, or null.
 function buildCalendarCellNote({lessonsOnDay, noteFields}) {
   const parts = [];
+  const hasTitle = noteFields.includes("lesson.title");
+  const hasDesc = noteFields.includes("lesson.description");
+
   for (let li = 0; li < lessonsOnDay.length; li++) {
     if (li > 0) parts.push("");
-    if (lessonsOnDay.length > 1) parts.push(`── Заняття ${li + 1} ──`);
+    if (lessonsOnDay.length > 1) {
+      parts.push(`--------- Заняття ${li + 1} ---------`);
+    }
     const lesson = lessonsOnDay[li];
     const row = {lesson, instructor: {name: ""}, member: {}};
+    let customSectionStarted = false;
+
     for (const fieldKey of noteFields) {
+      // description is rendered together with title — skip standalone
+      if (fieldKey === "lesson.description" && hasTitle) continue;
+
       const descriptor = FIELD_CATALOG[fieldKey];
       if (descriptor) {
-        const rawValue = descriptor.getRawValue(row);
-        const formatted = formatFieldValue(fieldKey, rawValue);
-        if (formatted) parts.push(`${descriptor.label}: ${formatted}`);
+        if (fieldKey === "lesson.unit") {
+          const formatted = formatFieldValue(fieldKey, descriptor.getRawValue(row));
+          if (formatted) {
+            parts.push(`Підрозділ: ${formatted}`);
+            parts.push("");
+          }
+        } else if (fieldKey === "lesson.title") {
+          const title = formatFieldValue(fieldKey, descriptor.getRawValue(row));
+          const desc = hasDesc
+            ? formatFieldValue("lesson.description",
+                FIELD_CATALOG["lesson.description"].getRawValue(row))
+            : "";
+          if (title && desc) {
+            parts.push(`${title}: "${desc}"`);
+          } else if (title) {
+            parts.push(title);
+          }
+          // Duration always follows the title block
+          const start = lesson.startTime ? new Date(
+            lesson.startTime.seconds
+              ? lesson.startTime.seconds * 1000
+              : lesson.startTime,
+          ) : null;
+          const end = lesson.endTime ? new Date(
+            lesson.endTime.seconds
+              ? lesson.endTime.seconds * 1000
+              : lesson.endTime,
+          ) : null;
+          if (start && end && end > start) {
+            const mins = Math.round((end - start) / 60000);
+            const h = Math.floor(mins / 60);
+            const m = mins % 60;
+            const hWord = _ukHours(h);
+            const durStr = m === 0 ? `${h} ${hWord}` : `${h} ${hWord} ${m} хв`;
+            parts.push(`Час: ${durStr}`);
+          }
+        } else if (fieldKey === "lesson.duration") {
+          // Rendered automatically after title; skip to avoid duplication
+        } else {
+          const rawValue = descriptor.getRawValue(row);
+          const formatted = formatFieldValue(fieldKey, rawValue);
+          if (formatted) parts.push(`${descriptor.label}: ${formatted}`);
+        }
       } else if (isCustomFieldKey(fieldKey)) {
         const code = fieldKey.slice("custom.".length);
         const val = resolveCustomFieldValue(lesson, code);
-        if (val) parts.push(val);
+        if (val) {
+          if (!customSectionStarted) {
+            parts.push("");
+            customSectionStarted = true;
+          }
+          const label = _resolveCustomFieldLabel(lesson, code);
+          parts.push(label ? `${label}  №${val}` : val);
+        }
       }
     }
   }
+
+  // Trim trailing blank lines
+  while (parts.length > 0 && parts[parts.length - 1] === "") parts.pop();
+
   if (parts.length === 0) return null;
   const text = parts.join("\n");
-  const lines = text.split("\n");
-  const maxLen = Math.max(...lines.map((l) => l.length));
-  // 9pt Tahoma: ~5.5pt per char, ~12pt per line, 16pt padding
-  const w = Math.max(80, Math.min(300, maxLen * 5.5 + 16));
-  const h = Math.max(40, lines.length * 12 + 16);
+  const lineCount = lessonsOnDay.length;
+  const w = lineCount > 1 ? "260pt" : "200pt";
+  const h = lineCount > 1 ? `${150 * lineCount}pt` : "150pt";
   return {
     texts: [{text}],
     margins: {insetmode: "auto"},
-    _width: `${w.toFixed(1)}pt`,
-    _height: `${h.toFixed(1)}pt`,
+    _width: w,
+    _height: h,
   };
+}
+
+function _ukHours(h) {
+  const m10 = h % 10;
+  const m100 = h % 100;
+  if (m10 === 1 && m100 !== 11) return "година";
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return "години";
+  return "годин";
+}
+
+function _resolveCustomFieldLabel(lesson, code) {
+  const defs = lesson && Array.isArray(lesson.customFieldDefinitions)
+    ? lesson.customFieldDefinitions
+    : [];
+  const def = defs.find((d) => asString(d.code) === code);
+  return def ? asString(def.label) : null;
 }
 
 async function buildWorkbookBuffer({
