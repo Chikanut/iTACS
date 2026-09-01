@@ -81,6 +81,8 @@ Flutter-застосунок для внутрішньої роботи навч
 
 ## Швидкий старт
 
+Для повного налаштування чистої Windows див. [покрокову інструкцію](./docs/SETUP.md): там описані Web, Android, Windows toolchain, Node.js 22, Firebase CLI, доступи та Google Sign-In SHA-1.
+
 1. Встановіть Flutter SDK і перевірте `flutter doctor`.
 2. Переконайтесь, що локально доступні Firebase-конфіги:
    - `lib/services/firebase_options.dart`

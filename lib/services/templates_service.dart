@@ -51,6 +51,7 @@ class GroupTemplate {
   final DateTime updatedAt;
   final List<LessonCustomFieldDefinition> customFieldDefinitions;
   final List<LessonProgressReminder> progressReminders;
+  final List<String> linkedTemplateIds;
 
   GroupTemplate({
     required this.id,
@@ -68,6 +69,7 @@ class GroupTemplate {
     required this.updatedAt,
     this.customFieldDefinitions = const [],
     this.progressReminders = const [],
+    this.linkedTemplateIds = const [],
   });
 
   Map<String, dynamic> toJson() => {
@@ -88,6 +90,7 @@ class GroupTemplate {
         .map((definition) => definition.toJson())
         .toList(),
     'progressReminders': LessonProgressReminder.toJsonList(progressReminders),
+    'linkedTemplateIds': linkedTemplateIds,
   };
 
   Map<String, dynamic> toFirestore() => {
@@ -109,6 +112,7 @@ class GroupTemplate {
     'progressReminders': LessonProgressReminder.toFirestoreList(
       progressReminders,
     ),
+    'linkedTemplateIds': linkedTemplateIds,
   };
 
   factory GroupTemplate.fromJson(Map<String, dynamic> json) => GroupTemplate(
@@ -134,6 +138,9 @@ class GroupTemplate {
     ),
     progressReminders: LessonProgressReminder.parseList(
       json['progressReminders'],
+    ),
+    linkedTemplateIds: List<String>.from(
+      json['linkedTemplateIds'] ?? const <String>[],
     ),
   );
 
@@ -163,6 +170,9 @@ class GroupTemplate {
       progressReminders: LessonProgressReminder.parseList(
         data['progressReminders'],
       ),
+      linkedTemplateIds: List<String>.from(
+        data['linkedTemplateIds'] ?? const <String>[],
+      ),
     );
   }
 
@@ -177,6 +187,7 @@ class GroupTemplate {
     bool? isDefault,
     List<LessonCustomFieldDefinition>? customFieldDefinitions,
     List<LessonProgressReminder>? progressReminders,
+    List<String>? linkedTemplateIds,
   }) => GroupTemplate(
     id: id,
     title: title ?? this.title,
@@ -194,6 +205,7 @@ class GroupTemplate {
     customFieldDefinitions:
         customFieldDefinitions ?? this.customFieldDefinitions,
     progressReminders: progressReminders ?? this.progressReminders,
+    linkedTemplateIds: linkedTemplateIds ?? this.linkedTemplateIds,
   );
 }
 
@@ -758,6 +770,28 @@ class GroupTemplatesService {
     try {
       await ensureInitializedForCurrentGroup();
 
+      final linkedIds = template.linkedTemplateIds.toSet();
+      if (linkedIds.length != template.linkedTemplateIds.length ||
+          linkedIds.contains(template.id)) {
+        throw Exception('Некоректний список навчальних точок');
+      }
+      for (final linkedId in linkedIds) {
+        final matches = _templates.where((item) => item.id == linkedId);
+        if (matches.isEmpty || matches.first.linkedTemplateIds.isNotEmpty) {
+          throw Exception('Навчальна точка не може містити власні точки');
+        }
+      }
+      final isUsedAsLearningPoint =
+          template.id.isNotEmpty &&
+          _templates.any(
+            (item) =>
+                item.id != template.id &&
+                item.linkedTemplateIds.contains(template.id),
+          );
+      if (isUsedAsLearningPoint && linkedIds.isNotEmpty) {
+        throw Exception('Шаблон навчальної точки не може бути головним');
+      }
+
       final currentUser = Globals.firebaseAuth.currentUser;
       if (currentUser == null) {
         throw Exception('Користувач не авторизований');
@@ -793,6 +827,7 @@ class GroupTemplatesService {
           updatedAt: now,
           customFieldDefinitions: template.customFieldDefinitions,
           progressReminders: template.progressReminders,
+          linkedTemplateIds: template.linkedTemplateIds,
         );
 
         await templatesRef.add(newTemplate.toFirestore());
@@ -818,6 +853,11 @@ class GroupTemplatesService {
 
   Future<bool> deleteTemplate(String templateId) async {
     try {
+      if (_templates.any(
+        (template) => template.linkedTemplateIds.contains(templateId),
+      )) {
+        throw Exception('Шаблон використовується як навчальна точка');
+      }
       final groupId = _currentGroupId;
       if (groupId == null) {
         throw Exception('Немає активної групи');
@@ -1094,6 +1134,7 @@ class GroupTemplatesService {
       'progressReminders': LessonProgressReminder.toJsonList(
         template.progressReminders,
       ),
+      'linkedTemplateIds': List<String>.from(template.linkedTemplateIds),
       'customFieldValues': const <String, dynamic>{},
     };
   }

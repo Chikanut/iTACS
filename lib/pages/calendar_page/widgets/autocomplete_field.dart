@@ -11,6 +11,7 @@ class AutocompleteField extends StatefulWidget {
   final Future<void> Function(String)? onNewValue;
   final String? Function(String?)? validator;
   final TextCapitalization textCapitalization;
+  final bool enabled;
 
   const AutocompleteField({
     super.key,
@@ -22,6 +23,7 @@ class AutocompleteField extends StatefulWidget {
     this.onNewValue,
     this.validator,
     this.textCapitalization = TextCapitalization.sentences,
+    this.enabled = true,
   });
 
   @override
@@ -232,6 +234,7 @@ class _AutocompleteFieldState extends State<AutocompleteField>
       child: TextFormField(
         key: _fieldKey, // 👈 Додаємо ключ для отримання розміру
         controller: widget.controller,
+        enabled: widget.enabled,
         focusNode: _focusNode,
         decoration: InputDecoration(
           labelText: widget.labelText,

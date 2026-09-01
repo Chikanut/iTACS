@@ -88,6 +88,19 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                             color: Colors.grey.shade700,
                           ),
                         ),
+                        if (lesson.isLinkedLesson) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            lesson.isMainLinkedLesson
+                                ? 'Головне заняття'
+                                : 'Навчальна точка',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Color.fromARGB(255, 29, 28, 28),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -1139,77 +1152,76 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
     );
   }
 
-  void _deleteLesson() {
+  Future<void> _deleteLesson() async {
     if (_showOfflineWriteUnavailable()) {
       return;
     }
 
-    showDialog(
+    final action = await showDialog<String>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (dialogContext) => AlertDialog(
         title: const Text('Видалити заняття'),
         content: Text(
-          'Ви впевнені, що хочете видалити заняття "${_lesson.title}"?',
+          _lesson.isMainLinkedLesson
+              ? '«${_lesson.title}» є головним заняттям. Що зробити з навчальними точками?'
+              : 'Ви впевнені, що хочете видалити заняття «${_lesson.title}»?',
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(),
+            onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Скасувати'),
           ),
+          if (_lesson.isMainLinkedLesson)
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop('detach'),
+              child: const Text('Від’єднати точки'),
+            ),
           TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop(); // Закриваємо діалог підтвердження
-              Navigator.of(context).pop(); // Закриваємо діалог деталей
-
-              // 👈 ДОДАТИ індикатор завантаження
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Row(
-                    children: [
-                      SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                      SizedBox(width: 12),
-                      Text('Видалення заняття...'),
-                    ],
-                  ),
-                  duration: Duration(seconds: 2),
-                ),
-              );
-
-              final success = await _calendarService.deleteLesson(_lesson.id);
-
-              if (success && mounted) {
-                // 👈 Оновлюємо календар
-                widget.onUpdated?.call();
-
-                // Показуємо повідомлення про успіх
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Заняття "${_lesson.title}" видалено'),
-                    backgroundColor: Colors.green,
-                    duration: const Duration(seconds: 3),
-                  ),
-                );
-              } else if (mounted) {
-                // Показуємо помилку
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Помилка видалення заняття'),
-                    backgroundColor: Colors.red,
-                    duration: Duration(seconds: 3),
-                  ),
-                );
-              }
-            },
+            onPressed: () => Navigator.of(dialogContext).pop('delete'),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Видалити'),
+            child: Text(
+              _lesson.isMainLinkedLesson
+                  ? 'Видалити весь комплект'
+                  : 'Видалити',
+            ),
           ),
         ],
+      ),
+    );
+    if (action == null || !mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final onUpdated = widget.onUpdated;
+    final lessonTitle = _lesson.title;
+    Navigator.of(context).pop();
+    messenger.showSnackBar(
+      const SnackBar(content: Text('Видалення заняття...')),
+    );
+
+    final bool success;
+    if (_lesson.isMainLinkedLesson) {
+      success = await _calendarService.deleteMainLesson(
+        _lesson,
+        deleteLearningPoints: action == 'delete',
+      );
+    } else if (_lesson.isLearningPoint) {
+      success = await _calendarService.removeLearningPoint(
+        _lesson,
+        deleteLesson: true,
+      );
+    } else {
+      success = await _calendarService.deleteLesson(_lesson.id);
+    }
+    onUpdated?.call();
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Заняття «$lessonTitle» видалено'
+              : 'Помилка видалення заняття',
+        ),
+        backgroundColor: success ? Colors.green : Colors.red,
       ),
     );
   }
@@ -1290,11 +1302,12 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
 
     setState(() => _isLoading = true);
     try {
-      final success = await _calendarService.updateLesson(_lesson.id, {
-        'customFieldValues': values.map(
-          (key, value) => MapEntry(key, value.toFirestore()),
-        ),
-      });
+      final success = await _calendarService
+          .updateLessonRespectingLinks(_lesson, {
+            'customFieldValues': values.map(
+              (key, value) => MapEntry(key, value.toFirestore()),
+            ),
+          });
       if (!success) {
         throw Exception('Не вдалося зберегти поля для заповнення');
       }

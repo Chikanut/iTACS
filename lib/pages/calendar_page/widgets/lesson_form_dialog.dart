@@ -43,6 +43,9 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   final GroupTemplatesService _templatesService = GroupTemplatesService();
   List<GroupTemplate> _availableTemplates = [];
   List<Map<String, dynamic>> _availableInstructors = [];
+  final List<GroupTemplate> _selectedLearningPointTemplates = [];
+  List<LessonModel> _linkedLearningPoints = [];
+  bool _isLoadingLinkedLessons = false;
 
   // Контролери для текстових полів
   late final TextEditingController _titleController;
@@ -83,12 +86,43 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     _loadInitialData();
     _loadTemplates();
     _loadAssignableInstructors();
+    _loadLinkedLessons();
   }
 
   Future<void> _loadTemplates() async {
     await _templatesService.ensureInitializedForCurrentGroup();
     _availableTemplates = _templatesService.getTemplates(TemplateType.lesson);
-    setState(() {});
+    final sourceTemplateId = widget.lesson?.templateId ?? _selectedTemplateId;
+    GroupTemplate? sourceTemplate;
+    for (final template in _availableTemplates) {
+      if (template.id == sourceTemplateId) {
+        sourceTemplate = template;
+        break;
+      }
+    }
+    if (widget.lesson == null && sourceTemplate != null) {
+      _setLearningPointTemplates(sourceTemplate.linkedTemplateIds);
+    }
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _loadLinkedLessons() async {
+    final lesson = widget.lesson;
+    if (lesson == null || lesson.isLearningPoint) return;
+    if (mounted) setState(() => _isLoadingLinkedLessons = true);
+    try {
+      final linked = await _calendarService.getLinkedLessons(
+        lesson.linkedSetId.isNotEmpty ? lesson.linkedSetId : lesson.id,
+      );
+      if (!mounted) return;
+      setState(() {
+        _linkedLearningPoints = linked
+            .where((item) => item.isLearningPoint)
+            .toList();
+      });
+    } finally {
+      if (mounted) setState(() => _isLoadingLinkedLessons = false);
+    }
   }
 
   void _initializeControllers() {
@@ -275,12 +309,16 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
                       _buildBasicInfoSection(),
                       const SizedBox(height: 20),
                       _buildDetailsSection(),
+                      if (_canManageLearningPoints()) ...[
+                        const SizedBox(height: 20),
+                        _buildLearningPointsSection(),
+                      ],
                       const SizedBox(height: 20),
                       _buildCustomFieldsSection(),
                       const SizedBox(height: 20),
                       _buildProgressRemindersSection(),
                       const SizedBox(height: 20),
-                      _buildRecurrenceSection(),
+                      if (!_hasLearningPoints) _buildRecurrenceSection(),
                       const SizedBox(height: 20),
                       _buildTagsSection(),
                     ],
@@ -432,6 +470,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     _progressReminders = List<LessonProgressReminder>.from(
       template.progressReminders,
     );
+    _setLearningPointTemplates(template.linkedTemplateIds);
 
     // Встановлюємо тривалість
     final endMinutes =
@@ -444,6 +483,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   }
 
   Widget _buildTimeSection() {
+    final isPoint = widget.lesson?.isLearningPoint ?? false;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -458,12 +498,15 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
           children: [
             Expanded(
               child: InkWell(
-                onTap: _selectDate,
+                onTap: isPoint ? null : _selectDate,
                 child: InputDecorator(
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Дата проведення *',
-                    prefixIcon: Icon(Icons.calendar_today),
-                    border: OutlineInputBorder(),
+                    prefixIcon: const Icon(Icons.calendar_today),
+                    border: const OutlineInputBorder(),
+                    helperText: isPoint
+                        ? 'Дата керується головним заняттям'
+                        : null,
                   ),
                   child: Text(
                     DateFormat('dd.MM.yyyy, EEEE', 'uk').format(_selectedDate),
@@ -569,7 +612,22 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
               _templatesService.getUnitSuggestions(query),
           onNewValue: (value) => _templatesService.addUnit(value),
           textCapitalization: TextCapitalization.sentences,
+          enabled: !(widget.lesson?.isLearningPoint ?? false),
         ),
+
+        if (widget.lesson?.isLearningPoint ?? false) ...[
+          const SizedBox(height: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: _openMainLessonEditor,
+              icon: const Icon(Icons.open_in_new),
+              label: const Text(
+                'Редагувати дату або підрозділ у головному занятті',
+              ),
+            ),
+          ),
+        ],
 
         const SizedBox(height: 16),
 
@@ -1130,6 +1188,305 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     });
   }
 
+  bool get _hasLearningPoints =>
+      _selectedLearningPointTemplates.isNotEmpty ||
+      _linkedLearningPoints.isNotEmpty;
+
+  bool _canManageLearningPoints() {
+    if (!Globals.profileManager.isCurrentGroupEditor) return false;
+    return !(widget.lesson?.isLearningPoint ?? false);
+  }
+
+  void _setLearningPointTemplates(Iterable<String> ids) {
+    final byId = {for (final item in _availableTemplates) item.id: item};
+    _selectedLearningPointTemplates
+      ..clear()
+      ..addAll(ids.map((id) => byId[id]).whereType<GroupTemplate>());
+  }
+
+  Widget _buildLearningPointsSection() {
+    final isCreating = widget.lesson == null;
+    final pointCount = isCreating
+        ? _selectedLearningPointTemplates.length
+        : _linkedLearningPoints.length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text(
+                'Навчальні точки',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            ),
+            if (pointCount > 0) Chip(label: Text('$pointCount')),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          isCreating
+              ? 'Приберіть непотрібні точки — вони не будуть створені.'
+              : 'Дата й підрозділ точок керуються цим головним заняттям.',
+          style: TextStyle(color: Colors.grey.shade700),
+        ),
+        const SizedBox(height: 10),
+        if (_isLoadingLinkedLessons)
+          const LinearProgressIndicator()
+        else if (isCreating)
+          ..._selectedLearningPointTemplates.map(
+            (template) => Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                leading: const Icon(Icons.location_on_outlined),
+                title: Text(template.title),
+                subtitle: Text('${template.durationMinutes} хв'),
+                trailing: IconButton(
+                  tooltip: 'Не створювати цю точку',
+                  onPressed: () => setState(
+                    () => _selectedLearningPointTemplates.remove(template),
+                  ),
+                  icon: const Icon(Icons.close),
+                ),
+              ),
+            ),
+          )
+        else
+          ..._linkedLearningPoints.map(
+            (point) => Card(
+              margin: const EdgeInsets.only(bottom: 8),
+              child: ListTile(
+                leading: const Icon(Icons.location_on_outlined),
+                title: Text(point.title),
+                subtitle: Text(point.timeString),
+                onTap: () => showDialog<void>(
+                  context: context,
+                  builder: (context) => LessonFormDialog(
+                    lesson: point,
+                    onSaved: _loadLinkedLessons,
+                  ),
+                ),
+                trailing: PopupMenuButton<String>(
+                  onSelected: (action) => _removeLearningPoint(
+                    point,
+                    deleteLesson: action == 'delete',
+                  ),
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(value: 'detach', child: Text('Від’єднати')),
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text('Видалити заняття'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        if (pointCount == 0) ...[
+          const SizedBox(height: 4),
+          Text(
+            'Навчальні точки не додані',
+            style: TextStyle(color: Colors.grey.shade600),
+          ),
+        ],
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            OutlinedButton.icon(
+              onPressed: _showLearningPointTemplatePicker,
+              icon: const Icon(Icons.add),
+              label: const Text('Додати з шаблону'),
+            ),
+            if (!isCreating)
+              OutlinedButton.icon(
+                onPressed: _showExistingLessonPicker,
+                icon: const Icon(Icons.link),
+                label: const Text('Прилінкувати наявне'),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showLearningPointTemplatePicker() async {
+    final selectedIds = _selectedLearningPointTemplates
+        .map((item) => item.id)
+        .toSet();
+    final candidates = _availableTemplates.where((template) {
+      return template.id != _selectedTemplateId &&
+          template.linkedTemplateIds.isEmpty &&
+          !selectedIds.contains(template.id);
+    }).toList();
+    final selected = await showDialog<GroupTemplate>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: const Text('Оберіть шаблон точки'),
+        children: candidates.isEmpty
+            ? [
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('Немає доступних шаблонів'),
+                ),
+              ]
+            : candidates
+                  .map(
+                    (template) => SimpleDialogOption(
+                      onPressed: () =>
+                          Navigator.of(dialogContext).pop(template),
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(template.title),
+                        subtitle: Text('${template.durationMinutes} хв'),
+                      ),
+                    ),
+                  )
+                  .toList(),
+      ),
+    );
+    if (selected == null) return;
+    if (widget.lesson == null) {
+      setState(() => _selectedLearningPointTemplates.add(selected));
+      return;
+    }
+    final point = _lessonFromTemplate(selected);
+    final success = await _calendarService.addLearningPointFromTemplate(
+      widget.lesson!,
+      point,
+    );
+    if (success) await _loadLinkedLessons();
+  }
+
+  Future<void> _showExistingLessonPicker() async {
+    final main = widget.lesson;
+    if (main == null) return;
+    final lessons = await _calendarService.getUnlinkedFutureLessons(
+      excludeId: main.id,
+    );
+    if (!mounted) return;
+    final selected = await showDialog<LessonModel>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: const Text('Прилінкувати заняття'),
+        children: lessons.isEmpty
+            ? [
+                const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text('Немає доступних майбутніх занять'),
+                ),
+              ]
+            : lessons
+                  .map(
+                    (lesson) => SimpleDialogOption(
+                      onPressed: () => Navigator.of(dialogContext).pop(lesson),
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(lesson.title),
+                        subtitle: Text(lesson.dateTimeString),
+                      ),
+                    ),
+                  )
+                  .toList(),
+      ),
+    );
+    if (selected == null) return;
+    final success = await _calendarService.linkExistingLearningPoint(
+      main,
+      selected,
+    );
+    if (success) await _loadLinkedLessons();
+  }
+
+  Future<void> _removeLearningPoint(
+    LessonModel point, {
+    required bool deleteLesson,
+  }) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(
+          deleteLesson
+              ? 'Видалити навчальну точку?'
+              : 'Від’єднати навчальну точку?',
+        ),
+        content: Text(
+          deleteLesson
+              ? 'Заняття «${point.title}» буде видалено.'
+              : 'Заняття «${point.title}» стане незалежним.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Скасувати'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(deleteLesson ? 'Видалити' : 'Від’єднати'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    final success = await _calendarService.removeLearningPoint(
+      point,
+      deleteLesson: deleteLesson,
+    );
+    if (success) await _loadLinkedLessons();
+  }
+
+  LessonModel _lessonFromTemplate(GroupTemplate template) {
+    final start = _selectedStartDateTime;
+    return LessonModel(
+      id: '',
+      title: template.title,
+      description: template.description,
+      startTime: start,
+      endTime: start.add(Duration(minutes: template.durationMinutes)),
+      groupId: Globals.profileManager.currentGroupId ?? '',
+      groupName: Globals.profileManager.currentGroupName ?? '',
+      typeId: template.type.id,
+      templateId: template.id,
+      unit: _unitController.text.trim(),
+      instructorId: '',
+      instructorName: '',
+      location: template.location,
+      maxParticipants: int.tryParse(_maxParticipantsController.text) ?? 180,
+      participants: const [],
+      status: 'scheduled',
+      tags: template.tags,
+      createdBy: Globals.firebaseAuth.currentUser?.uid ?? '',
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+      customFieldDefinitions: template.customFieldDefinitions,
+      customFieldValues: CalendarService.synchronizeLearningPointCustomValues(
+        mainDefinitions: _customFieldDefinitions,
+        mainValues: _customFieldValues,
+        pointDefinitions: template.customFieldDefinitions,
+        pointValues: const {},
+      ),
+      progressReminders: template.progressReminders,
+    );
+  }
+
+  Future<void> _openMainLessonEditor() async {
+    final lesson = widget.lesson;
+    if (lesson == null || !lesson.isLearningPoint) return;
+    final main = await _calendarService.getLessonById(lesson.mainLessonId);
+    if (!mounted || main == null) return;
+    var mainUpdated = false;
+    await showDialog<void>(
+      context: context,
+      builder: (context) =>
+          LessonFormDialog(lesson: main, onSaved: () => mainUpdated = true),
+    );
+    if (mainUpdated && mounted) {
+      widget.onSaved?.call();
+      Navigator.of(context).pop();
+    }
+  }
+
   // Валідація часу
   void _validateTime() {
     setState(() {
@@ -1188,6 +1545,9 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         groupName: currentGroup,
         typeId: _selectedTypeId,
         templateId: _selectedTemplateId,
+        linkedSetId: widget.lesson?.linkedSetId ?? '',
+        mainLessonId: widget.lesson?.mainLessonId ?? '',
+        linkedLessonRole: widget.lesson?.linkedLessonRole ?? '',
         unit: _unitController.text.trim(),
         instructorId: _resolvedInstructorIds().isNotEmpty
             ? _resolvedInstructorIds().first
@@ -1209,49 +1569,66 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         customFieldDefinitions: _customFieldDefinitions,
         customFieldValues: _customFieldValues,
         progressReminders: _progressReminders,
-        recurrence: recurrence,
+        recurrence: _hasLearningPoints ? null : recurrence,
       );
 
       bool success;
       if (widget.lesson != null) {
         // Оновлення існуючого заняття
-        success = await _calendarService.updateLesson(lesson.id, {
-          'title': lesson.title,
-          'description': lesson.description,
-          'startTime': lesson.startTime,
-          'endTime': lesson.endTime,
-          'type': lesson.typeId,
-          'templateId': lesson.templateId,
-          'location': lesson.location,
-          'unit': lesson.unit,
-          'instructorId': lesson.instructorId,
-          'instructorName': lesson.instructorName,
-          'instructorIds': lesson.instructorIds,
-          'instructorNames': lesson.instructorNames,
-          'externalInstructorNames': lesson.externalInstructorNames,
-          'maxParticipants': lesson.maxParticipants,
-          'tags': lesson.tags,
-          'customFieldDefinitions': lesson.customFieldDefinitions
-              .map((definition) => definition.toFirestore())
-              .toList(),
-          'customFieldValues': lesson.customFieldValues.map(
-            (key, value) => MapEntry(key, value.toFirestore()),
-          ),
-          'progressReminders': LessonProgressReminder.toFirestoreList(
-            lesson.progressReminders,
-          ),
-          'trainingPeriod': FieldValue.delete(),
-          'recurrence': recurrence != null
-              ? {
-                  'type': recurrence.type,
-                  'interval': recurrence.interval,
-                  'endDate': recurrence.endDate,
-                }
-              : null,
-        });
+        final persistedLesson = widget.lesson!;
+        final relationSource =
+            !persistedLesson.isLinkedLesson && _linkedLearningPoints.isNotEmpty
+            ? persistedLesson.copyWith(
+                linkedSetId: persistedLesson.id,
+                mainLessonId: persistedLesson.id,
+                linkedLessonRole: 'main',
+              )
+            : persistedLesson;
+        success = await _calendarService.updateLessonRespectingLinks(
+          relationSource,
+          {
+            'title': lesson.title,
+            'description': lesson.description,
+            'startTime': lesson.startTime,
+            'endTime': lesson.endTime,
+            'type': lesson.typeId,
+            'templateId': lesson.templateId,
+            'location': lesson.location,
+            'unit': lesson.unit,
+            'instructorId': lesson.instructorId,
+            'instructorName': lesson.instructorName,
+            'instructorIds': lesson.instructorIds,
+            'instructorNames': lesson.instructorNames,
+            'externalInstructorNames': lesson.externalInstructorNames,
+            'maxParticipants': lesson.maxParticipants,
+            'tags': lesson.tags,
+            'customFieldDefinitions': lesson.customFieldDefinitions
+                .map((definition) => definition.toFirestore())
+                .toList(),
+            'customFieldValues': lesson.customFieldValues.map(
+              (key, value) => MapEntry(key, value.toFirestore()),
+            ),
+            'progressReminders': LessonProgressReminder.toFirestoreList(
+              lesson.progressReminders,
+            ),
+            'trainingPeriod': FieldValue.delete(),
+            'recurrence': !_hasLearningPoints && recurrence != null
+                ? {
+                    'type': recurrence.type,
+                    'interval': recurrence.interval,
+                    'endDate': recurrence.endDate,
+                  }
+                : null,
+          },
+        );
       } else {
         // Створення нового заняття
-        final lessonId = await _calendarService.createLesson(lesson);
+        final points = _selectedLearningPointTemplates
+            .map(_lessonFromTemplate)
+            .toList();
+        final lessonId = points.isEmpty
+            ? await _calendarService.createLesson(lesson)
+            : await _calendarService.createLessonSet(lesson, points);
         success = lessonId != null;
       }
 

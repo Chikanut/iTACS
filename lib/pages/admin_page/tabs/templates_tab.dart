@@ -225,6 +225,13 @@ class _TemplatesTabState extends State<TemplatesTab> {
                       'Параметрів: ${template.customFieldDefinitions.length}',
                     ),
                   ),
+                if (template.linkedTemplateIds.isNotEmpty)
+                  Chip(
+                    avatar: const Icon(Icons.account_tree_outlined, size: 18),
+                    label: Text(
+                      'Навчальних точок: ${template.linkedTemplateIds.length}',
+                    ),
+                  ),
               ],
             ),
             const SizedBox(height: 12),
@@ -376,7 +383,10 @@ class _TemplatesTabState extends State<TemplatesTab> {
   Future<void> _openTemplateDialog({GroupTemplate? template}) async {
     final result = await showDialog<GroupTemplate>(
       context: context,
-      builder: (context) => _TemplateEditorDialog(template: template),
+      builder: (context) => _TemplateEditorDialog(
+        template: template,
+        availableTemplates: _templates,
+      ),
     );
 
     if (result == null || !mounted) return;
@@ -681,8 +691,12 @@ class _TemplatesTabState extends State<TemplatesTab> {
 
 class _TemplateEditorDialog extends StatefulWidget {
   final GroupTemplate? template;
+  final List<GroupTemplate> availableTemplates;
 
-  const _TemplateEditorDialog({this.template});
+  const _TemplateEditorDialog({
+    this.template,
+    required this.availableTemplates,
+  });
 
   @override
   State<_TemplateEditorDialog> createState() => _TemplateEditorDialogState();
@@ -701,6 +715,7 @@ class _TemplateEditorDialogState extends State<_TemplateEditorDialog> {
   late bool _isDefault;
   late List<LessonCustomFieldDefinition> _customFieldDefinitions;
   late List<LessonProgressReminder> _progressReminders;
+  late List<String> _linkedTemplateIds;
 
   @override
   void initState() {
@@ -725,6 +740,9 @@ class _TemplateEditorDialogState extends State<_TemplateEditorDialog> {
     );
     _progressReminders = List<LessonProgressReminder>.from(
       template?.progressReminders ?? const <LessonProgressReminder>[],
+    );
+    _linkedTemplateIds = List<String>.from(
+      template?.linkedTemplateIds ?? const <String>[],
     );
   }
 
@@ -863,6 +881,10 @@ class _TemplateEditorDialogState extends State<_TemplateEditorDialog> {
                 ),
                 const SizedBox(height: 16),
                 _buildCustomFieldsSection(),
+                if (_selectedType == TemplateType.lesson) ...[
+                  const SizedBox(height: 16),
+                  _buildLearningPointsSection(),
+                ],
                 const SizedBox(height: 12),
                 SwitchListTile(
                   contentPadding: EdgeInsets.zero,
@@ -966,6 +988,112 @@ class _TemplateEditorDialogState extends State<_TemplateEditorDialog> {
     );
   }
 
+  Widget _buildLearningPointsSection() {
+    final ownId = widget.template?.id ?? '';
+    final candidates = widget.availableTemplates.where((template) {
+      return template.type == TemplateType.lesson &&
+          template.id != ownId &&
+          template.linkedTemplateIds.isEmpty;
+    }).toList();
+    final byId = {for (final template in candidates) template.id: template};
+    final selected = _linkedTemplateIds
+        .map((id) => byId[id])
+        .whereType<GroupTemplate>()
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Навчальні точки',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Вибрані шаблони створюватимуться як окремі заняття, залежні від дати та підрозділу головного.',
+          style: TextStyle(color: Colors.grey.shade700),
+        ),
+        const SizedBox(height: 10),
+        if (selected.isEmpty)
+          Text(
+            'Навчальні точки не додані',
+            style: TextStyle(color: Colors.grey.shade600),
+          )
+        else
+          ReorderableListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: selected.length,
+            onReorder: (oldIndex, newIndex) {
+              setState(() {
+                if (newIndex > oldIndex) newIndex--;
+                final id = _linkedTemplateIds.removeAt(oldIndex);
+                _linkedTemplateIds.insert(newIndex, id);
+              });
+            },
+            itemBuilder: (context, index) {
+              final template = selected[index];
+              return ListTile(
+                key: ValueKey(template.id),
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.drag_handle),
+                title: Text(template.title),
+                subtitle: Text('${template.durationMinutes} хв'),
+                trailing: IconButton(
+                  tooltip: 'Прибрати',
+                  onPressed: () =>
+                      setState(() => _linkedTemplateIds.remove(template.id)),
+                  icon: const Icon(Icons.close),
+                ),
+              );
+            },
+          ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed:
+              candidates
+                  .where((item) => !_linkedTemplateIds.contains(item.id))
+                  .isEmpty
+              ? null
+              : _showLearningPointPicker,
+          icon: const Icon(Icons.add),
+          label: const Text('Додати навчальну точку'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showLearningPointPicker() async {
+    final ownId = widget.template?.id ?? '';
+    final candidates = widget.availableTemplates.where((template) {
+      return template.type == TemplateType.lesson &&
+          template.id != ownId &&
+          template.linkedTemplateIds.isEmpty &&
+          !_linkedTemplateIds.contains(template.id);
+    }).toList();
+    final selectedId = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: const Text('Оберіть шаблон точки'),
+        children: candidates
+            .map(
+              (template) => SimpleDialogOption(
+                onPressed: () => Navigator.of(dialogContext).pop(template.id),
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(template.title),
+                  subtitle: Text('${template.durationMinutes} хв'),
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+    if (selectedId == null) return;
+    setState(() => _linkedTemplateIds.add(selectedId));
+  }
+
   Future<void> _addCustomFieldDefinition() async {
     final definition = await showCustomFieldDefinitionDialog(
       context,
@@ -1037,6 +1165,9 @@ class _TemplateEditorDialogState extends State<_TemplateEditorDialog> {
       updatedAt: now,
       customFieldDefinitions: _customFieldDefinitions,
       progressReminders: _progressReminders,
+      linkedTemplateIds: _selectedType == TemplateType.lesson
+          ? _linkedTemplateIds
+          : const [],
     );
 
     Navigator.of(context).pop(template);

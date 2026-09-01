@@ -72,6 +72,9 @@ class LessonModel {
   final String groupName;
   final String typeId;
   final String templateId;
+  final String linkedSetId;
+  final String mainLessonId;
+  final String linkedLessonRole;
   final String unit;
   final String instructorId;
   final String instructorName;
@@ -103,6 +106,9 @@ class LessonModel {
     required this.groupName,
     this.typeId = '',
     this.templateId = '',
+    this.linkedSetId = '',
+    this.mainLessonId = '',
+    this.linkedLessonRole = '',
     required this.unit,
     required String instructorId,
     required String instructorName,
@@ -177,6 +183,9 @@ class LessonModel {
       groupName: data['groupName'] ?? '',
       typeId: (data['type'] ?? '').toString().trim(),
       templateId: (data['templateId'] ?? '').toString().trim(),
+      linkedSetId: (data['linkedSetId'] ?? '').toString().trim(),
+      mainLessonId: (data['mainLessonId'] ?? '').toString().trim(),
+      linkedLessonRole: (data['linkedLessonRole'] ?? '').toString().trim(),
       unit: data['unit'] ?? '',
       instructorId: data['instructorId'] ?? '',
       instructorName: data['instructorName'] ?? '',
@@ -232,6 +241,9 @@ class LessonModel {
       groupName: data['groupName'] ?? '',
       typeId: (data['type'] ?? '').toString().trim(),
       templateId: (data['templateId'] ?? '').toString().trim(),
+      linkedSetId: (data['linkedSetId'] ?? '').toString().trim(),
+      mainLessonId: (data['mainLessonId'] ?? '').toString().trim(),
+      linkedLessonRole: (data['linkedLessonRole'] ?? '').toString().trim(),
       unit: data['unit'] ?? '',
       instructorId: data['instructorId'] ?? '',
       instructorName: data['instructorName'] ?? '',
@@ -279,6 +291,9 @@ class LessonModel {
       'groupName': groupName,
       'type': typeId,
       'templateId': templateId,
+      'linkedSetId': linkedSetId,
+      'mainLessonId': mainLessonId,
+      'linkedLessonRole': linkedLessonRole,
       'unit': unit,
       'instructorId': instructorId,
       'instructorName': instructorName,
@@ -319,6 +334,9 @@ class LessonModel {
       'groupName': groupName,
       'type': typeId,
       'templateId': templateId,
+      'linkedSetId': linkedSetId,
+      'mainLessonId': mainLessonId,
+      'linkedLessonRole': linkedLessonRole,
       'unit': unit,
       'instructorId': instructorId,
       'instructorName': instructorName,
@@ -363,6 +381,9 @@ class LessonModel {
     String? groupName,
     String? typeId,
     String? templateId,
+    String? linkedSetId,
+    String? mainLessonId,
+    String? linkedLessonRole,
     String? unit,
     String? instructorId,
     String? instructorName,
@@ -394,6 +415,9 @@ class LessonModel {
       groupName: groupName ?? this.groupName,
       typeId: typeId ?? this.typeId,
       templateId: templateId ?? this.templateId,
+      linkedSetId: linkedSetId ?? this.linkedSetId,
+      mainLessonId: mainLessonId ?? this.mainLessonId,
+      linkedLessonRole: linkedLessonRole ?? this.linkedLessonRole,
       unit: unit ?? this.unit,
       instructorId: instructorId ?? this.instructorId,
       instructorName: instructorName ?? this.instructorName,
@@ -484,6 +508,14 @@ class LessonModel {
   }
 
   bool get hasInternalInstructors => instructorIds.isNotEmpty;
+
+  bool get isLinkedLesson => linkedSetId.isNotEmpty;
+
+  bool get isMainLinkedLesson =>
+      isLinkedLesson && linkedLessonRole == 'main' && mainLessonId == id;
+
+  bool get isLearningPoint =>
+      isLinkedLesson && linkedLessonRole == 'learningPoint';
 
   bool get hasExternalInstructors => externalInstructorNames.isNotEmpty;
 

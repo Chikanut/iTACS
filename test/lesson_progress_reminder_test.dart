@@ -72,14 +72,17 @@ void main() {
             'progressPercent': 90,
           },
         ],
+        'linkedTemplateIds': ['point-1', 'point-2'],
       });
 
       expect(template.progressReminders, hasLength(1));
+      expect(template.linkedTemplateIds, ['point-1', 'point-2']);
 
       final json = template.toJson();
       final reminders = json['progressReminders'] as List<dynamic>;
       expect(reminders, hasLength(1));
       expect(reminders.first['title'], 'Кінець заняття');
+      expect(json['linkedTemplateIds'], ['point-1', 'point-2']);
     });
 
     test('copies reminders from template to generated lesson payload', () {
