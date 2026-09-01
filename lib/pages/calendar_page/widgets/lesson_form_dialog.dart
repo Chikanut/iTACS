@@ -44,6 +44,8 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
   List<GroupTemplate> _availableTemplates = [];
   List<Map<String, dynamic>> _availableInstructors = [];
   final List<GroupTemplate> _selectedLearningPointTemplates = [];
+  final Map<String, Map<String, String>> _learningPointInstructors = {};
+  final Map<String, List<String>> _learningPointExternalInstructors = {};
   List<LessonModel> _linkedLearningPoints = [];
   bool _isLoadingLinkedLessons = false;
 
@@ -1202,6 +1204,15 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     _selectedLearningPointTemplates
       ..clear()
       ..addAll(ids.map((id) => byId[id]).whereType<GroupTemplate>());
+    final selectedIds = _selectedLearningPointTemplates
+        .map((template) => template.id)
+        .toSet();
+    _learningPointInstructors.removeWhere(
+      (templateId, _) => !selectedIds.contains(templateId),
+    );
+    _learningPointExternalInstructors.removeWhere(
+      (templateId, _) => !selectedIds.contains(templateId),
+    );
   }
 
   Widget _buildLearningPointsSection() {
@@ -1234,23 +1245,7 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         if (_isLoadingLinkedLessons)
           const LinearProgressIndicator()
         else if (isCreating)
-          ..._selectedLearningPointTemplates.map(
-            (template) => Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: ListTile(
-                leading: const Icon(Icons.location_on_outlined),
-                title: Text(template.title),
-                subtitle: Text('${template.durationMinutes} хв'),
-                trailing: IconButton(
-                  tooltip: 'Не створювати цю точку',
-                  onPressed: () => setState(
-                    () => _selectedLearningPointTemplates.remove(template),
-                  ),
-                  icon: const Icon(Icons.close),
-                ),
-              ),
-            ),
-          )
+          ..._selectedLearningPointTemplates.map(_buildPendingLearningPointCard)
         else
           ..._linkedLearningPoints.map(
             (point) => Card(
@@ -1309,6 +1304,235 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
         ),
       ],
     );
+  }
+
+  Widget _buildPendingLearningPointCard(GroupTemplate template) {
+    final instructors =
+        _learningPointInstructors[template.id] ?? const <String, String>{};
+    final externalInstructors =
+        _learningPointExternalInstructors[template.id] ?? const <String>[];
+    final hasInstructors =
+        instructors.isNotEmpty || externalInstructors.isNotEmpty;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 8, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.location_on_outlined),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        template.title,
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      Text('${template.durationMinutes} хв'),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Не створювати цю точку',
+                  onPressed: () => _removePendingLearningPoint(template),
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Викладачі точки',
+              style: TextStyle(
+                color: Colors.grey.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 6),
+            if (!hasInstructors)
+              Text(
+                'Не призначено',
+                style: TextStyle(color: Colors.grey.shade600),
+              )
+            else
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  ...instructors.entries.map(
+                    (entry) => InputChip(
+                      label: Text(entry.value),
+                      onDeleted: () {
+                        setState(() {
+                          _learningPointInstructors[template.id]?.remove(
+                            entry.key,
+                          );
+                        });
+                      },
+                    ),
+                  ),
+                  ...externalInstructors.map(
+                    (name) => InputChip(
+                      avatar: const Icon(Icons.person_outline, size: 18),
+                      label: Text(name),
+                      onDeleted: () {
+                        setState(() {
+                          _learningPointExternalInstructors[template.id]
+                              ?.remove(name);
+                        });
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: _isLoadingInstructors
+                      ? null
+                      : () => _showLearningPointInstructorPicker(template),
+                  icon: const Icon(Icons.people_alt_outlined, size: 18),
+                  label: Text(
+                    instructors.isEmpty ? 'Обрати з групи' : 'Змінити',
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: () =>
+                      _addLearningPointExternalInstructor(template),
+                  icon: const Icon(Icons.person_add_alt_1_outlined, size: 18),
+                  label: const Text('Інший'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _removePendingLearningPoint(GroupTemplate template) {
+    setState(() {
+      _selectedLearningPointTemplates.remove(template);
+      _learningPointInstructors.remove(template.id);
+      _learningPointExternalInstructors.remove(template.id);
+    });
+  }
+
+  Future<void> _showLearningPointInstructorPicker(
+    GroupTemplate template,
+  ) async {
+    final availableOptions = _availableInstructorOptions();
+    final current = _learningPointInstructors[template.id];
+    if (current != null) {
+      availableOptions.addAll(current);
+    }
+    final selectedIds = {...?current?.keys};
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setStateDialog) => AlertDialog(
+          title: Text('Викладачі: ${template.title}'),
+          content: SizedBox(
+            width: 420,
+            child: availableOptions.isEmpty
+                ? const Text('У групі поки немає доступних викладачів.')
+                : SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: availableOptions.entries.map((entry) {
+                        return CheckboxListTile(
+                          value: selectedIds.contains(entry.key),
+                          title: Text(entry.value),
+                          controlAffinity: ListTileControlAffinity.leading,
+                          contentPadding: EdgeInsets.zero,
+                          onChanged: (checked) {
+                            setStateDialog(() {
+                              if (checked == true) {
+                                selectedIds.add(entry.key);
+                              } else {
+                                selectedIds.remove(entry.key);
+                              }
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Скасувати'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Застосувати'),
+            ),
+          ],
+        ),
+      ),
+    );
+    if (confirmed != true) return;
+
+    setState(() {
+      _learningPointInstructors[template.id] = Map.fromEntries(
+        availableOptions.entries.where(
+          (entry) => selectedIds.contains(entry.key),
+        ),
+      );
+    });
+  }
+
+  Future<void> _addLearningPointExternalInstructor(
+    GroupTemplate template,
+  ) async {
+    final controller = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text('Інший викладач: ${template.title}'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Імʼя або позначення',
+            hintText: 'Запрошений викладач',
+            border: OutlineInputBorder(),
+          ),
+          textCapitalization: TextCapitalization.words,
+          onSubmitted: (value) => Navigator.of(dialogContext).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Скасувати'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop(controller.text),
+            child: const Text('Додати'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    final normalized = name?.trim() ?? '';
+    if (normalized.isEmpty) return;
+    setState(() {
+      final names = _learningPointExternalInstructors.putIfAbsent(
+        template.id,
+        () => [],
+      );
+      if (!names.contains(normalized)) names.add(normalized);
+    });
   }
 
   Future<void> _showLearningPointTemplatePicker() async {
@@ -1438,6 +1662,11 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
 
   LessonModel _lessonFromTemplate(GroupTemplate template) {
     final start = _selectedStartDateTime;
+    final instructors =
+        _learningPointInstructors[template.id] ?? const <String, String>{};
+    final externalInstructors = _normalizeExternalInstructorNames(
+      _learningPointExternalInstructors[template.id] ?? const <String>[],
+    );
     return LessonModel(
       id: '',
       title: template.title,
@@ -1449,8 +1678,11 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
       typeId: template.type.id,
       templateId: template.id,
       unit: _unitController.text.trim(),
-      instructorId: '',
-      instructorName: '',
+      instructorId: instructors.isNotEmpty ? instructors.keys.first : '',
+      instructorName: instructors.isNotEmpty ? instructors.values.first : '',
+      instructorIds: instructors.keys.toList(),
+      instructorNames: instructors.values.toList(),
+      externalInstructorNames: externalInstructors,
       location: template.location,
       maxParticipants: int.tryParse(_maxParticipantsController.text) ?? 180,
       participants: const [],

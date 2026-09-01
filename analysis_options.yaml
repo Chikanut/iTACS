@@ -14,6 +14,12 @@ analyzer:
     - build/**
     - backup_*/**
     - node_modules/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
   errors:
     avoid_print: ignore
     avoid_shadowing_type_parameters: ignore

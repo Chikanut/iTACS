@@ -25,7 +25,9 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   bool _isLoading = false;
   bool _isRegistered = false;
   bool _isLoadingInstructors = false;
+  bool _isLoadingLinkedLessons = false;
   List<Map<String, dynamic>> _availableInstructors = [];
+  List<LessonModel> _linkedLessons = [];
   late LessonModel _lesson;
 
   @override
@@ -34,6 +36,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
     _lesson = widget.lesson;
     _isRegistered = _calendarService.isUserRegisteredForLesson(_lesson);
     _loadAssignableInstructors();
+    _loadLinkedLessons();
   }
 
   @override
@@ -126,6 +129,11 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildStatusSection(lesson, status),
+
+                    if (lesson.isLinkedLesson) ...[
+                      const SizedBox(height: 16),
+                      _buildLinkedLessonsSection(lesson),
+                    ],
 
                     const SizedBox(height: 16),
 
@@ -243,6 +251,144 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
         ),
       ),
     );
+  }
+
+  Widget _buildLinkedLessonsSection(LessonModel lesson) {
+    if (_isLoadingLinkedLessons) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: LinearProgressIndicator(),
+        ),
+      );
+    }
+
+    if (lesson.isMainLinkedLesson) {
+      final points = _linkedLessons
+          .where((linkedLesson) => linkedLesson.isLearningPoint)
+          .toList();
+      return Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.account_tree_outlined, size: 20),
+                  SizedBox(width: 8),
+                  Text(
+                    'Навчальні точки',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              if (points.isEmpty)
+                Text(
+                  'Навчальні точки не знайдені',
+                  style: TextStyle(color: Colors.grey.shade600),
+                )
+              else
+                ...points.map(
+                  (point) => ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.location_on_outlined, size: 19),
+                    ),
+                    title: Text(point.title),
+                    subtitle: Text(
+                      '${point.timeString} • ${point.displayInstructorNames}',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => _openLinkedLessonDetails(point),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    LessonModel? mainLesson;
+    for (final linkedLesson in _linkedLessons) {
+      if (linkedLesson.isMainLinkedLesson) {
+        mainLesson = linkedLesson;
+        break;
+      }
+    }
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.account_tree_outlined, size: 20),
+                SizedBox(width: 8),
+                Text(
+                  'Головне заняття',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (mainLesson == null)
+              Text(
+                'Головне заняття не знайдене',
+                style: TextStyle(color: Colors.grey.shade600),
+              )
+            else
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const CircleAvatar(
+                  child: Icon(Icons.school_outlined, size: 19),
+                ),
+                title: Text(mainLesson.title),
+                subtitle: Text(
+                  '${mainLesson.dateString} • ${mainLesson.timeString}',
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => _openLinkedLessonDetails(mainLesson!),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _loadLinkedLessons() async {
+    if (!_lesson.isLinkedLesson) return;
+    if (mounted) setState(() => _isLoadingLinkedLessons = true);
+    try {
+      final lessons = await _calendarService.getLinkedLessons(
+        _lesson.linkedSetId,
+      );
+      if (!mounted) return;
+      setState(() => _linkedLessons = lessons);
+    } finally {
+      if (mounted) setState(() => _isLoadingLinkedLessons = false);
+    }
+  }
+
+  Future<void> _openLinkedLessonDetails(LessonModel lesson) async {
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => LessonDetailsDialog(
+        lesson: lesson,
+        onUpdated: () {
+          widget.onUpdated?.call();
+          _loadLinkedLessons();
+        },
+      ),
+    );
+    if (mounted) {
+      await _loadLinkedLessons();
+      await _refreshLesson();
+    }
   }
 
   Widget _buildDetailRow({
@@ -1345,6 +1491,7 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
       _lesson = refreshedLesson;
       _isRegistered = _calendarService.isUserRegisteredForLesson(_lesson);
     });
+    await _loadLinkedLessons();
     widget.onUpdated?.call();
   }
 
