@@ -81,13 +81,14 @@ class _ReportTemplatesTabState extends State<ReportTemplatesTab> {
     await showQuickReportDialog(
       context: context,
       reportTitle: template.name,
-      onGenerate: (startDate, endDate) async {
+      onGenerate: (startDate, endDate, membersOnly) async {
         try {
           final preview = await _service.previewTemplate(
             templateId: template.id,
             useDraft: true,
             startDate: startDate,
             endDate: endDate,
+            membersOnly: membersOnly,
           );
           if (!mounted) return;
           await showDialog<void>(
@@ -466,6 +467,7 @@ class _ReportTemplateEditorDialogState
   late List<ReportTemplateSort> _sort;
   late List<ReportTemplateTotal> _totals;
   late List<String> _calendarNoteFields;
+  late Map<String, dynamic> _calendarOptions;
   late final TextEditingController _calendarCellMarkController;
 
   @override
@@ -497,6 +499,7 @@ class _ReportTemplateEditorDialogState
     _sort = List<ReportTemplateSort>.from(config.sort);
     _totals = List<ReportTemplateTotal>.from(config.totals);
     _calendarNoteFields = List<String>.from(config.calendarNoteFields);
+    _calendarOptions = Map<String, dynamic>.from(config.calendarOptions);
     _calendarCellMarkController = TextEditingController(
       text: config.calendarCellMark,
     );
@@ -536,6 +539,7 @@ class _ReportTemplateEditorDialogState
       calendarCellMark: _calendarCellMarkController.text.trim().isEmpty
           ? 'З'
           : _calendarCellMarkController.text.trim(),
+      calendarOptions: _calendarOptions,
     );
   }
 
@@ -552,6 +556,7 @@ class _ReportTemplateEditorDialogState
       _sort = List<ReportTemplateSort>.from(config.sort);
       _totals = List<ReportTemplateTotal>.from(config.totals);
       _calendarNoteFields = List<String>.from(config.calendarNoteFields);
+      _calendarOptions = Map<String, dynamic>.from(config.calendarOptions);
       _calendarCellMarkController.text = config.calendarCellMark;
     });
   }

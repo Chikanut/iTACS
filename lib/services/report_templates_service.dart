@@ -163,6 +163,7 @@ class ReportTemplatesService {
     required bool useDraft,
     required DateTime startDate,
     required DateTime endDate,
+    bool membersOnly = false,
   }) async {
     final groupId = _currentGroupId;
     if (groupId == null) {
@@ -176,6 +177,7 @@ class ReportTemplatesService {
           'useDraft': useDraft,
           'startDate': startDate.toIso8601String(),
           'endDate': endDate.toIso8601String(),
+          'membersOnly': membersOnly,
         });
 
     return ReportTemplatePreview.fromMap(
@@ -201,6 +203,7 @@ class ReportTemplatesService {
     required bool useDraft,
     required DateTime startDate,
     required DateTime endDate,
+    bool membersOnly = false,
   }) async {
     final groupId = _currentGroupId;
     if (groupId == null) {
@@ -214,6 +217,7 @@ class ReportTemplatesService {
           'useDraft': useDraft,
           'startDate': startDate.toIso8601String(),
           'endDate': endDate.toIso8601String(),
+          'membersOnly': membersOnly,
         });
 
     return GeneratedTemplateReport.fromMap(

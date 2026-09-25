@@ -97,11 +97,6 @@ abstract class BaseReport {
       return 'Початкова дата не може бути пізніше за кінцеву';
     }
 
-    final now = DateTime.now();
-    if (startDate.isAfter(now)) {
-      return 'Початкова дата не може бути в майбутньому';
-    }
-
     final maxRange = const Duration(days: 365);
     if (endDate.difference(startDate) > maxRange) {
       return 'Максимальний період звіту - 365 днів';

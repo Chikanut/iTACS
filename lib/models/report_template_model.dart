@@ -326,6 +326,10 @@ class ReportTemplateConfig {
   final List<String> calendarNoteFields;
   final String calendarCellMark;
 
+  /// Додаткові налаштування відомості (title, subtitle, noteLabels).
+  /// Редагуються через імпорт JSON і зберігаються як є.
+  final Map<String, dynamic> calendarOptions;
+
   const ReportTemplateConfig({
     required this.source,
     required this.periodField,
@@ -338,6 +342,7 @@ class ReportTemplateConfig {
     required this.sheet,
     this.calendarNoteFields = const [],
     this.calendarCellMark = 'З',
+    this.calendarOptions = const {},
   });
 
   factory ReportTemplateConfig.fromMap(Map<String, dynamic> map) {
@@ -387,6 +392,9 @@ class ReportTemplateConfig {
           .where((item) => item.isNotEmpty)
           .toList(),
       calendarCellMark: (map['calendarCellMark'] as String?) ?? 'З',
+      calendarOptions: map['calendarOptions'] is Map
+          ? Map<String, dynamic>.from(map['calendarOptions'] as Map)
+          : const {},
     );
   }
 
@@ -402,6 +410,7 @@ class ReportTemplateConfig {
     'sheet': sheet.toJson(),
     if (calendarNoteFields.isNotEmpty) 'calendarNoteFields': calendarNoteFields,
     if (calendarCellMark != 'З') 'calendarCellMark': calendarCellMark,
+    if (calendarOptions.isNotEmpty) 'calendarOptions': calendarOptions,
   };
 
   ReportTemplateConfig copyWith({
@@ -416,6 +425,7 @@ class ReportTemplateConfig {
     ReportTemplateSheet? sheet,
     List<String>? calendarNoteFields,
     String? calendarCellMark,
+    Map<String, dynamic>? calendarOptions,
   }) {
     return ReportTemplateConfig(
       source: source ?? this.source,
@@ -429,6 +439,7 @@ class ReportTemplateConfig {
       sheet: sheet ?? this.sheet,
       calendarNoteFields: calendarNoteFields ?? this.calendarNoteFields,
       calendarCellMark: calendarCellMark ?? this.calendarCellMark,
+      calendarOptions: calendarOptions ?? this.calendarOptions,
     );
   }
 }

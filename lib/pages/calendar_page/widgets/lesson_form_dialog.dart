@@ -2036,6 +2036,17 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
     return ((member['email'] as String?) ?? '').trim().toLowerCase();
   }
 
+  String _storageInstructorName(String assignmentId, String fallbackName) {
+    for (final member in _availableInstructors) {
+      if (_memberAssignmentId(member) == assignmentId) {
+        return _memberDisplayName(member);
+      }
+    }
+    return fallbackName
+        .replaceFirst(RegExp(r'\s*\([^()\s]+@[^()\s]+\)\s*$'), '')
+        .trim();
+  }
+
   String _memberDisplayName(Map<String, dynamic> member) {
     final fullName = ((member['fullName'] as String?) ?? '').trim();
     if (fullName.isNotEmpty) {
@@ -2125,13 +2136,24 @@ class _LessonFormDialogState extends State<LessonFormDialog> {
 
     if (confirmed != true) return;
 
+    // Підпис у списку містить email для розрізнення, а зберігаємо чисте ім'я,
+    // інакше у звітах з'являються дублі "Ім'я" та "Ім'я (email)".
+    final previousNames = Map<String, String>.from(_selectedInstructors);
     setState(() {
       _selectedInstructors
         ..clear()
         ..addEntries(
-          availableOptions.entries.where(
-            (entry) => selectedIds.contains(entry.key),
-          ),
+          availableOptions.entries
+              .where((entry) => selectedIds.contains(entry.key))
+              .map(
+                (entry) => MapEntry(
+                  entry.key,
+                  _storageInstructorName(
+                    entry.key,
+                    previousNames[entry.key] ?? entry.value,
+                  ),
+                ),
+              ),
         );
     });
   }

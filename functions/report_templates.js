@@ -241,10 +241,11 @@ function createPreviewHandler({db, admin, functionsV1}) {
       const {groups, days, warnings} = await buildCalendarGridDataset({
         db, admin, groupId: request.groupId, config,
         startDate: request.startDate, endDate: request.endDate,
+        membersOnly: request.membersOnly,
       });
       const UA_WEEKDAYS = ["НД", "ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ"];
       const columns = [
-        {key: "instructor", label: "Інструктор"},
+        {key: "instructor", label: "ПІБ"},
         ...days.slice(0, 10).map((d) => ({
           key: `day_${d.dayNum}`,
           label: `${d.dayNum} ${UA_WEEKDAYS[d.weekdayIdx]}`,
@@ -256,7 +257,7 @@ function createPreviewHandler({db, admin, functionsV1}) {
         const row = {instructor: g.name, total: String(g.totalLessons)};
         for (const d of days.slice(0, 10)) {
           const count = (g.dayMap.get(d.dayKey) || []).length;
-          row[`day_${d.dayNum}`] = count > 0 ? (count === 1 ? mark : `${mark}(${count})`) : "";
+          row[`day_${d.dayNum}`] = count > 0 ? mark : (g.absenceMap.get(d.dayKey) || "");
         }
         return row;
       });
@@ -277,6 +278,7 @@ function createPreviewHandler({db, admin, functionsV1}) {
       config,
       startDate: request.startDate,
       endDate: request.endDate,
+      membersOnly: request.membersOnly,
       warnings: [],
     });
 
@@ -389,6 +391,7 @@ function createGenerateHandler({db, admin, functionsV1}) {
       const {groups, days, warnings} = await buildCalendarGridDataset({
         db, admin, groupId: request.groupId, config,
         startDate: request.startDate, endDate: request.endDate,
+        membersOnly: request.membersOnly,
       });
       const workbookBuffer = await buildCalendarGridWorkbookBuffer({
         groupName: membership.groupName,
@@ -419,6 +422,7 @@ function createGenerateHandler({db, admin, functionsV1}) {
       config,
       startDate: request.startDate,
       endDate: request.endDate,
+      membersOnly: request.membersOnly,
       warnings: [],
     });
 
@@ -461,6 +465,7 @@ async function buildReportDataset({
   config,
   startDate,
   endDate,
+  membersOnly = false,
   warnings,
 }) {
   const lessons = await fetchLessonsForPeriod({
@@ -476,6 +481,7 @@ async function buildReportDataset({
     lessons,
     rowMode: config.rowMode,
     memberLookup,
+    membersOnly,
   });
   const filteredRows = applyFilters(rows, config.filters);
   const sortedRows = applySort(filteredRows, config.sort);
@@ -536,11 +542,20 @@ async function fetchLessonsForPeriod({
   }));
 }
 
-function buildReportRows({lessons, rowMode, memberLookup}) {
+function buildReportRows({lessons, rowMode, memberLookup, membersOnly = false}) {
   const rows = [];
+  const isGroupMember = membersOnly ?
+    createGroupMemberMatcher(memberLookup) :
+    null;
 
   for (const lesson of lessons) {
-    const assignments = extractLessonAssignments(lesson);
+    let assignments = extractLessonAssignments(lesson);
+    if (isGroupMember) {
+      // Лише учасники групи: запрошених викладачів відкидаємо, а заняття
+      // без жодного викладача-учасника не потрапляють у звіт.
+      assignments = assignments.filter(isGroupMember);
+      if (assignments.length === 0) continue;
+    }
     if (rowMode === TEMPLATE_ROW_MODE.lessonInstructor) {
       if (assignments.length === 0) {
         rows.push(createRow({
@@ -572,9 +587,10 @@ function buildReportRows({lessons, rowMode, memberLookup}) {
 }
 
 function createRow({lesson, assignment, memberLookup}) {
+  const cleanName = splitInstructorName(assignment.name).name;
   const member = resolveMemberForAssignment({
     assignmentId: assignment.assignmentId,
-    fallbackName: assignment.name,
+    fallbackName: cleanName,
     memberLookup,
   });
 
@@ -582,7 +598,7 @@ function createRow({lesson, assignment, memberLookup}) {
     lesson,
     instructor: {
       assignmentId: asString(assignment.assignmentId),
-      name: asString(assignment.name),
+      name: cleanName,
     },
     member,
   };
@@ -1009,6 +1025,7 @@ function normalizeCallableRequest(raw, functionsV1) {
   const groupId = asString(raw && raw.groupId);
   const templateId = asString(raw && raw.templateId);
   const useDraft = raw && raw.useDraft === true;
+  const membersOnly = raw && raw.membersOnly === true;
   const startDate = toDate(raw && raw.startDate);
   const endDate = toDate(raw && raw.endDate);
 
@@ -1036,6 +1053,7 @@ function normalizeCallableRequest(raw, functionsV1) {
     groupId,
     templateId,
     useDraft,
+    membersOnly,
     startDate,
     endDate,
   };
@@ -1161,6 +1179,7 @@ function normalizeTemplateConfig(rawConfig) {
     validateFieldKey(key);
   }
   const calendarCellMark = asString(rawConfig.calendarCellMark) || "З";
+  const calendarOptions = normalizeCalendarOptions(rawConfig.calendarOptions);
 
   return {
     source,
@@ -1174,6 +1193,24 @@ function normalizeTemplateConfig(rawConfig) {
     sheet,
     calendarNoteFields,
     calendarCellMark,
+    calendarOptions,
+  };
+}
+
+function normalizeCalendarOptions(raw) {
+  const source = raw && typeof raw === "object" ? raw : {};
+  const noteLabels = {};
+  const rawLabels = source.noteLabels && typeof source.noteLabels === "object" ?
+    source.noteLabels :
+    {};
+  for (const [key, label] of Object.entries(rawLabels)) {
+    const normalizedKey = asString(key);
+    if (normalizedKey) noteLabels[normalizedKey] = asString(label);
+  }
+  return {
+    title: asString(source.title),
+    subtitle: asString(source.subtitle),
+    noteLabels,
   };
 }
 
@@ -1289,14 +1326,109 @@ function getFieldLabel(key) {
 // CALENDAR GRID  (rowMode: "calendar_grid")
 // ─────────────────────────────────────────────────────────────────────────────
 
-async function buildCalendarGridDataset({
-  db, admin, groupId, config, startDate, endDate,
-}) {
-  const lessons = await fetchLessonsForPeriod({
-    db, admin, groupId, config, startDate, endDate,
-  });
+const CALENDAR_TIME_ZONE = "Europe/Kyiv";
 
-  // Build day list (UTC day boundaries)
+const UA_MONTHS_NOMINATIVE = [
+  "січень", "лютий", "березень", "квітень", "травень", "червень",
+  "липень", "серпень", "вересень", "жовтень", "листопад", "грудень",
+];
+
+// instructor_absences.type -> код у клітинці відомості
+const CALENDAR_ABSENCE_CODES = {
+  sick_leave: "Х",
+  vacation: "В",
+  business_trip: "ВД",
+  duty: "Н",
+};
+
+const CALENDAR_IGNORED_ABSENCE_STATUSES = new Set(["cancelled", "pending"]);
+
+// Порядок від молодшого до старшого — використовується для сортування рядків.
+const CALENDAR_RANK_ORDER = [
+  "солдат", "старший солдат", "молодший сержант", "сержант",
+  "старший сержант", "головний сержант", "штаб-сержант", "майстер-сержант",
+  "перший сержант", "головний майстер-сержант", "молодший лейтенант",
+  "лейтенант", "старший лейтенант", "капітан", "майор", "підполковник",
+  "полковник", "бригадний генерал", "генерал-майор", "генерал-лейтенант",
+  "генерал", "генерал армії україни",
+];
+
+const CALENDAR_RANK_ABBREVIATIONS = {
+  "солдат": "солдат",
+  "старший солдат": "ст. солдат",
+  "молодший сержант": "мол. с-нт",
+  "сержант": "с-нт",
+  "старший сержант": "ст. с-нт",
+  "головний сержант": "гол. с-нт",
+  "штаб-сержант": "штаб-с-нт",
+  "майстер-сержант": "м-с-нт",
+  "перший сержант": "перш. с-нт",
+  "головний майстер-сержант": "гол. м-с-нт",
+  "молодший лейтенант": "мол. л-нт",
+  "лейтенант": "л-нт",
+  "старший лейтенант": "ст. л-нт",
+  "капітан": "капітан",
+  "майор": "майор",
+  "підполковник": "п/п-к",
+  "полковник": "п-к",
+};
+
+const CALENDAR_EDUCATION_NOTE = [
+  "Офіцери:",
+  "25 тис. чи 30 тис. залежно від посади",
+  "",
+  "Сержанти:",
+  "0 грн. - не мають освіту, яка відповідає вимогам на 15 тис.",
+  "15 тис. грн. - мають базовий рівень підготовки сержанта (суміщена підготовка)",
+  "20 тис. грн. - мають базовий рівень підготовки сержанта та базовий рівень інструктора",
+  "30 тис. грн. - мають середній рівень підготовки сержанта та підвищений рівень інструктора",
+].join("\n");
+
+const NAME_EMAIL_SUFFIX_RE = /\s*\(\s*([^()\s]+@[^()\s]+)\s*\)\s*$/;
+
+let calendarDayFormatter = null;
+
+function toCalendarDayKey(date) {
+  if (!calendarDayFormatter) {
+    const options = {year: "numeric", month: "2-digit", day: "2-digit"};
+    try {
+      calendarDayFormatter = new Intl.DateTimeFormat("en-CA", {
+        ...options, timeZone: CALENDAR_TIME_ZONE,
+      });
+    } catch (_) {
+      calendarDayFormatter = new Intl.DateTimeFormat("en-CA", {
+        ...options, timeZone: "Europe/Kiev",
+      });
+    }
+  }
+  const parts = calendarDayFormatter.formatToParts(date);
+  const pick = (type) => (parts.find((p) => p.type === type) || {}).value;
+  return `${pick("year")}-${pick("month")}-${pick("day")}`;
+}
+
+// "Ім'я Прізвище (mail@x.com)" -> {name: "Ім'я Прізвище", email: "mail@x.com"}
+function splitInstructorName(rawName) {
+  const value = asString(rawName);
+  const match = value.match(NAME_EMAIL_SUFFIX_RE);
+  if (!match) return {name: value, email: ""};
+  return {
+    name: value.slice(0, match.index).trim(),
+    email: match[1].toLowerCase(),
+  };
+}
+
+// Ключ імені, нечутливий до регістру та порядку слів.
+function normalizePersonNameKey(name) {
+  return asString(name)
+      .toLowerCase()
+      .replace(/[’`ʼ]/g, "'")
+      .split(/\s+/)
+      .filter(Boolean)
+      .sort()
+      .join(" ");
+}
+
+function buildCalendarDays(startDate, endDate) {
   const days = [];
   const cur = new Date(Date.UTC(
       startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate(),
@@ -1313,181 +1445,590 @@ async function buildCalendarGridDataset({
       dayNum: cur.getUTCDate(),
       weekdayIdx: cur.getUTCDay(),
       isWeekend: cur.getUTCDay() === 0 || cur.getUTCDay() === 6,
+      isSunday: cur.getUTCDay() === 0,
       dayKey: `${y}-${m}-${d}`,
+      headerLabel: `${d}.${m}.`,
     });
     cur.setUTCDate(cur.getUTCDate() + 1);
   }
+  return days;
+}
 
-  // Group lessons by the first groupBy key
-  const groupByKey = (config.groupBy && config.groupBy[0]) || "instructor.name";
-  const groupMap = new Map();
-
-  function addToGroup(name, lesson, dayKey) {
-    if (!groupMap.has(name)) {
-      groupMap.set(name, {name, dayMap: new Map(), totalLessons: 0});
+async function fetchPersonnelProfiles({db, groupId}) {
+  const byUid = new Map();
+  const byEmail = new Map();
+  try {
+    const snapshot = await db.collection("personnel_profiles")
+        .doc(groupId)
+        .collection("members")
+        .get();
+    for (const doc of snapshot.docs) {
+      const data = doc.data() || {};
+      const profile = {uid: asString(data.uid) || doc.id, ...data};
+      byUid.set(doc.id, profile);
+      if (profile.uid) byUid.set(profile.uid, profile);
+      const email = asString(data.email).toLowerCase();
+      if (email) byEmail.set(email, profile);
     }
-    const g = groupMap.get(name);
-    if (!g.dayMap.has(dayKey)) g.dayMap.set(dayKey, []);
-    g.dayMap.get(dayKey).push(lesson);
-    g.totalLessons++;
+  } catch (error) {
+    console.warn("calendar_grid: не вдалося завантажити анкети", error);
+  }
+  return {byUid, byEmail};
+}
+
+async function fetchAbsencesForPeriod({db, admin, groupId, startDate, endDate}) {
+  try {
+    // Запас у добу з обох боків — межі періоду приходять без часового поясу.
+    const from = new Date(startDate.getTime() - 24 * 60 * 60 * 1000);
+    const to = new Date(endDate.getTime() + 24 * 60 * 60 * 1000);
+    const snapshot = await db.collection("instructor_absences")
+        .doc(groupId)
+        .collection("items")
+        .where("endDate", ">=", admin.firestore.Timestamp.fromDate(from))
+        .get();
+    return snapshot.docs
+        .map((doc) => ({id: doc.id, ...normalizeFirestoreValue(doc.data(), admin)}))
+        .filter((absence) => {
+          const start = toDate(absence.startDate);
+          return start && start <= to &&
+            !CALENDAR_IGNORED_ABSENCE_STATUSES.has(asString(absence.status));
+        });
+  } catch (error) {
+    console.warn("calendar_grid: не вдалося завантажити відсутності", error);
+    return [];
+  }
+}
+
+// Зводить усі варіанти посилання на людину (uid, email, "Ім'я",
+// "Ім'я (email)") до одного ключа, щоб у відомості не було дублів.
+function createPersonResolver({memberLookup, profiles}) {
+  const membersByName = new Map();
+  const seenMembers = new Set();
+  for (const member of memberLookup.byEmail.values()) {
+    if (seenMembers.has(member)) continue;
+    seenMembers.add(member);
+    const nameKey = normalizePersonNameKey(member.fullName);
+    if (nameKey && !membersByName.has(nameKey)) membersByName.set(nameKey, member);
+    const profile = findProfileForMember(member, profiles);
+    if (profile) {
+      const profileKey = normalizePersonNameKey(
+          `${asString(profile.firstName)} ${asString(profile.lastName)}`,
+      );
+      if (profileKey && !membersByName.has(profileKey)) {
+        membersByName.set(profileKey, member);
+      }
+    }
+  }
+  const aliasByName = new Map();
+  const memberByKey = new Map();
+
+  return function resolvePerson({assignmentId, name, email}) {
+    const id = asString(assignmentId);
+    const split = splitInstructorName(name);
+    const candidateEmail = asString(email).toLowerCase() || split.email ||
+      (id.includes("@") ? id.toLowerCase() : "");
+    const nameKey = normalizePersonNameKey(split.name);
+
+    let member = null;
+    if (id) member = memberLookup.byAssignmentId.get(id) || null;
+    if (!member && candidateEmail) {
+      member = memberLookup.byEmail.get(candidateEmail) || null;
+    }
+    if (!member && nameKey) member = membersByName.get(nameKey) || null;
+
+    let key;
+    if (member) {
+      key = `member:${member.email || member.uid}`;
+    } else if (candidateEmail || id) {
+      key = `id:${candidateEmail || id.toLowerCase()}`;
+    } else if (nameKey) {
+      key = aliasByName.get(nameKey) || `name:${nameKey}`;
+      member = memberByKey.get(key) || null;
+    } else {
+      return null;
+    }
+    if (member) memberByKey.set(key, member);
+    if (nameKey && !aliasByName.has(nameKey)) aliasByName.set(nameKey, key);
+
+    return {key, member, fallbackName: split.name || candidateEmail || id};
+  };
+}
+
+// Повертає предикат: чи є викладач (assignment) учасником групи.
+function createGroupMemberMatcher(memberLookup) {
+  const resolvePerson = createPersonResolver({
+    memberLookup,
+    profiles: {byUid: new Map(), byEmail: new Map()},
+  });
+  return (assignment) => {
+    const identity = resolvePerson(assignment);
+    return Boolean(identity && identity.member);
+  };
+}
+
+function findProfileForMember(member, profiles) {
+  if (!member) return null;
+  return (member.uid && profiles.byUid.get(member.uid)) ||
+    (member.email && profiles.byEmail.get(member.email)) ||
+    null;
+}
+
+function buildPersonRowInfo({member, fallbackName, profiles}) {
+  const profile = findProfileForMember(member, profiles);
+  const lastName = asString(profile && profile.lastName);
+  const firstName = asString(profile && profile.firstName);
+  const patronymic = asString(profile && profile.patronymic);
+
+  let fullName = "";
+  if (lastName || firstName) {
+    fullName = [lastName.toUpperCase(), firstName, patronymic]
+        .filter(Boolean)
+        .join(" ");
+  }
+  if (!fullName) fullName = asString(member && member.fullName) || fallbackName;
+
+  const rawRank = asString(profile && profile.rank) || asString(member && member.rank);
+  const position = asString(profile && profile.position) ||
+    asString(member && member.position);
+
+  return {
+    fullName,
+    sortName: lastName || fullName,
+    position,
+    rank: formatRankShort(rawRank),
+    rankWeight: CALENDAR_RANK_ORDER.indexOf(rawRank.toLowerCase()),
+  };
+}
+
+function formatRankShort(rank) {
+  const value = asString(rank);
+  if (!value) return "";
+  return CALENDAR_RANK_ABBREVIATIONS[value.toLowerCase()] || value.toLowerCase();
+}
+
+async function buildCalendarGridDataset({
+  db, admin, groupId, config, startDate, endDate, membersOnly = false,
+}) {
+  const groupByKey = (config.groupBy && config.groupBy[0]) || "instructor.name";
+  const byPerson = groupByKey === "instructor.name";
+
+  const [lessons, memberLookup, profiles, absences] = await Promise.all([
+    fetchLessonsForPeriod({db, admin, groupId, config, startDate, endDate}),
+    byPerson || membersOnly ? buildGroupMemberLookup({db, groupId}) :
+      {byAssignmentId: new Map(), byEmail: new Map()},
+    byPerson ? fetchPersonnelProfiles({db, groupId}) :
+      {byUid: new Map(), byEmail: new Map()},
+    byPerson ? fetchAbsencesForPeriod({db, admin, groupId, startDate, endDate}) : [],
+  ]);
+
+  const days = buildCalendarDays(startDate, endDate);
+  const dayKeys = new Set(days.map((d) => d.dayKey));
+  const resolvePerson = createPersonResolver({memberLookup, profiles});
+  const groupMap = new Map();
+  const warnings = [];
+  let lessonsWithoutInstructor = 0;
+  let lessonsWithoutMembers = 0;
+  const isGroupMember = createGroupMemberMatcher(memberLookup);
+
+  function ensureGroup(key, info) {
+    if (!groupMap.has(key)) {
+      groupMap.set(key, {
+        key,
+        name: info.fullName,
+        ...info,
+        dayMap: new Map(),
+        absenceMap: new Map(),
+        lessonIds: new Set(),
+        totalLessons: 0,
+      });
+    }
+    return groupMap.get(key);
+  }
+
+  function ensurePersonGroup(identity) {
+    return ensureGroup(identity.key, buildPersonRowInfo({
+      member: identity.member,
+      fallbackName: identity.fallbackName,
+      profiles,
+    }));
+  }
+
+  function addLesson(group, lesson, dayKey) {
+    const lessonId = lesson.id || `${dayKey}:${group.lessonIds.size}`;
+    if (group.lessonIds.has(lessonId)) return;
+    group.lessonIds.add(lessonId);
+    if (!group.dayMap.has(dayKey)) group.dayMap.set(dayKey, []);
+    group.dayMap.get(dayKey).push(lesson);
+    group.totalLessons++;
+  }
+
+  if (byPerson) {
+    // Спершу реєструємо записи з id/email, щоб "Ім'я" без id потім
+    // приєдналося до того ж рядка незалежно від порядку занять.
+    for (const lesson of lessons) {
+      for (const person of extractLessonAssignments(lesson)) {
+        if (person.assignmentId || splitInstructorName(person.name).email) {
+          resolvePerson(person);
+        }
+      }
+    }
   }
 
   for (const lesson of lessons) {
     const lessonDate = toDate(lesson[config.periodField || "startTime"]);
     if (!lessonDate) continue;
-    const y = lessonDate.getUTCFullYear();
-    const m = String(lessonDate.getUTCMonth() + 1).padStart(2, "0");
-    const d = String(lessonDate.getUTCDate()).padStart(2, "0");
-    const dayKey = `${y}-${m}-${d}`;
+    const dayKey = toCalendarDayKey(lessonDate);
+    if (!dayKeys.has(dayKey)) continue;
 
-    if (groupByKey === "instructor.name") {
-      const names = Array.isArray(lesson.instructorNames) && lesson.instructorNames.length > 0
-        ? lesson.instructorNames
-        : [asString(lesson.instructorName) || "Без інструктора"];
-      for (const name of names) {
-        if (name) addToGroup(name, lesson, dayKey);
+    if (byPerson) {
+      const people = [
+        ...extractLessonAssignments(lesson),
+        ...toStringArray(lesson.externalInstructorNames)
+            .map((name) => ({assignmentId: "", name})),
+      ];
+      let added = false;
+      for (const person of people) {
+        const identity = resolvePerson(person);
+        if (!identity) continue;
+        if (membersOnly && !identity.member) continue;
+        addLesson(ensurePersonGroup(identity), lesson, dayKey);
+        added = true;
+      }
+      if (!added) {
+        if (membersOnly && people.length > 0) {
+          lessonsWithoutMembers++;
+        } else {
+          lessonsWithoutInstructor++;
+        }
       }
     } else {
+      if (membersOnly &&
+          !extractLessonAssignments(lesson).some(isGroupMember)) {
+        lessonsWithoutMembers++;
+        continue;
+      }
       const descriptor = FIELD_CATALOG[groupByKey];
       const row = {lesson, instructor: {name: ""}, member: {}};
       const rawVal = descriptor ? descriptor.getRawValue(row) : null;
       const groupName = formatFieldValue(groupByKey, rawVal) || "(без значення)";
-      addToGroup(groupName, lesson, dayKey);
+      addLesson(ensureGroup(`value:${groupName}`, {
+        fullName: groupName, sortName: groupName, position: "", rank: "",
+        rankWeight: -1,
+      }), lesson, dayKey);
+    }
+  }
+
+  for (const absence of absences) {
+    const code = CALENDAR_ABSENCE_CODES[asString(absence.type)];
+    const absStart = toDate(absence.startDate);
+    const absEnd = toDate(absence.endDate) || absStart;
+    if (!code || !absStart) continue;
+    const identity = resolvePerson({
+      assignmentId: absence.instructorId,
+      name: absence.instructorName,
+      email: absence.instructorEmail,
+    });
+    if (!identity || (membersOnly && !identity.member)) continue;
+    const fromKey = toCalendarDayKey(absStart);
+    const toKey = toCalendarDayKey(absEnd);
+    const coveredDays = days.filter((d) => d.dayKey >= fromKey && d.dayKey <= toKey);
+    if (coveredDays.length === 0) continue;
+    const group = ensurePersonGroup(identity);
+    for (const day of coveredDays) {
+      if (!group.absenceMap.has(day.dayKey)) group.absenceMap.set(day.dayKey, code);
     }
   }
 
   const groups = [...groupMap.values()].sort((a, b) =>
-    a.name.localeCompare(b.name, "uk"),
+    (b.rankWeight - a.rankWeight) || a.sortName.localeCompare(b.sortName, "uk"),
   );
-  const warnings = groups.length === 0 ? ["Не знайдено занять для вказаного періоду."] : [];
+
+  if (lessonsWithoutInstructor > 0) {
+    warnings.push(`Занять без викладача (не потрапили у відомість): ${lessonsWithoutInstructor}.`);
+  }
+  if (lessonsWithoutMembers > 0) {
+    warnings.push(`Занять лише із запрошеними викладачами (пропущено): ${lessonsWithoutMembers}.`);
+  }
+  if (groups.length === 0) {
+    warnings.push("Не знайдено занять для вказаного періоду.");
+  }
   return {groups, days, warnings};
 }
 
+function buildCalendarPeriodLabel(startDate, endDate) {
+  const sameMonth = startDate.getUTCFullYear() === endDate.getUTCFullYear() &&
+    startDate.getUTCMonth() === endDate.getUTCMonth();
+  const lastDayOfMonth = new Date(Date.UTC(
+      endDate.getUTCFullYear(), endDate.getUTCMonth() + 1, 0,
+  )).getUTCDate();
+  if (sameMonth && startDate.getUTCDate() === 1 &&
+      endDate.getUTCDate() === lastDayOfMonth) {
+    return `за ${UA_MONTHS_NOMINATIVE[startDate.getUTCMonth()]} ` +
+      `${startDate.getUTCFullYear()} року`;
+  }
+  return `за період з ${formatDate(startDate)} по ${formatDate(endDate)}`;
+}
+
+function columnLetter(index) {
+  let result = "";
+  let c = index;
+  while (c > 0) {
+    const rem = (c - 1) % 26;
+    result = String.fromCharCode(65 + rem) + result;
+    c = Math.floor((c - 1) / 26);
+  }
+  return result;
+}
+
+// Формує книгу за зразком «Відомість проведення занять» (див. docs):
+// №, Посада, Військове звання, ПІБ, Освіта, дні періоду, кількість занять.
 async function buildCalendarGridWorkbookBuffer({
   groupName, templateName, startDate, endDate, groups, days, config,
 }) {
   const workbook = new ExcelJS.Workbook();
-  const sheetName = (templateName || "Відомість").substring(0, 31);
+  const sheetName = (asString(config.sheet && config.sheet.name) ||
+    templateName || "Відомість").substring(0, 31);
   const ws = workbook.addWorksheet(sheetName);
 
-  const UA_WEEKDAYS = ["НД", "ПН", "ВТ", "СР", "ЧТ", "ПТ", "СБ"];
+  const options = config.calendarOptions || {};
   const noteFields = Array.isArray(config.calendarNoteFields) ? config.calendarNoteFields : [];
+  const noteLabels = options.noteLabels || {};
   const cellMark = asString(config.calendarCellMark) || "З";
-  const totalCols = days.length + 2; // col1=name, col2..N+1=days, last=total
 
-  const BLUE_HEADER = "FFD9E1F2";
-  const WEEKEND_HEADER = "FFFFCCCC";
-  const WEEKEND_EMPTY = "FFFFF5F5";
-  const THIN = {style: "thin", color: {argb: "FFB0B0B0"}};
-  const cellBorder = {top: THIN, left: THIN, bottom: THIN, right: THIN};
+  const FONT = "Times New Roman";
+  const LESSON_FILL = "FF92D050";
+  const SUNDAY_FILL = "FFFF0000";
+  const WHITE_FILL = "FFFFFFFF";
+  const THIN = {style: "thin"};
+  const allBorders = {top: THIN, left: THIN, bottom: THIN, right: THIN};
+  const solid = (argb) => ({type: "pattern", pattern: "solid", fgColor: {argb}});
 
-  // ── Meta rows ──
-  ws.mergeCells(1, 1, 1, totalCols);
-  const r1 = ws.getCell(1, 1);
-  r1.value = (templateName || "").toUpperCase();
-  r1.font = {bold: true, size: 13};
-  r1.alignment = {horizontal: "center"};
-
-  ws.mergeCells(2, 1, 2, totalCols);
-  const r2 = ws.getCell(2, 1);
-  r2.value = `за період з ${formatDate(startDate)} по ${formatDate(endDate)} • Група: ${groupName || ""}`;
-  r2.alignment = {horizontal: "center"};
-
-  ws.mergeCells(3, 1, 3, totalCols);
-  const r3 = ws.getCell(3, 1);
-  r3.value = `Згенеровано: ${formatDateTime(new Date())}`;
-  r3.font = {size: 9, color: {argb: "FF888888"}};
-  r3.alignment = {horizontal: "center"};
-
-  // ── Header row ──
+  const FIRST_DAY_COL = 6;
+  const lastDayCol = FIRST_DAY_COL + days.length - 1;
+  const countCol = lastDayCol + 1;
+  const spareCol = countCol + 1;
   const HDR = 4;
-  ws.getRow(HDR).height = 28;
+  const DATES_ROW = 5;
+  const FIRST_DATA_ROW = 6;
 
-  function styleHeader(cell, bg, isWeekend) {
-    cell.font = {bold: true, ...(isWeekend ? {color: {argb: "FFCC0000"}} : {})};
-    cell.alignment = {horizontal: "center", vertical: "middle", wrapText: true};
-    cell.fill = {type: "pattern", pattern: "solid", fgColor: {argb: bg}};
-    cell.border = cellBorder;
+  // ── Заголовок ──
+  const titleRows = [
+    {text: asString(options.title) || "ВІДОМІСТЬ", bold: true},
+    {
+      text: asString(options.subtitle) ||
+        `проведення занять${groupName ? ` групою ${groupName}` : ""}`,
+      bold: false,
+    },
+    {
+      text: buildCalendarPeriodLabel(startDate, endDate),
+      bold: true,
+      color: "FF333F4F",
+    },
+  ];
+  titleRows.forEach((item, index) => {
+    const rowIdx = index + 1;
+    ws.mergeCells(rowIdx, 1, rowIdx, countCol);
+    const cell = ws.getCell(rowIdx, 1);
+    cell.value = item.text;
+    cell.font = {
+      name: FONT, size: 12, bold: item.bold,
+      ...(item.color ? {color: {argb: item.color}} : {}),
+    };
+    cell.alignment = {horizontal: "center"};
+    ws.getRow(rowIdx).height = 15.75;
+  });
+  for (let col = 1; col <= countCol; col++) {
+    ws.getCell(3, col).border = {bottom: THIN};
   }
 
-  const nameHdr = ws.getCell(HDR, 1);
-  nameHdr.value = "Інструктор";
-  styleHeader(nameHdr, BLUE_HEADER, false);
-  nameHdr.alignment = {horizontal: "left", vertical: "middle"};
+  // ── Шапка таблиці ──
+  ws.getRow(HDR).height = 26.25;
+  ws.getRow(DATES_ROW).height = 44.25;
+  const headerFont = {name: FONT, size: 12};
+  const centered = {horizontal: "center", vertical: "middle"};
 
-  for (let i = 0; i < days.length; i++) {
-    const {dayNum, weekdayIdx, isWeekend} = days[i];
-    const hdr = ws.getCell(HDR, i + 2);
-    hdr.value = `${dayNum}\n${UA_WEEKDAYS[weekdayIdx]}`;
-    styleHeader(hdr, isWeekend ? WEEKEND_HEADER : BLUE_HEADER, isWeekend);
+  function mergedHeader(col, text, extra = {}) {
+    ws.mergeCells(HDR, col, DATES_ROW, col);
+    const cell = ws.getCell(HDR, col);
+    cell.value = text;
+    cell.font = headerFont;
+    cell.alignment = {...centered, ...extra};
+    cell.border = allBorders;
+    ws.getCell(DATES_ROW, col).border = allBorders;
+    return cell;
   }
 
-  const totalHdr = ws.getCell(HDR, totalCols);
-  totalHdr.value = "Всього";
-  styleHeader(totalHdr, BLUE_HEADER, false);
+  mergedHeader(1, "№");
+  mergedHeader(2, "Посада");
 
-  // ── Data rows ──
-  for (let r = 0; r < groups.length; r++) {
-    const group = groups[r];
-    const rowIdx = HDR + 1 + r;
-    const rowBg = r % 2 === 0 ? "FFFAFAFA" : "FFFFFFFF";
-    ws.getRow(rowIdx).height = 16;
+  const rankTop = ws.getCell(HDR, 3);
+  rankTop.value = "Військове";
+  rankTop.font = headerFont;
+  rankTop.alignment = {horizontal: "center"};
+  rankTop.border = {top: THIN, left: THIN, right: THIN};
+  const rankBottom = ws.getCell(DATES_ROW, 3);
+  rankBottom.value = "звання";
+  rankBottom.font = headerFont;
+  rankBottom.alignment = {horizontal: "center", vertical: "top"};
+  rankBottom.border = {bottom: THIN, left: THIN, right: THIN};
 
-    const nameCell = ws.getCell(rowIdx, 1);
-    nameCell.value = group.name;
+  mergedHeader(4, "ПІБ");
+  const educationHdr = mergedHeader(5, "Освіта");
+  educationHdr.note = {
+    texts: [{text: CALENDAR_EDUCATION_NOTE}],
+    margins: {insetmode: "auto"},
+    _width: "300pt",
+    _height: "140pt",
+  };
+
+  if (days.length > 0) {
+    ws.mergeCells(HDR, FIRST_DAY_COL, HDR, lastDayCol);
+  }
+  const dateHdr = ws.getCell(HDR, FIRST_DAY_COL);
+  dateHdr.value = "Дата";
+  dateHdr.font = headerFont;
+  dateHdr.alignment = centered;
+  for (let col = FIRST_DAY_COL; col <= lastDayCol; col++) {
+    ws.getCell(HDR, col).border = allBorders;
+  }
+
+  days.forEach((day, i) => {
+    const cell = ws.getCell(DATES_ROW, FIRST_DAY_COL + i);
+    cell.value = day.headerLabel;
+    cell.numFmt = "@";
+    cell.font = headerFont;
+    cell.alignment = {textRotation: 90};
+    cell.fill = solid(day.isSunday ? SUNDAY_FILL : WHITE_FILL);
+    cell.border = allBorders;
+  });
+
+  mergedHeader(countCol, "Кількість занять за звітний період ", {wrapText: true});
+  mergedHeader(spareCol, null);
+
+  // ── Рядки людей ──
+  groups.forEach((group, r) => {
+    const rowIdx = FIRST_DATA_ROW + r;
+    ws.getRow(rowIdx).height = 15.75;
+
+    const numCell = ws.getCell(rowIdx, 1);
+    numCell.value = r + 1;
+    numCell.font = {name: FONT, size: 12};
+    numCell.alignment = centered;
+
+    const positionCell = ws.getCell(rowIdx, 2);
+    positionCell.value = group.position || null;
+    positionCell.font = {name: FONT, size: 8};
+    positionCell.alignment = {horizontal: "left", vertical: "middle", wrapText: true};
+
+    const rankCell = ws.getCell(rowIdx, 3);
+    rankCell.value = group.rank || null;
+    rankCell.font = {name: FONT, size: 11};
+
+    const nameCell = ws.getCell(rowIdx, 4);
+    nameCell.value = group.fullName;
+    nameCell.font = {name: FONT, size: 8};
     nameCell.alignment = {vertical: "middle"};
-    nameCell.border = cellBorder;
-    nameCell.fill = {type: "pattern", pattern: "solid", fgColor: {argb: rowBg}};
+    nameCell.fill = solid(WHITE_FILL);
 
-    let total = 0;
-    for (let i = 0; i < days.length; i++) {
-      const {dayKey, isWeekend} = days[i];
-      const cell = ws.getCell(rowIdx, i + 2);
-      cell.border = cellBorder;
-      const lessonsOnDay = group.dayMap.get(dayKey) || [];
+    const educationCell = ws.getCell(rowIdx, 5);
+    educationCell.font = {name: FONT, size: 11};
+    educationCell.alignment = centered;
+    educationCell.numFmt = "#,##0";
 
-      if (lessonsOnDay.length === 0) {
-        cell.fill = {
-          type: "pattern", pattern: "solid",
-          fgColor: {argb: isWeekend ? WEEKEND_EMPTY : rowBg},
-        };
-      } else {
-        total += lessonsOnDay.length;
-        cell.value = lessonsOnDay.length === 1
-          ? cellMark
-          : `${cellMark}(${lessonsOnDay.length})`;
-        cell.alignment = {horizontal: "center", vertical: "middle"};
-        cell.font = {bold: true, color: {argb: "FF1F4E79"}};
-        cell.fill = {type: "pattern", pattern: "solid", fgColor: {argb: rowBg}};
+    for (let col = 1; col <= 5; col++) ws.getCell(rowIdx, col).border = allBorders;
 
+    days.forEach((day, i) => {
+      const cell = ws.getCell(rowIdx, FIRST_DAY_COL + i);
+      cell.border = allBorders;
+      cell.alignment = {horizontal: "center"};
+      const lessonsOnDay = group.dayMap.get(day.dayKey) || [];
+      const absenceCode = group.absenceMap.get(day.dayKey);
+
+      if (lessonsOnDay.length > 0) {
+        cell.value = cellMark;
+        cell.font = {name: FONT, size: 11};
+        cell.fill = solid(LESSON_FILL);
         if (noteFields.length > 0) {
-          const noteObj = buildCalendarCellNote({lessonsOnDay, noteFields});
+          const noteObj = buildCalendarCellNote({lessonsOnDay, noteFields, noteLabels});
           if (noteObj) cell.note = noteObj;
         }
+      } else if (absenceCode) {
+        cell.value = absenceCode;
+        cell.font = {name: FONT, size: 11, bold: true};
+        cell.fill = solid(WHITE_FILL);
+      } else {
+        cell.font = {name: FONT, size: 11};
+        cell.fill = solid(WHITE_FILL);
       }
-    }
+    });
 
-    const totCell = ws.getCell(rowIdx, totalCols);
-    totCell.value = total || "";
-    totCell.alignment = {horizontal: "center", vertical: "middle"};
-    totCell.border = cellBorder;
-    totCell.fill = {type: "pattern", pattern: "solid", fgColor: {argb: BLUE_HEADER}};
-    if (total > 0) totCell.font = {bold: true};
+    const countCell = ws.getCell(rowIdx, countCol);
+    countCell.value = group.totalLessons || null;
+    countCell.font = {name: FONT, size: 11};
+    countCell.alignment = centered;
+    countCell.border = allBorders;
+  });
+
+  // ── Умовні скорочення ──
+  const legendRow = FIRST_DATA_ROW + groups.length;
+  ws.mergeCells(legendRow, 1, legendRow, 2);
+  const legendTitle = ws.getCell(legendRow, 1);
+  legendTitle.value = "Умовні скорочення:";
+  legendTitle.font = {name: FONT, size: 9, bold: true};
+  legendTitle.alignment = {horizontal: "center"};
+
+  const legendItems = [
+    "Х - хворий (шпиталь)",
+    "В - відпустка",
+    "ВД - відрядження",
+    "Н - добовий наряд",
+    `${cellMark} - заняття`,
+  ];
+  legendItems.forEach((text, i) => {
+    const rowIdx = legendRow + i;
+    ws.mergeCells(rowIdx, 3, rowIdx, 4);
+    const cell = ws.getCell(rowIdx, 3);
+    cell.value = text;
+    cell.font = {name: FONT, size: 9};
+    cell.alignment = {horizontal: "left"};
+  });
+  const lastRow = legendRow + legendItems.length - 1;
+
+  // ── Ширина колонок ──
+  [5.71, 18.71, 9.86, 23.71, 18.29].forEach((width, i) => {
+    ws.getColumn(i + 1).width = width;
+  });
+  for (let col = FIRST_DAY_COL; col <= lastDayCol; col++) {
+    ws.getColumn(col).width = 3.71;
   }
+  ws.getColumn(countCol).width = 11.86;
+  ws.getColumn(spareCol).width = 8.86;
 
-  // ── Column widths ──
-  ws.getColumn(1).width = 26;
-  for (let i = 0; i < days.length; i++) ws.getColumn(i + 2).width = 4.5;
-  ws.getColumn(totalCols).width = 8;
-
-  // ── Freeze: first col + header rows ──
-  ws.views = [{state: "frozen", xSplit: 1, ySplit: HDR}];
+  // ── Друк ──
+  ws.pageSetup = {
+    orientation: "landscape",
+    paperSize: 9,
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    horizontalCentered: true,
+    margins: {
+      left: 0.984251968503937,
+      right: 0.1968503937007874,
+      top: 0.3937007874015748,
+      bottom: 0.3937007874015748,
+      header: 0.31496062992125984,
+      footer: 0.31496062992125984,
+    },
+    printArea: `A1:${columnLetter(countCol)}${lastRow}`,
+  };
+  ws.views = [{style: "pageBreakPreview", zoomScale: 88, zoomScaleNormal: 88}];
 
   return workbook.xlsx.writeBuffer();
 }
 
 // Returns {text, _width, _height} for use as cell.note object, or null.
-function buildCalendarCellNote({lessonsOnDay, noteFields}) {
+function buildCalendarCellNote({lessonsOnDay, noteFields, noteLabels = {}}) {
   const parts = [];
   const hasTitle = noteFields.includes("lesson.title");
   const hasDesc = noteFields.includes("lesson.description");
@@ -1548,7 +2089,7 @@ function buildCalendarCellNote({lessonsOnDay, noteFields}) {
         } else {
           const rawValue = descriptor.getRawValue(row);
           const formatted = formatFieldValue(fieldKey, rawValue);
-          if (formatted) parts.push(`${descriptor.label}: ${formatted}`);
+          if (formatted) parts.push(`${noteLabels[fieldKey] || descriptor.label}: ${formatted}`);
         }
       } else if (isCustomFieldKey(fieldKey)) {
         const code = fieldKey.slice("custom.".length);
@@ -1558,7 +2099,7 @@ function buildCalendarCellNote({lessonsOnDay, noteFields}) {
             parts.push("");
             customSectionStarted = true;
           }
-          const label = _resolveCustomFieldLabel(lesson, code);
+          const label = noteLabels[fieldKey] || _resolveCustomFieldLabel(lesson, code);
           parts.push(label ? `${label}  №${val}` : val);
         }
       }
@@ -1818,10 +2359,16 @@ function extractLessonAssignments(lesson) {
   const assignments = [];
   const seen = new Set();
 
+  // Один і той самий викладач може бути записаний як "Ім'я" та
+  // "Ім'я (email)" — порівнюємо за id, а без id — за очищеним імʼям.
+  const signatureOf = (assignmentId, name) => assignmentId ?
+    `id:${assignmentId.toLowerCase()}` :
+    `name:${normalizePersonNameKey(splitInstructorName(name).name)}`;
+
   for (let index = 0; index < instructorIds.length; index++) {
     const assignmentId = instructorIds[index];
     const name = instructorNames[index] || asString(lesson.instructorName);
-    const signature = `${assignmentId}::${name}`;
+    const signature = signatureOf(assignmentId, name);
     if (seen.has(signature)) {
       continue;
     }
@@ -1833,7 +2380,7 @@ function extractLessonAssignments(lesson) {
   const primaryId = asString(lesson.instructorId);
   const primaryName = asString(lesson.instructorName);
   if (primaryId || primaryName) {
-    const signature = `${primaryId}::${primaryName}`;
+    const signature = signatureOf(primaryId, primaryName);
     if (!seen.has(signature)) {
       assignments.push({assignmentId: primaryId, name: primaryName});
     }
@@ -2023,5 +2570,12 @@ module.exports = {
     applySort,
     resolveMemberForAssignment,
     buildReportFileName,
+    extractLessonAssignments,
+    splitInstructorName,
+    createPersonResolver,
+    buildCalendarGridWorkbookBuffer,
+    buildCalendarGridDataset,
+    createGroupMemberMatcher,
+    buildCalendarPeriodLabel,
   },
 };

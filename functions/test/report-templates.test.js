@@ -152,3 +152,61 @@ test("checks role access by hierarchy", () => {
       true,
   );
 });
+
+test("merges instructor name variants with and without email", () => {
+  const {extractLessonAssignments, splitInstructorName, createPersonResolver} =
+    reportTemplates.__test;
+
+  assert.deepEqual(splitInstructorName("Андрій (Andrey@Gmail.com)"), {
+    name: "Андрій",
+    email: "andrey@gmail.com",
+  });
+
+  const assignments = extractLessonAssignments({
+    instructorIds: ["uid-1"],
+    instructorNames: ["Андрій (andrey@gmail.com)"],
+    instructorId: "uid-1",
+    instructorName: "Андрій",
+  });
+  assert.equal(assignments.length, 1);
+
+  const member = {uid: "uid-1", email: "andrey@gmail.com", fullName: "Андрій Ворона"};
+  const resolvePerson = createPersonResolver({
+    memberLookup: {
+      byAssignmentId: new Map([["uid-1", member], ["andrey@gmail.com", member]]),
+      byEmail: new Map([["andrey@gmail.com", member]]),
+    },
+    profiles: {byUid: new Map(), byEmail: new Map()},
+  });
+  const keys = new Set([
+    resolvePerson({assignmentId: "uid-1", name: "Андрій"}),
+    resolvePerson({assignmentId: "", name: "Андрій (andrey@gmail.com)"}),
+    resolvePerson({assignmentId: "", name: "Ворона Андрій"}),
+  ].map((identity) => identity.key));
+  assert.deepEqual([...keys], ["member:andrey@gmail.com"]);
+});
+
+test("membersOnly drops invited instructors from report rows", () => {
+  const member = {uid: "uid-1", email: "member@gmail.com", fullName: "Учасник Групи"};
+  const memberLookup = {
+    byAssignmentId: new Map([["uid-1", member], ["member@gmail.com", member]]),
+    byEmail: new Map([["member@gmail.com", member]]),
+  };
+  const lessons = [
+    {id: "a", instructorIds: ["uid-1", "guest@gmail.com"], instructorNames: ["Учасник Групи", "Гість"]},
+    {id: "b", instructorIds: ["guest@gmail.com"], instructorNames: ["Гість"]},
+    {id: "c", instructorName: "Учасник Групи"},
+  ];
+  const {buildReportRows} = reportTemplates.__test;
+
+  const all = buildReportRows({lessons, rowMode: "lesson_instructor", memberLookup});
+  assert.equal(all.length, 4);
+
+  const onlyMembers = buildReportRows({
+    lessons, rowMode: "lesson_instructor", memberLookup, membersOnly: true,
+  });
+  assert.deepEqual(
+      onlyMembers.map((row) => `${row.lesson.id}:${row.instructor.name}`),
+      ["a:Учасник Групи", "c:Учасник Групи"],
+  );
+});

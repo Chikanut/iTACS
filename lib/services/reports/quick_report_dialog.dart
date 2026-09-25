@@ -4,7 +4,8 @@ import '../../theme/app_theme.dart';
 
 class QuickReportDialog extends StatefulWidget {
   final String reportTitle;
-  final Function(DateTime startDate, DateTime endDate) onGenerate;
+  final Function(DateTime startDate, DateTime endDate, bool membersOnly)
+  onGenerate;
 
   const QuickReportDialog({
     super.key,
@@ -20,6 +21,7 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
   String selectedPeriod = 'month'; // week, month, quarter, custom
   DateTime? customStartDate;
   DateTime? customEndDate;
+  bool membersOnly = false;
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +92,26 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
               _buildCustomDatePickers(),
             ],
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
+            const Divider(height: 1),
+            CheckboxListTile(
+              value: membersOnly,
+              onChanged: (value) =>
+                  setState(() => membersOnly = value ?? false),
+              title: const Text(
+                'Лише учасники групи',
+                style: TextStyle(fontWeight: FontWeight.w500),
+              ),
+              subtitle: const Text(
+                'Запрошені викладачі не потраплять у звіт',
+                style: TextStyle(fontSize: 12),
+              ),
+              controlAffinity: ListTileControlAffinity.leading,
+              contentPadding: EdgeInsets.zero,
+              dense: true,
+            ),
+
+            const SizedBox(height: 16),
 
             // Кнопки
             Row(
@@ -285,13 +306,21 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
     return '${_getCalendarPeriodLabel(period, range.$1)}: ${formatter.format(range.$1)} - ${formatter.format(range.$2)}';
   }
 
+  // Звіти можна будувати за будь-який період, у т.ч. майбутній.
+  static final DateTime _minPickerDate = DateTime(2000);
+  static final DateTime _maxPickerDate = DateTime(2100, 12, 31);
+
   Future<void> _selectCustomStartDate() async {
+    final lastDate = customEndDate ?? _maxPickerDate;
     final date = await showDatePicker(
       context: context,
-      initialDate:
-          customStartDate ?? DateTime.now().subtract(const Duration(days: 30)),
-      firstDate: DateTime.now().subtract(const Duration(days: 365 * 2)),
-      lastDate: customEndDate ?? DateTime.now(),
+      initialDate: _clampDate(
+        customStartDate ?? DateTime.now().subtract(const Duration(days: 30)),
+        _minPickerDate,
+        lastDate,
+      ),
+      firstDate: _minPickerDate,
+      lastDate: lastDate,
       locale: const Locale('uk'),
     );
 
@@ -307,13 +336,16 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
   }
 
   Future<void> _selectCustomEndDate() async {
+    final firstDate = customStartDate ?? _minPickerDate;
     final date = await showDatePicker(
       context: context,
-      initialDate: customEndDate ?? DateTime.now(),
-      firstDate:
-          customStartDate ??
-          DateTime.now().subtract(const Duration(days: 365 * 2)),
-      lastDate: DateTime.now(),
+      initialDate: _clampDate(
+        customEndDate ?? DateTime.now(),
+        firstDate,
+        _maxPickerDate,
+      ),
+      firstDate: firstDate,
+      lastDate: _maxPickerDate,
       locale: const Locale('uk'),
     );
 
@@ -322,6 +354,12 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
         customEndDate = date;
       });
     }
+  }
+
+  DateTime _clampDate(DateTime value, DateTime min, DateTime max) {
+    if (value.isBefore(min)) return min;
+    if (value.isAfter(max)) return max;
+    return value;
   }
 
   bool _canGenerate() {
@@ -346,7 +384,7 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
     // local time (08:00 UTC) get cut off by the Firestore "<= endDate" query.
     final end = range.$2;
     final endOfDay = DateTime(end.year, end.month, end.day, 23, 59, 59);
-    widget.onGenerate(range.$1, endOfDay);
+    widget.onGenerate(range.$1, endOfDay, membersOnly);
   }
 
   (DateTime, DateTime)? _resolvePeriodRange(String period) {
@@ -399,7 +437,8 @@ class _QuickReportDialogState extends State<QuickReportDialog> {
 Future<void> showQuickReportDialog({
   required BuildContext context,
   required String reportTitle,
-  required Function(DateTime startDate, DateTime endDate) onGenerate,
+  required Function(DateTime startDate, DateTime endDate, bool membersOnly)
+  onGenerate,
 }) {
   return showDialog(
     context: context,

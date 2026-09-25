@@ -1033,7 +1033,7 @@ class _ReportsCardState extends State<_ReportsCard> {
     await showQuickReportDialog(
       context: context,
       reportTitle: template.name,
-      onGenerate: (startDate, endDate) async {
+      onGenerate: (startDate, endDate, membersOnly) async {
         try {
           showDialog(
             context: context,
@@ -1058,6 +1058,7 @@ class _ReportsCardState extends State<_ReportsCard> {
             useDraft: false,
             startDate: startDate,
             endDate: endDate,
+            membersOnly: membersOnly,
           );
 
           if (context.mounted) {
