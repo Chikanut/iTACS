@@ -373,9 +373,35 @@ class CalendarService {
         final pointValues = updates.containsKey('customFieldValues')
             ? LessonCustomFieldValue.parseValues(updates['customFieldValues'])
             : lesson.customFieldValues;
+        // Спільні значення, змінені в точці, переносимо в головне заняття,
+        // інакше синхронізація нижче затре їх значеннями головного заняття.
+        final sharedChanges = changedSharedLearningPointCustomValues(
+          mainDefinitions: mainLesson.customFieldDefinitions,
+          pointDefinitions: pointDefinitions,
+          previousPointValues: lesson.customFieldValues,
+          nextPointValues: pointValues,
+        );
+        var mainValues = mainLesson.customFieldValues;
+        if (sharedChanges.isNotEmpty) {
+          mainValues = Map<String, LessonCustomFieldValue>.from(mainValues);
+          for (final entry in sharedChanges.entries) {
+            final value = entry.value;
+            if (value == null) {
+              mainValues.remove(entry.key);
+            } else {
+              mainValues[entry.key] = value;
+            }
+          }
+          final propagated = await _propagateSharedCustomValues(
+            point: lesson,
+            mainLesson: mainLesson,
+            mainValues: mainValues,
+          );
+          if (!propagated) return false;
+        }
         final synchronizedValues = synchronizeLearningPointCustomValues(
           mainDefinitions: mainLesson.customFieldDefinitions,
-          mainValues: mainLesson.customFieldValues,
+          mainValues: mainValues,
           pointDefinitions: pointDefinitions,
           pointValues: pointValues,
         );
@@ -738,6 +764,105 @@ class CalendarService {
       }
     }
     return synchronized;
+  }
+
+  /// Повертає спільні з головним заняттям значення, які змінилися в точці.
+  /// `null` означає, що значення очищене.
+  static Map<String, LessonCustomFieldValue?>
+  changedSharedLearningPointCustomValues({
+    required List<LessonCustomFieldDefinition> mainDefinitions,
+    required List<LessonCustomFieldDefinition> pointDefinitions,
+    required Map<String, LessonCustomFieldValue> previousPointValues,
+    required Map<String, LessonCustomFieldValue> nextPointValues,
+  }) {
+    final mainDefinitionsByCode = {
+      for (final definition in mainDefinitions) definition.code: definition,
+    };
+    final changes = <String, LessonCustomFieldValue?>{};
+
+    for (final pointDefinition in pointDefinitions) {
+      final mainDefinition = mainDefinitionsByCode[pointDefinition.code];
+      if (mainDefinition == null ||
+          mainDefinition.type != pointDefinition.type) {
+        continue;
+      }
+      final previousValue = _compatibleCustomValue(
+        previousPointValues[pointDefinition.code],
+        pointDefinition.type,
+      );
+      final nextValue = _compatibleCustomValue(
+        nextPointValues[pointDefinition.code],
+        pointDefinition.type,
+      );
+      if (_isSameCustomValue(previousValue, nextValue)) continue;
+      changes[pointDefinition.code] = nextValue;
+    }
+    return changes;
+  }
+
+  static LessonCustomFieldValue? _compatibleCustomValue(
+    LessonCustomFieldValue? value,
+    CustomFieldType type,
+  ) {
+    if (value == null || value.type != type || value.isEmpty) return null;
+    return value;
+  }
+
+  static bool _isSameCustomValue(
+    LessonCustomFieldValue? a,
+    LessonCustomFieldValue? b,
+  ) {
+    if (a == null || b == null) return a == null && b == null;
+    return a.type == b.type &&
+        a.stringValue == b.stringValue &&
+        a.dateValue == b.dateValue &&
+        a.rangeStart == b.rangeStart &&
+        a.rangeEnd == b.rangeEnd;
+  }
+
+  /// Записує спільні значення в головне заняття та решту навчальних точок.
+  Future<bool> _propagateSharedCustomValues({
+    required LessonModel point,
+    required LessonModel mainLesson,
+    required Map<String, LessonCustomFieldValue> mainValues,
+  }) async {
+    if (_isReadOnlyOfflineMode) return false;
+
+    try {
+      final groupId = Globals.profileManager.currentGroupId;
+      if (groupId == null) return false;
+      final linkedLessons = await getLinkedLessons(point.linkedSetId);
+      final itemsRef = _firestore
+          .collection('lessons')
+          .doc(groupId)
+          .collection('items');
+      final batch = _firestore.batch();
+
+      batch.update(itemsRef.doc(mainLesson.id), {
+        'customFieldValues': mainValues.map(
+          (key, value) => MapEntry(key, value.toFirestore()),
+        ),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+      for (final member in linkedLessons) {
+        if (!member.isLearningPoint || member.id == point.id) continue;
+        batch.update(itemsRef.doc(member.id), {
+          'customFieldValues': synchronizeLearningPointCustomValues(
+            mainDefinitions: mainLesson.customFieldDefinitions,
+            mainValues: mainValues,
+            pointDefinitions: member.customFieldDefinitions,
+            pointValues: member.customFieldValues,
+          ).map((key, value) => MapEntry(key, value.toFirestore())),
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      await batch.commit();
+      return true;
+    } catch (e) {
+      debugPrint('CalendarService: Помилка оновлення спільних полів: $e');
+      return false;
+    }
   }
 
   Future<LessonModel?> getLessonById(String lessonId, {String? groupId}) async {

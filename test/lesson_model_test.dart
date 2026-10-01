@@ -115,6 +115,56 @@ void main() {
 
       expect(synchronized, isNot(contains('arrived_students')));
     });
+
+    test('detects shared values changed in a point', () {
+      const sharedDefinition = LessonCustomFieldDefinition(
+        code: 'arrived_students',
+        label: 'Кількість курсантів',
+        type: CustomFieldType.string,
+      );
+      const untouchedDefinition = LessonCustomFieldDefinition(
+        code: 'absent_students',
+        label: 'Відсутні',
+        type: CustomFieldType.string,
+      );
+      const clearedDefinition = LessonCustomFieldDefinition(
+        code: 'remarks',
+        label: 'Зауваження',
+        type: CustomFieldType.string,
+      );
+      const pointOnlyDefinition = LessonCustomFieldDefinition(
+        code: 'point_note',
+        label: 'Примітка точки',
+        type: CustomFieldType.string,
+      );
+
+      final changes = CalendarService.changedSharedLearningPointCustomValues(
+        mainDefinitions: const [
+          sharedDefinition,
+          untouchedDefinition,
+          clearedDefinition,
+        ],
+        pointDefinitions: const [
+          sharedDefinition,
+          untouchedDefinition,
+          clearedDefinition,
+          pointOnlyDefinition,
+        ],
+        previousPointValues: {
+          'absent_students': LessonCustomFieldValue.string('2'),
+          'remarks': LessonCustomFieldValue.string('Запізнення'),
+        },
+        nextPointValues: {
+          'arrived_students': LessonCustomFieldValue.string('24'),
+          'absent_students': LessonCustomFieldValue.string('2'),
+          'point_note': LessonCustomFieldValue.string('Окрема інформація'),
+        },
+      );
+
+      expect(changes.keys, unorderedEquals(['arrived_students', 'remarks']));
+      expect(changes['arrived_students']?.stringValue, '24');
+      expect(changes['remarks'], isNull);
+    });
   });
 }
 

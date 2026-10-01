@@ -401,11 +401,13 @@ class CalendarGridReport extends BaseReport {
               textWrapping: excel.TextWrapping.WrapText,
             );
 
-            comments.add(_CellComment(
-              colIndex: dayIndex + 1,
-              rowIndex: currentRow,
-              text: _buildCommentText(unit, lesson),
-            ));
+            comments.add(
+              _CellComment(
+                colIndex: dayIndex + 1,
+                rowIndex: currentRow,
+                text: _buildCommentText(unit, lesson),
+              ),
+            );
           } else {
             lessonCell.value = excel.TextCellValue('');
             lessonCell.cellStyle = excel.CellStyle(
@@ -588,8 +590,7 @@ class CalendarGridReport extends BaseReport {
     if (worksheetFile == null) return xlsxBytes;
 
     final worksheetFileName = worksheetFile.name.split('/').last;
-    final sheetNum =
-        worksheetFileName.replaceAll(RegExp(r'\D'), '').isEmpty
+    final sheetNum = worksheetFileName.replaceAll(RegExp(r'\D'), '').isEmpty
         ? '1'
         : worksheetFileName.replaceAll(RegExp(r'\D'), '');
     final commentsPath = 'xl/comments$sheetNum.xml';
@@ -643,8 +644,8 @@ class CalendarGridReport extends BaseReport {
         final modified = text.replaceFirst(
           '</Relationships>',
           '<Relationship Id="rId_cc" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments" Target="../comments$sheetNum.xml"/>'
-          '<Relationship Id="rId_cv" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/vmlDrawing" Target="../drawings/vmlDrawing$sheetNum.vml"/>'
-          '</Relationships>',
+              '<Relationship Id="rId_cv" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/vmlDrawing" Target="../drawings/vmlDrawing$sheetNum.vml"/>'
+              '</Relationships>',
         );
         final bytes = utf8.encode(modified);
         newArchive.addFile(ArchiveFile(file.name, bytes.length, bytes));

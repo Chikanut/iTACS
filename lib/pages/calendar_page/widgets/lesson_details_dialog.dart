@@ -194,7 +194,8 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
                     ],
 
                     if (lesson.hasCustomFields &&
-                        !lesson.hasOnlyExternalInstructors) ...[
+                        (!lesson.hasOnlyExternalInstructors ||
+                            lesson.isMainLinkedLesson)) ...[
                       _buildCustomFieldsSection(lesson),
                       const SizedBox(height: 16),
                     ],
@@ -841,7 +842,13 @@ class _LessonDetailsDialogState extends State<LessonDetailsDialog> {
   bool _canEditCustomFieldValues() {
     return !_isReadOnlyOffline &&
         (Globals.profileManager.isCurrentGroupEditor ||
-            _calendarService.isUserInstructorForLesson(_lesson));
+            _calendarService.isUserInstructorForLesson(_lesson) ||
+            (_lesson.isMainLinkedLesson &&
+                _linkedLessons.any(
+                  (linkedLesson) =>
+                      linkedLesson.isLearningPoint &&
+                      _calendarService.isUserInstructorForLesson(linkedLesson),
+                )));
   }
 
   bool _canAssignOthers() {
